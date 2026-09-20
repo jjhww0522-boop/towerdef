@@ -2,6 +2,8 @@
 
 기록일: 2026-09-18 (Asia/Seoul)
 
+> **2026-09-19 업데이트:** 아래 초기 인계 내용의 ‘구현 없음’은 당시 기록이다. 현재 브라우저 게임·서버·자동 검증이 구현되었다. 최신 상태는 [반복 개발 결과](ITERATION_RESULTS.md), [화면 품질 기록](VISUAL_QUALITY.md), README를 먼저 확인한다.
+
 ## 1. 먼저 알아야 할 현재 상태
 
 - 저장소: <https://github.com/jjhww0522-boop/towerdef>

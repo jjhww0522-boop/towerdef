@@ -1,0 +1,74 @@
+{
+    "schemaVersion":  1,
+    "reviewedAt":  "2026-09-19",
+    "assets":  [
+                   {
+                       "id":  "characters-v1",
+                       "path":  "playtest/assets/characters-v1.png",
+                       "creator":  "OpenAI built-in image generation",
+                       "source":  "original generated artwork, 2026-09-19",
+                       "status":  "archived-superseded-by-casual-vectors",
+                       "notes":  "See docs/VISUAL_QUALITY.md; not imported franchise art, not asserted CC0."
+                   },
+                   {
+                       "id":  "characters-cutout-v1",
+                       "path":  "playtest/assets/characters-cutout-v1.png",
+                       "creator":  "OpenAI built-in image generation",
+                       "source":  "original generated artwork, 2026-09-19",
+                       "status":  "archived-superseded-by-casual-vectors",
+                       "notes":  "See docs/VISUAL_QUALITY.md; not imported franchise art, not asserted CC0."
+                   },
+                   {
+                       "id":  "battlefield-v1",
+                       "path":  "playtest/assets/battlefield-v1.png",
+                       "creator":  "OpenAI built-in image generation",
+                       "source":  "original generated artwork, 2026-09-19",
+                       "status":  "archived-superseded-by-casual-vectors",
+                       "notes":  "See docs/VISUAL_QUALITY.md; not imported franchise art, not asserted CC0."
+                   },
+                   {
+                       "id":  "enemies-walk-v1",
+                       "path":  "playtest/assets/enemies-walk-v1.png",
+                       "creator":  "OpenAI built-in image generation",
+                       "source":  "original generated artwork, 2026-09-20",
+                       "status":  "archived-superseded-by-casual-vectors",
+                       "notes":  "4-frame walks, 3 enemy types; see docs/VISUAL_QUALITY.md."
+                   },
+                   {
+                       "id":  "casual-vector-characters",
+                       "path":  "playtest/casual-art.js",
+                       "creator":  "Original SVG geometry authored in this repository",
+                       "source":  "Repository source code, 2026-09-21",
+                       "status":  "integrated-browser-playtest",
+                       "notes":  "Shared portrait/battlefield vectors and articulated poses; no external image pack."
+                   }
+               ],
+    "candidates":  [
+                       {
+                           "id":  "kenney-particle-pack",
+                           "creator":  "Kenney",
+                           "sourceUrl":  "https://kenney.nl/assets/particle-pack",
+                           "purpose":  "소환·피격 효과용 입자 이미지 검토",
+                           "licenseOnSourcePage":  "CC0",
+                           "status":  "researched-not-acquired"
+                       },
+                       {
+                           "id":  "kenney-ui-pack",
+                           "creator":  "Kenney",
+                           "sourceUrl":  "https://kenney.nl/assets/ui-pack",
+                           "purpose":  "임시 버튼·패널 이미지 검토",
+                           "licenseOnSourcePage":  "CC0",
+                           "status":  "researched-not-acquired"
+                       },
+                       {
+                           "id":  "pixel-frog-tiny-swords-current",
+                           "creator":  "Pixel Frog",
+                           "sourceUrl":  "https://pixelfrog-assets.itch.io/tiny-swords",
+                           "purpose":  "프레임 애니메이션 비교 후보. 정식 삼국지 캐릭터로 채택하지 않음",
+                           "licenseOnSourcePage":  "Custom: personal/commercial use and modification allowed; redistribution, resale and repackaging prohibited",
+                           "repositoryRedistribution":  "not-permitted-by-current-page-terms",
+                           "status":  "researched-not-acquired",
+                           "notes":  "현재 Free Pack과 유료 Enemy Pack, 별도 old version CC0 파일을 혼동하지 않는다."
+                       }
+                   ]
+}

@@ -1,0 +1,46 @@
+/* Small, readable game controls and contextual evolution. */
+:root{--bg:#eef3e7;--panel:#fffdf4;--panel-deep:#edf2e6;--line:#9ab4a3;--ink:#243e3d;--muted:#526c62;--gold:#ffcf67;--jade:#227c60;color-scheme:light;font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+body{background:#eef3e7;color:var(--ink)}
+.masthead{background:#315c56;border-bottom:3px solid #264842;color:#fff9df;box-shadow:none}
+.masthead .quiet,.masthead .icon-button{color:#fff9df}.practice-label{color:#e6f3de}
+.game-shell{max-width:1450px}.battle-title h1,.hero-copy h1,.dialog-heading h2,.result-dialog h2{font-family:inherit;font-weight:800}
+.battle-title h1 span,.battle-title .eyebrow,.connection-meta small{color:#526c62}
+.counters>div{background:#fffdf4;border:2px solid #a9bca7;border-bottom:4px solid #a9bca7;box-shadow:none}.counters span{color:#526c62}.counters strong{color:#294e45}.counters .gold{color:#8a5b08}
+.arena-panel,.story-panel,.team-panel,.command-panel{background:#fffdf4;border:2px solid #8da68c;border-radius:16px;box-shadow:0 3px 0 #ced9c6}
+.panel-heading{background:#dbeaca;border-bottom:2px solid #b5cba1;color:#294e45}.panel-heading h2,.panel-heading>span{color:#294e45}.section-number{background:#ffdb82;color:#554922;border:0;box-shadow:none}.chip{background:#e8f4dd;color:#36644d;border-color:#9eb990}
+.arena-footer{background:#fffdf4;color:#385c4c;border:0}.canvas-wrap{background:#c7e49b}
+.story-body h3,.team-card strong{color:#2c5146}.story-body p,.story-detail,.team-help,.team-card small{color:#526c62}
+.story-symbol{background:#ffe29a;color:#815921;border:0;box-shadow:none}.meter{background:#dde8d1}.meter span{background:#65b582}
+button{border-radius:11px}.primary{background:#ffd474;border:2px solid #bd8b39;border-bottom:4px solid #bd8b39;color:#493916;box-shadow:none}.primary:not(:disabled):hover{background:#ffe39c}
+.secondary{background:#e4f0d9;border:2px solid #95b58a;border-bottom:3px solid #95b58a;color:#315742;box-shadow:none}.text-button{color:#446c52}.icon-button{min-width:44px;min-height:44px}
+.team-card,.team-card.active{background:#e9f2df;border-color:#b3c99e;box-shadow:none}.team-badge{background:#a3c7a8;color:#254c3e}
+.guide{background:#fff4cf;border:1px solid #d5c590;box-shadow:none;color:#514b32}.guide strong{color:#514b32}.guide p{color:#68654d}.guide-step{color:#785e26}.guide .text-button{color:#735d2b}
+.command-toolbar{background:#e6efdc;border-bottom:1px solid #b6c7a4}.tabs button{color:#49684f;background:#d4e2c9;border:1px solid #a0b38d;box-shadow:none}.tabs button[aria-selected=true]{background:#ffdf91;color:#594822;border-color:#c7a552}.tabs span{background:#ffffff80;color:#395e43}
+.command-toolbar>.primary{background:#ffd474;color:#493916;border:2px solid #bd8b39;border-bottom:4px solid #bd8b39;box-shadow:none}.command-toolbar>.primary span{color:#6f5527}
+.unit-card,.unit-card[data-faction=wei],.unit-card[data-faction=wu]{background:#f0f5e9;border:2px solid #b2c7a6;border-bottom-width:3px;box-shadow:none}.unit-card[data-faction=wei]{background:#e9f0fb;border-color:#a3bbd4}.unit-card[data-faction=wu]{background:#fff0dc;border-color:#d9b78d}.unit-card strong{color:#304d46}.unit-card small{color:#526c62}.unit-card[aria-pressed=true]{outline:3px solid #e4b044;outline-offset:0}
+.unit-card>.unit-portrait,.recipe-portrait,.unit-detail-portrait{background-color:#fffdf4;background-repeat:no-repeat;background-position:center;background-size:contain;border:0;box-shadow:none;border-radius:12px}
+.recipe-card,.recipe-card.ready,.evolution-card{background:#f4f7ec;border:2px solid #c1cfb4;border-radius:13px;padding:13px}.recipe-card.ready,.evolution-card.ready{background:#eef7df;border-color:#79ac67}.recipe-head h3{color:#294e45}.recipe-head small{color:#5b7261}.pin-button{color:#647d4e;min-width:44px;min-height:44px}.pin-button[aria-pressed=true]{color:#956309;background:#ffe6a1}
+.material{background:#e5eadf;color:#65735a;font-size:12px}.material.enough{background:#cee8bd;color:#355d2d}.codex-instruction,.codex-intro{font-size:13px;color:#617453}.codex-intro{margin-bottom:12px}#codex-toggle{margin-bottom:14px;min-height:44px}.recipe-toolbar{color:#526c62}
+.upgrade-button,.upgrade-button.applies{background:#edf3e4;border:2px solid #acc49b;color:#355243;box-shadow:none}.upgrade-button.applies{border-color:#ba9546;background:#fff2c8}.upgrade-button small,.upgrade-button .level{color:#597449}.upgrade-explanation,.roster-heading{color:#526c62}
+.pinned-goal{background:#fff5d5;border:1px solid #cbb982;color:#554e32}.pinned-goal>span{color:#79622c}.game-footer,.game-footer .text-button{color:#466b52}.empty-roster{color:#5c775e;border-color:#b8c9a8}
+dialog{background:#fffdf4;color:#2c4d42;border:3px solid #789b80;box-shadow:0 14px 45px #172b3455}.dialog-heading h2,.result-dialog h2{color:#2c4d42}.dialog-heading .eyebrow{color:#587957}.setting-row,.setting-row small{color:#526c62}.dialog-heading .icon-button{color:#466b52}.result-dialog>p:not(.eyebrow){color:#536b60}.result-stats strong{color:#926b25}.result-stats span{color:#526c62}
+#feedback-form select,#feedback-form textarea{background:#f3f6eb;color:#2c4d42;border-color:#a4b899}.feedback-footer,#feedback-notice{color:#526c62}
+.unit-dialog{max-width:620px;width:calc(100% - 24px);max-height:85dvh;padding:20px;overscroll-behavior:contain}
+.unit-dialog .dialog-heading{gap:12px;margin-bottom:10px;align-items:center}.unit-dialog .dialog-heading>div{flex:1}.unit-dialog h2{font-size:25px}.unit-detail-portrait{display:block;flex:0 0 70px;height:78px}.unit-dialog .dialog-heading>button{align-self:flex-start}
+#unit-subtitle{font-size:12px;color:#60765e}.evolution-help{font-size:13px;color:#4c6855;margin:8px 0 13px}#evolution-panel{display:grid;gap:12px}.evolution-card .recipe-head h3{font-size:18px}.evolution-card .recipe-head small{font-size:12px}.evolution-card .recipe-portrait{width:57px;height:62px}
+.consumption{font-size:13px;font-weight:700;color:#3d5d45}.evolution-change{font-size:12px;color:#617553;margin:6px 0}.evolution-detail{margin:9px 0;color:#536c50;font-size:12px}.evolution-detail summary{cursor:pointer;min-height:34px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}.evolution-detail p{margin:6px 0}.evolution-detail small{font-size:11px;color:#697b5e}
+.evolve-button{width:100%;min-height:48px;font-size:16px;margin-top:5px}#queue-dispatch{width:100%;min-height:44px;margin-top:16px}.unit-dialog-note{font-size:11px;color:#71826a;margin-top:9px;text-align:center}.unit-dialog::backdrop{background:#193b3f55;backdrop-filter:blur(1px)}
+.hero-copy .eyebrow{color:#617749}.hero-description{color:#526c62}.principles h2{color:#365841}.principles p,.practice-options,.practice-options>span,.join-form small{color:#607257}.join-form label{color:#365841}.join-form input,.practice-options select{background:#fffdf4;color:#365841;border:1px solid #9bb08e}
+@media(max-width:800px){.command-toolbar{background:#e6efdc;border-top:2px solid #98ad88;box-shadow:0 -3px 12px #36584122}.arena-footer{font-size:11px}.roster-heading{align-items:flex-start}.tabs button{font-size:12px}.unit-card small{font-size:11px}}
+@media(max-width:600px){.unit-dialog{margin:auto 0 0;max-width:none;width:100%;max-height:73dvh;border-radius:21px 21px 0 0;padding:15px 16px calc(16px + env(safe-area-inset-bottom))}.unit-detail-portrait{flex-basis:57px;height:66px}.unit-dialog h2{font-size:22px}.unit-dialog .dialog-heading{position:sticky;top:-15px;background:#fffdf4;z-index:1;padding:5px 0}.evolution-help{font-size:12px}.evolution-card{padding:11px}.evolution-card .recipe-head small{font-size:11px}}
+
+/* Explicit contrasts over the earlier prototype's more specific selectors. */
+.arena-panel .panel-heading{background:#dbeaca;color:#294e45}
+.arena-panel .panel-heading h2,.arena-panel .panel-heading>span{color:#294e45;text-shadow:none}
+.battle-title h1,.hero-copy h1{text-shadow:none;-webkit-text-stroke:0}
+#connection-state.connected{color:#28744e}
+.arena-footer #next-wave{color:#506640}
+#army-panel,#recipes-panel,#upgrades-panel{background:#fffdf4;color:#355243}
+.roster-heading #selection-info{color:#526c62}
+.unit-dialog .dialog-heading>button.icon-button{background:#e4edda;color:#294e45;border:2px solid #96ac86;box-shadow:none}
+.evolve-button:disabled{opacity:1;background:#eee9d7;color:#77745e;border-color:#c8c3b0}

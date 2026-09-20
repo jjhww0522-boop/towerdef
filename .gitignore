@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+*.log
+client/[Ll]ibrary/
+client/[Tt]emp/
+client/[Oo]bj/
+client/[Ll]ogs/
+client/[Uu]ser[Ss]ettings/
+client/[Bb]uild*/
+.vs/
+*.csproj
+*.sln
+*.p12
+*.mobileprovision
+*.keystore
+artifacts/

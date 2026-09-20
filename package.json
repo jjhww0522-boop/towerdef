@@ -1,0 +1,27 @@
+{
+  "name": "towerdef",
+  "version": "0.1.0",
+  "private": true,
+  "description": "삼국지 협동 디펜스 개발 프로토타입",
+  "scripts": {
+    "validate:content": "node tools/validate-content.mjs",
+    "build": "npm run validate:content && tsc && node tools/build-nakama.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "dev": "npm run build && node tools/dev-server.mjs",
+    "check": "npm test",
+    "test:browser": "node tools/browser-smoke.mjs",
+    "test:quality": "node tools/browser-quality.mjs",
+    "test:network": "npm run build && node tools/network-playtest.mjs",
+    "simulate": "npm run build && node tools/simulate.mjs"
+  },
+  "devDependencies": {
+    "agent-browser": "0.38.1",
+    "esbuild": "0.25.12",
+    "nakama-runtime": "https://codeload.github.com/heroiclabs/nakama-common/tar.gz/c8c9cd07ce975bd4bfd4e7ddb3455ca4b6f61e9d",
+    "playwright": "1.63.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

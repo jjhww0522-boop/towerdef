@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101c21">
+  <title>삼국지운빨디펜스 · 연습 전장</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/casual-ui.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="/" aria-label="삼국지운빨디펜스 처음으로"><span class="seal" aria-hidden="true">三</span><span>삼국지운빨디펜스<small>THREE KINGDOMS · PLAYTEST</small></span></a>
+    <div class="header-actions"><span class="practice-label">연습 전장 · 영구 보상 없음</span><button id="feedback-btn" class="quiet">플레이 의견</button><button id="settings-btn" class="icon-button" aria-label="설정">⚙</button></div>
+  </header>
+
+  <main id="lobby" class="lobby">
+    <section class="hero-copy">
+      <p class="eyebrow"><span class="tiny-rule"></span> 운으로 모으고, 판단으로 완성하는</p>
+      <h1>오늘의 운이<br>내일의 <em>전설</em>이 된다.</h1>
+      <p class="hero-description">흩어진 병사를 모아 장수를 완성하세요.<br>내 전장을 지키며, 동료와 함께 스토리에 도전합니다.</p>
+      <div class="lobby-actions"><button id="quick-start" class="primary large">새 연습 시작 <span aria-hidden="true">↗</span></button><button id="resume-btn" class="secondary large" hidden>이전 전장으로</button></div>
+      <div class="practice-options"><label for="speed-select">진행 속도</label><select id="speed-select"><option value="1">기본 · 1배속</option><option value="3">빠른 연습 · 3배속</option><option value="6">흐름 확인 · 6배속</option></select><span>새 방을 만들 때 적용</span></div>
+      <form id="join-form" class="join-form"><label for="room-input">동료의 방에 함께하기</label><div><input id="room-input" name="room" placeholder="방 코드 입력" maxlength="32" pattern="[A-Za-z0-9_-]+" autocomplete="off" required><button class="secondary" type="submit">참가</button></div><small>최대 4명 · 빈자리는 봇으로 채우지 않습니다</small></form>
+      <p id="lobby-notice" class="lobby-notice" role="status">혼자 시작해도 같은 규칙으로 연습할 수 있습니다.</p>
+    </section>
+    <section class="hero-art" aria-label="삼국 전장의 장식 미리보기">
+      <div class="moon"></div><div class="mountain mountain-back"></div><div class="mountain"></div>
+      <div class="banner banner-shu"><span>蜀</span><small>촉</small></div><div class="banner banner-wei"><span>魏</span><small>위</small></div><div class="banner banner-wu"><span>吳</span><small>오</small></div>
+      <div class="hero-caption"><span>세 진영, 하나의 전장</span><strong>모든 장수는 재료에서 시작된다.</strong></div>
+      <div class="art-grain"></div>
+    </section>
+    <section class="principles" aria-label="플레이 방법"><article><span>01</span><div><h2>운을 만나다</h2><p>랜덤 소환으로 병사를 모으세요.</p></div></article><article><span>02</span><div><h2>장수를 완성하다</h2><p>재료를 모으면 조합은 확정입니다.</p></div></article><article><span>03</span><div><h2>함께 돌파하다</h2><p>방어와 지원 사이, 선택이 필요합니다.</p></div></article></section>
+  </main>
+
+  <main id="game" class="game-shell" hidden>
+    <section class="game-overview" aria-label="전투 현황">
+      <div class="battle-title"><p class="eyebrow">첫 번째 전장 · 연습</p><h1>초록 관문 <span id="room-label"></span></h1></div>
+      <div class="counters"><div><span>웨이브</span><strong id="wave-value">01 <small>/ 24</small></strong></div><div><span>보유 금화</span><strong id="gold-value" class="gold">0</strong></div><div><span>보유 병력</span><strong id="unit-value">0 <small>/ 30</small></strong></div></div>
+      <div class="connection-meta"><span id="connection-state" class="connected">● 연결됨</span><small id="speed-label">1배속</small><button id="leave-btn" class="text-button">방 나가기</button></div>
+    </section>
+
+    <div class="combat-grid">
+      <section class="arena-panel">
+        <div class="panel-heading"><div><span class="section-number">01</span><h2 id="lane-title">내 전장</h2><span id="lane-status" class="chip">방어 중</span></div><span id="enemy-count">적 0 / 70</span></div>
+        <div class="canvas-wrap"><canvas id="battlefield" width="1000" height="440" aria-label="내 전장의 전투 화면. 아래 병력 목록에서 유닛을 선택할 수 있습니다."></canvas><div id="field-hint" class="field-hint">아직 병력이 없습니다. 아래에서 첫 병사를 소환하세요.</div><div id="jackpot" class="jackpot" role="status" hidden></div></div>
+        <div class="arena-footer"><span id="battle-rule">적이 70마리 이상인 상태가 5초 유지되면 개인 패배</span><span id="next-wave">다음 웨이브 —</span></div>
+      </section>
+      <aside class="side-column">
+        <section class="story-panel"><div class="panel-heading"><div><span class="section-number">02</span><h2>공동 스토리</h2></div><span id="story-status" class="chip">준비 중</span></div><div class="story-body"><div class="story-symbol" aria-hidden="true">烽</div><div><h3 id="story-title">관문의 봉화</h3><p id="story-description">6 웨이브에 봉화가 오릅니다.</p></div></div><div id="story-health" class="meter"><span></span></div><p id="story-detail" class="story-detail">파견한 병력은 내 방어에서 빠집니다.<br>스토리가 끝나면 원래 자리로 돌아옵니다.</p><button id="dispatch-btn" class="secondary" disabled>병력을 선택해 파견 · 0/2</button></section>
+        <section class="team-panel"><div class="panel-heading"><div><span class="section-number">03</span><h2>함께하는 전장</h2></div><span id="team-count">1 / 4</span></div><div id="team-list" class="team-list"></div><p class="team-help">카드를 누르면 해당 전장을 관전합니다.</p></section>
+      </aside>
+    </div>
+
+    <section id="guide" class="guide"><span class="guide-step" id="guide-step">첫 걸음</span><div><strong id="guide-title">병사부터 모아볼까요?</strong><p id="guide-description">소환 버튼을 눌러 내 전장을 지킬 병사를 부르세요.</p></div><button id="skip-guide" class="text-button">안내 접기</button></section>
+
+    <section class="command-panel">
+      <div class="command-toolbar"><div class="tabs" role="tablist" aria-label="병력 관리"><button data-tab="army" role="tab" aria-selected="true">병력 <span id="army-count">0</span></button><button data-tab="recipes" role="tab" aria-selected="false">도감 <span id="ready-count">0</span></button><button data-tab="upgrades" role="tab" aria-selected="false">태그 강화</button></div><button id="summon-btn" class="primary" disabled>병사 소환 <span id="summon-cost">20 금화</span></button></div>
+      <div id="army-panel" class="tab-panel" role="tabpanel"><div class="roster-heading"><p id="selection-info">병력을 선택하면 태그를 확인하고 스토리에 파견할 수 있습니다.</p><button id="clear-selection" class="text-button">파견 대기 해제</button></div><div id="roster" class="roster"></div></div>
+      <div id="recipes-panel" class="tab-panel" role="tabpanel" hidden><p class="codex-intro">진화는 전장이나 병력 카드에서 유닛을 눌러 진행합니다.</p><button id="codex-toggle" class="secondary" aria-expanded="false" aria-controls="codex-content">전체 진화 도감 펼치기 / 접기</button><div id="codex-content" hidden><div class="recipe-toolbar"><p>재료를 소모해 원하는 장수를 확정으로 만듭니다.</p><label><input id="craftable-only" type="checkbox"> 지금 조합 가능</label></div><div id="recipe-list" class="recipe-list"></div></div></div>
+      <div id="upgrades-panel" class="tab-panel" role="tabpanel" hidden><p class="upgrade-explanation">같은 태그의 모든 병력이 함께 강해집니다. 선택 병력에 적용되는 강화는 빛으로 표시됩니다.</p><div id="upgrade-list" class="upgrade-list"></div></div>
+    </section>
+    <section id="pinned-goal" class="pinned-goal" hidden></section>
+    <footer class="game-footer"><span id="notice" role="status">연습 전장에 연결되었습니다.</span><button id="retry-action" class="text-button" hidden>같은 요청 재시도</button><button id="reconnect-btn" class="text-button" hidden>다시 연결</button><button id="new-game-btn" class="text-button">새 연습</button></footer>
+  </main>
+
+  <dialog id="unit-dialog" class="unit-dialog" aria-labelledby="unit-title">
+    <div class="dialog-heading"><span id="unit-portrait" class="unit-detail-portrait" aria-hidden="true"></span><div><p class="eyebrow">병력 진화</p><h2 id="unit-title"></h2><p id="unit-subtitle"></p></div><button data-close="unit-dialog" class="icon-button" aria-label="병력 상세 닫기">×</button></div>
+    <p class="evolution-help">진화할 장수를 고르세요. 표시된 재료 병력이 함께 소모됩니다.</p>
+    <div id="evolution-panel"></div>
+    <button id="queue-dispatch" class="secondary">이 병력을 파견 대기에 추가</button>
+    <p class="unit-dialog-note">전투는 계속 진행됩니다. 파견은 공동 스토리에서 실행하며, 수동 복귀 없이 임무 성공·종료 시 돌아옵니다.</p>
+  </dialog>
+
+  <dialog id="result-dialog" class="result-dialog"><div class="result-emblem" aria-hidden="true">印</div><p class="eyebrow">이번 전투의 기록</p><h2 id="result-title">전투 종료</h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><p class="muted">연습 결과입니다. 영구 해금과 정식 전적에는 반영되지 않습니다.</p><div class="dialog-actions"><button id="result-retry" class="primary">새 전장에 재도전</button><button id="spectate-btn" class="secondary">전장 둘러보기</button></div><button id="result-feedback" class="text-button">이번 플레이 의견 남기기</button></dialog>
+
+  <dialog id="settings-dialog"><div class="dialog-heading"><h2>전장 설정</h2><button data-close="settings-dialog" class="icon-button" aria-label="설정 닫기">×</button></div><label class="setting-row"><span>움직임 줄이기<small>대기 움직임과 섬광 연출을 줄입니다.</small></span><input id="reduced-motion" type="checkbox"></label><label class="setting-row"><span>효과음<small>이 기기에서만 재생하는 간단한 합성음입니다.</small></span><input id="sound-enabled" type="checkbox"></label><button id="restore-guide" class="secondary">플레이 안내 다시 보기</button><p class="muted">전투는 설정 화면을 열어도 계속 진행됩니다.</p></dialog>
+
+  <dialog id="feedback-dialog"><div class="dialog-heading"><div><p class="eyebrow">직접 플레이한 경험을 들려주세요</p><h2>플레이 의견</h2></div><button data-close="feedback-dialog" class="icon-button" aria-label="의견 창 닫기">×</button></div><p class="muted">작성한 내용은 이 브라우저에만 저장합니다. 외부로 전송하지 않으며 이름·방 코드·인증 정보는 기록하지 않습니다.</p><form id="feedback-form"><label>얼마나 재미있었나요?<select name="fun" required><option value="">선택하세요</option><option value="1">1 · 전혀 재미없음</option><option value="2">2 · 아쉬움</option><option value="3">3 · 보통</option><option value="4">4 · 재미있음</option><option value="5">5 · 매우 재미있음</option></select></label><label>조작과 규칙을 이해하기 쉬웠나요?<select name="clarity" required><option value="">선택하세요</option><option value="1">1 · 매우 어려움</option><option value="2">2 · 어려움</option><option value="3">3 · 보통</option><option value="4">4 · 쉬움</option><option value="5">5 · 매우 쉬움</option></select></label><label>한 판 더 해보고 싶나요?<select name="retry" required><option value="">선택하세요</option><option value="yes">네</option><option value="maybe">잘 모르겠어요</option><option value="no">아니요</option></select></label><label>기억에 남은 순간이나 불편한 점<textarea name="comment" maxlength="2000" rows="3" placeholder="선택 사항 · 개인 정보는 적지 마세요"></textarea></label><button type="submit" class="primary">이 브라우저에 의견 저장</button></form><div class="feedback-footer"><span id="feedback-count">저장된 의견 0개</span><button id="export-feedback" class="text-button">의견 JSON 내보내기</button></div><p id="feedback-notice" role="status"></p></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
