@@ -2,7 +2,7 @@
   "name": "towerdef",
   "version": "0.1.0",
   "private": true,
-  "description": "삼국지 협동 디펜스 개발 프로토타입",
+  "description": "폐품로봇 원정대 — 우주 고철 수거·조립 협동 디펜스 개발 프로토타입",
   "scripts": {
     "validate:content": "node tools/validate-content.mjs",
     "build": "npm run validate:content && tsc && node tools/build-nakama.mjs",
@@ -11,6 +11,10 @@
     "check": "npm test",
     "test:browser": "node tools/browser-smoke.mjs",
     "test:quality": "node tools/browser-quality.mjs",
+    "test:mobile": "node tools/mobile-layout.mjs",
+    "test:expedition": "node tools/expedition-browser-check.mjs",
+    "test:combat": "node tools/combat-feel-check.mjs",
+    "test:position": "node tools/position-combat-check.mjs",
     "test:network": "npm run build && node tools/network-playtest.mjs",
     "simulate": "npm run build && node tools/simulate.mjs"
   },

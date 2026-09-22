@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "reviewedAt":  "2026-09-19",
+    "reviewedAt":  "2026-09-21",
     "assets":  [
                    {
                        "id":  "characters-v1",
@@ -40,7 +40,7 @@
                        "creator":  "Original SVG geometry authored in this repository",
                        "source":  "Repository source code, 2026-09-21",
                        "status":  "integrated-browser-playtest",
-                       "notes":  "Shared portrait/battlefield vectors and articulated poses; no external image pack."
+                       "notes":  "Scrap Expedition: original bright scrap-robot SVG portraits and battlefield characters; Recycle/Orbital/Spark families, walker/turret/tread forms and articulated poses. Supersedes the previous Three Kingdoms visual theme; no external image pack."
                    }
                ],
     "candidates":  [
@@ -48,7 +48,7 @@
                            "id":  "kenney-particle-pack",
                            "creator":  "Kenney",
                            "sourceUrl":  "https://kenney.nl/assets/particle-pack",
-                           "purpose":  "소환·피격 효과용 입자 이미지 검토",
+                           "purpose":  "과거 수거·피격 효과용 입자 이미지 조사 후보. 현재 반입하지 않음",
                            "licenseOnSourcePage":  "CC0",
                            "status":  "researched-not-acquired"
                        },
@@ -64,7 +64,7 @@
                            "id":  "pixel-frog-tiny-swords-current",
                            "creator":  "Pixel Frog",
                            "sourceUrl":  "https://pixelfrog-assets.itch.io/tiny-swords",
-                           "purpose":  "프레임 애니메이션 비교 후보. 정식 삼국지 캐릭터로 채택하지 않음",
+                           "purpose":  "이전 삼국지 기획의 프레임 애니메이션 비교 후보. 현재 폐품로봇 아트로 채택하지 않음",
                            "licenseOnSourcePage":  "Custom: personal/commercial use and modification allowed; redistribution, resale and repackaging prohibited",
                            "repositoryRedistribution":  "not-permitted-by-current-page-terms",
                            "status":  "researched-not-acquired",

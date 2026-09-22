@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { createGame, applyAction, tick, content, getUnitAttack } from '../dist/server/core/index.js';
+import { unitPoint, enemyPoint, distanceSquared } from '../shared/battle-geometry.js';
 
 const { rules } = content;
 const definitions = new Map(content.units.map(unit => [unit.id, unit]));
@@ -20,7 +21,23 @@ function chooseIngredients(player, recipe) {
     chosen.push(available[index].id);
     available.splice(index, 1);
   }
+  // A player can pick which consumed robot keeps its position. Prefer the
+  // ingredient slot where the result covers more of the enemy's looping route.
+  const result = definitions.get(recipe.result);
+  chosen.sort((a, b) => coverage(result, b.slot) - coverage(result, a.slot) || a.id - b.id);
   return chosen;
+}
+
+const coverageCache = new Map();
+function coverage(definition, slot) {
+  const key = definition.id + ':' + slot;
+  if (!coverageCache.has(key)) {
+    const point = unitPoint(slot), radius = definition.attackRange ** 2;
+    let hits = 0;
+    for (let sample = 0; sample < 120; sample++) if (distanceSquared(point, enemyPoint(sample / 120)) <= radius) hits++;
+    coverageCache.set(key, hits / 120);
+  }
+  return coverageCache.get(key);
 }
 
 function act(game, player, action, counts) {
@@ -32,17 +49,24 @@ function act(game, player, action, counts) {
 // A fixed, intentionally simple policy. All progression uses validated gameplay actions.
 function policy(game, player, counts, strategy) {
   if (player.status !== 'active' || strategy === 'no-input') return;
+  const rules = game.rules;
   let recipe;
   if (strategy !== 'summon-only') do {
-    recipe = content.recipes.find(candidate => candidate.unlockBattlefield === 0 && chooseIngredients(player, candidate));
+    recipe = content.recipes.slice().reverse().find(candidate => (candidate.unlockBattlefield === 0 || player.unlockedRecipes.includes(candidate.id)) && chooseIngredients(player, candidate));
     if (recipe) act(game, player, { type: 'combine', recipeId: recipe.id, unitIds: chooseIngredients(player, recipe) }, counts);
   } while (recipe);
 
   if ((strategy === 'upgrade' || strategy === 'dispatch') && player.units.length >= 8 && game.tick % rules.waveTicks === 0) {
     const candidates = Object.keys(player.upgrades).filter(tag => player.upgrades[tag] < rules.maxUpgradeLevel);
-    candidates.sort((a, b) => tagValue(player, b) - tagValue(player, a));
+    candidates.sort((a, b) => tagValue(player, b, rules) - tagValue(player, a, rules));
     const tag = candidates[0];
     if (tag && player.gold >= rules.upgradeCosts[player.upgrades[tag]]) act(game, player, { type: 'upgrade', tag }, counts);
+  }
+  if ((strategy === 'upgrade' || strategy === 'dispatch') && player.units.length >= rules.maxUnits && player.gold >= rules.summonCost) {
+    const candidates = player.units.filter(unit => !unit.dispatched && definitions.get(unit.definitionId).rarity !== 'legend');
+    candidates.sort((a, b) => dps(player, a) - dps(player, b)
+      || player.units.filter(unit => unit.definitionId === b.definitionId).length - player.units.filter(unit => unit.definitionId === a.definitionId).length);
+    if (candidates.length) act(game, player, { type: 'salvage', unitIds: [candidates[0].id] }, counts);
   }
   while (player.gold >= rules.summonCost && player.units.length < rules.maxUnits) act(game, player, { type: 'summon' }, counts);
 
@@ -53,17 +77,21 @@ function policy(game, player, counts, strategy) {
   }
 }
 
-function dps(player, unit) { return getUnitAttack(player, unit) / definitions.get(unit.definitionId).attackIntervalTicks; }
-function tagValue(player, tag) {
+function dps(player, unit) {
+  const definition = definitions.get(unit.definitionId);
+  return getUnitAttack(player, unit) / definition.attackIntervalTicks * coverage(definition, unit.slot);
+}
+function tagValue(player, tag, rules) {
   return player.units.reduce((sum, unit) => {
     const d = definitions.get(unit.definitionId);
     return sum + ([d.faction, d.troop, d.trait].includes(tag) ? d.attack / d.attackIntervalTicks : 0);
   }, 0) / rules.upgradeCosts[player.upgrades[tag]];
 }
 
-export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true) {
-  const game = createGame({ playerIds: ids(seats), seed, practice: true });
-  const actions = { summon: 0, combine: 0, upgrade: 0, dispatch: 0 };
+export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true, options = {}) {
+  const game = createGame({ playerIds: ids(seats), seed, practice: true, ...options });
+  const rules = game.rules;
+  const actions = { summon: 0, combine: 0, upgrade: 0, dispatch: 0, salvage: 0 };
   const tickMs = [], snapshotBytes = [], stories = [];
   const start = performance.now();
   const maxTicks = rules.waveTicks * rules.totalWaves + rules.bossTicks + 1;
@@ -76,11 +104,15 @@ export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true
     if (game.story && game.story.status !== 'active' && !stories.some(story => story.wave === game.story.wave)) stories.push({ wave: game.story.wave, status: game.story.status });
   }
   if (game.status !== 'finished') throw new Error('Simulation failed to finish by the rules deadline');
-  return { kind: 'scripted-practice-match', seats, seed, strategy, status: game.status, ticks: game.tick,
+  return { kind: game.practice ? 'scripted-practice-match' : 'scripted-expedition-match', battlefieldId: game.battlefieldId, seats, seed, strategy, status: game.status, ticks: game.tick,
     simulatedSeconds: game.tick / rules.ticksPerSecond, wallMs: rounded(performance.now() - start),
     cleared: game.players.filter(p => p.status === 'cleared').length,
     defeated: game.players.filter(p => p.status === 'defeated').length,
-    players: game.players.map(p => ({ id: p.id, status: p.status, units: p.units.length, gold: p.gold, hasLegend: p.units.some(u => definitions.get(u.definitionId).rarity === 'legend') })),
+    players: game.players.map(p => ({ id: p.id, status: p.status, units: p.units.length, gold: p.gold,
+      hasLegend: p.units.some(u => definitions.get(u.definitionId).rarity === 'legend'),
+      hasLockedRecipeUnit: p.units.some(u => content.recipes.some(r => r.result === u.definitionId && r.unlockBattlefield > 0)),
+      remainingBossHp: p.enemies.find(enemy => enemy.boss)?.hp ?? 0,
+      result: p.result })),
     stories, successfulActions: actions, coreTickMs: measure ? summary(tickMs) : null, snapshotBytes: measure ? summary(snapshotBytes) : null };
 }
 

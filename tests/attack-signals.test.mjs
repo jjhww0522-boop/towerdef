@@ -6,6 +6,7 @@ import { publicState } from '../dist/server/protocol.js';
 const create = () => createGame({ playerIds: ['one', 'two'], seed: 9 });
 function summon(game, player) {
   assert.equal(applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' }).ok, true);
+  player.units[player.units.length - 1].slot = player.units.length - 1;
   return player.units[player.units.length - 1];
 }
 function enemy(game, hp) { return { id: game.nextEntityId++, hp, maxHp: hp, progress: 0, boss: false }; }
@@ -15,6 +16,7 @@ test('new and idle units have no attack signal, including after upgrade input', 
   const game = create(), p = game.players[0], unit = summon(game, p);
   assert.equal(unit.lastAttackTick, null);
   assert.equal(unit.lastTargetId, null);
+  assert.deepEqual(unit.lastAttackHits, []);
   for (let i = 0; i < 5; i++) tick(game);
   assert.equal(applyAction(game, p.id, { seq: p.lastSeq + 1, type: 'upgrade', tag: 'shu' }).ok, true);
   assert.equal(unit.lastAttackTick, null);
@@ -23,6 +25,7 @@ test('new and idle units have no attack signal, including after upgrade input', 
   const visible = publicState(game).players[0].units[0];
   assert.equal(visible.lastAttackTick, null);
   assert.equal(visible.lastTargetId, null);
+  assert.deepEqual(visible.lastAttackHits, []);
   assert.equal(visible.attackCooldownTicks, 0);
 });
 
@@ -53,7 +56,8 @@ test('real home attack records its target and tick, persists through cooldown, a
 
 test('story attack uses a wave-specific target and cannot emit phantom attacks after shared target dies', () => {
   const game = create(), p = game.players[0];
-  game.tick = 1249; tick(game);
+  const storyStart = (game.stories[0].wave - 1) * game.rules.waveTicks;
+  game.tick = storyStart - 1; tick(game);
   const first = summon(game, p), second = summon(game, p);
   assert.equal(applyAction(game, p.id, { seq: p.lastSeq + 1, type: 'dispatch', unitIds: [first.id, second.id] }).ok, true);
   assert.equal(first.lastAttackTick, null);
@@ -61,11 +65,13 @@ test('story attack uses a wave-specific target and cannot emit phantom attacks a
   game.story.hp = 1;
   tick(game);
   assert.equal(game.story.status, 'success');
-  assert.equal(first.lastAttackTick, 1251);
+  assert.equal(first.lastAttackTick, storyStart + 1);
   assert.equal(first.lastTargetId, 'story:6');
   assert.equal(first.dispatched, false);
   assert.equal(second.lastAttackTick, null);
   assert.equal(second.lastTargetId, null);
+  assert.deepEqual(first.lastAttackHits, [{ targetId: 'story:6', damage: 1, boss: true }]);
+  assert.deepEqual(second.lastAttackHits, []);
   const visible = publicState(game).players[0].units[0];
   assert.equal(visible.lastTargetId, 'story:6');
 });
@@ -89,5 +95,6 @@ test('a combined unit starts without inherited ingredient attack signals', () =>
   assert.equal(applyAction(game, p.id, { seq: 1, type: 'combine', recipeId: recipe.id, unitIds: ids }).ok, true);
   assert.equal(p.units[0].lastAttackTick, null);
   assert.equal(p.units[0].lastTargetId, null);
+  assert.deepEqual(p.units[0].lastAttackHits, []);
   assert.equal(p.units[0].attackCooldownTicks, 0);
 });

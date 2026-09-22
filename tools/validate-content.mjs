@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { SLOT_COUNT } from '../shared/battle-geometry.js';
 
 /** Return descriptive validation errors; an empty array means valid. Never mutate input. */
-export function validateContent(content) {
+function validateDefinition(content, validateStages = true) {
   const errors = [];
   const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
   const text = value => typeof value === 'string' && value.trim().length > 0;
@@ -10,7 +11,7 @@ export function validateContent(content) {
   const integer = value => Number.isSafeInteger(value) && value > 0;
   if (!object(content)) return ['content must be an object'];
   if (!text(content.version)) errors.push('version must be a nonempty string');
-  for (const section of ['units', 'recipes', 'stories']) {
+  for (const section of ['units', 'recipes', 'stories', ...(validateStages ? ['battlefields'] : [])]) {
     if (!Array.isArray(content[section]) || !content[section].length) errors.push(section + ' must be a nonempty array');
   }
   if (!object(content.rules)) errors.push('rules must be an object');
@@ -27,18 +28,33 @@ export function validateContent(content) {
     else units.set(unit.id, unit);
     if (!text(unit.name)) errors.push(label + ' needs name');
     if (!rarities.includes(unit.rarity)) errors.push(label + ' has invalid rarity');
+    if (unit.tier !== undefined && (unit.rarity !== 'legend' || !['legend', 'ultimate'].includes(unit.tier))) errors.push(label + ' has invalid tier');
     for (const tag of Object.keys(allowed)) if (!allowed[tag].includes(unit[tag])) errors.push(label + ' has invalid ' + tag);
     if (!positive(unit.attack)) errors.push(label + '.attack must be positive and finite');
+    if (!positive(unit.attackRange)) errors.push(label + '.attackRange must be positive and finite');
+    if (!['fire', 'wind', 'frost', 'laser', 'electric'].includes(unit.element)) errors.push(label + ' has invalid element');
     if (!integer(unit.attackIntervalTicks)) errors.push(label + '.attackIntervalTicks must be a positive integer');
+    if (unit.attackPattern !== undefined && !['bolt', 'blast', 'arc'].includes(unit.attackPattern)) errors.push(label + '.attackPattern must be bolt, blast or arc');
   }
 
   const rules = content.rules;
-  for (const field of ['ticksPerSecond', 'waveTicks', 'totalWaves', 'bossTicks', 'spawnIntervalTicks', 'overcrowdCount', 'overcrowdTicks', 'disconnectGraceTicks', 'startingGold', 'summonCost', 'killGold', 'waveGold', 'maxUnits', 'maxDispatch', 'maxUpgradeLevel']) {
+  if (rules.maxUnits > SLOT_COUNT) errors.push('rules.maxUnits exceeds battlefield slots');
+  if (!integer(rules.frostSlowTicks)) errors.push('rules.frostSlowTicks must be a positive integer');
+  for (const field of ['frostSlowMultiplier', 'bossSlowMultiplier']) {
+    if (!positive(rules[field]) || rules[field] >= 1) errors.push('rules.' + field + ' must be above zero and below one');
+  }
+  if (rules.bossSlowMultiplier < rules.frostSlowMultiplier) errors.push('boss slow must not be stronger than normal slow');
+  for (const field of ['ticksPerSecond', 'waveTicks', 'totalWaves', 'bossTicks', 'spawnIntervalTicks', 'spawnRampEveryWaves', 'minSpawnIntervalTicks', 'overcrowdCount', 'overcrowdTicks', 'disconnectGraceTicks', 'startingGold', 'summonCost', 'killGold', 'waveGold', 'maxUnits', 'maxDispatch', 'maxUpgradeLevel']) {
     if (!integer(rules[field])) errors.push('rules.' + field + ' must be a positive integer');
   }
   for (const field of ['bossHp', 'enemyBaseHp', 'enemyHpPerWave', 'enemyProgressPerTick', 'upgradeBonus']) {
     if (!positive(rules[field])) errors.push('rules.' + field + ' must be positive and finite');
   }
+  for (const field of ['enemyHpAcceleration', 'waveGoldGrowth']) {
+    if (typeof rules[field] !== 'number' || !Number.isFinite(rules[field]) || rules[field] < 0) errors.push('rules.' + field + ' must be finite and nonnegative');
+  }
+  if (!positive(rules.salvageRefundRatio) || rules.salvageRefundRatio >= 1) errors.push('rules.salvageRefundRatio must be above zero and below one');
+  if (rules.minSpawnIntervalTicks > rules.spawnIntervalTicks) errors.push('rules.minSpawnIntervalTicks exceeds spawnIntervalTicks');
   if (rules.maxDispatch > rules.maxUnits) errors.push('rules.maxDispatch exceeds maxUnits');
   if (!Array.isArray(rules.upgradeCosts) || rules.upgradeCosts.length !== rules.maxUpgradeLevel || rules.upgradeCosts.some(cost => !integer(cost))) {
     errors.push('rules.upgradeCosts must contain one positive integer cost per maxUpgradeLevel');
@@ -64,7 +80,9 @@ export function validateContent(content) {
     if (!Number.isSafeInteger(recipe.unlockBattlefield) || recipe.unlockBattlefield < 0 || recipe.unlockBattlefield > 3) errors.push(label + ' invalid unlockBattlefield (expected 0..3)');
     if (result) {
       if (result.rarity === 'basic') errors.push(label + ' recipe result cannot be basic');
-      if ((result.rarity === 'legend') !== (recipe.unlockBattlefield > 0)) errors.push(label + ' legends require unlocks; other recipes must be initially available');
+      if (result.rarity !== 'legend' && recipe.unlockBattlefield > 0) errors.push(label + ' only legends can require unlocks; other recipes must be initially available');
+      if (recipe.unlockBattlefield > 0 && !integer(recipe.researchCost)) errors.push(label + ' locked recipe requires a positive researchCost');
+      if (recipe.unlockBattlefield === 0 && recipe.researchCost !== undefined) errors.push(label + ' initially available recipe cannot have a research unlock cost');
       if (resultRecipes.has(recipe.result)) errors.push('duplicate recipe result: ' + recipe.result);
       resultRecipes.set(recipe.result, recipe);
     }
@@ -115,8 +133,24 @@ export function validateContent(content) {
     const nextWave = stories[i + 1]?.wave ?? rules.totalWaves + 1;
     if (story.durationTicks > (nextWave - story.wave) * rules.waveTicks) errors.push(label + '.durationTicks overlaps the next story or boss');
   }
+  if (validateStages) {
+    const stageIds = new Set();
+    for (const stage of content.battlefields) {
+      if (!object(stage)) { errors.push('battlefield must be an object'); continue; }
+      const label = 'battlefield ' + stage.id + ': ';
+      if (!integer(stage.id) || stage.id > 3 || stageIds.has(stage.id)) errors.push(label + 'expected unique id 1..3');
+      stageIds.add(stage.id);
+      if (!text(stage.name) || !text(stage.description)) errors.push(label + 'name and description required');
+      if (!object(stage.rules)) { errors.push(label + 'rules overrides required'); continue; }
+      for (const key of Object.keys(stage.rules)) if (!(key in content.rules)) errors.push(label + 'unknown rule ' + key);
+      errors.push(...validateDefinition({ ...content, rules: { ...rules, ...stage.rules }, stories: stage.stories }, false).map(error => label + error));
+    }
+    if (![1, 2, 3].every(id => stageIds.has(id))) errors.push('battlefields must define stages 1, 2 and 3');
+  }
   return [...new Set(errors)];
 }
+
+export function validateContent(content) { return validateDefinition(content); }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const content = JSON.parse(readFileSync(new URL('../shared/content.json', import.meta.url), 'utf8'));

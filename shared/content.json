@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0-practice",
+  "version": "0.6.0-position-combat",
   "rules": {
     "ticksPerSecond": 10,
     "waveTicks": 250,
@@ -9,7 +9,11 @@
     "spawnIntervalTicks": 10,
     "enemyBaseHp": 24,
     "enemyHpPerWave": 50,
+    "enemyHpAcceleration": 0,
     "enemyProgressPerTick": 0.003,
+    "frostSlowMultiplier": 0.65,
+    "bossSlowMultiplier": 0.85,
+    "frostSlowTicks": 20,
     "overcrowdCount": 70,
     "overcrowdTicks": 50,
     "disconnectGraceTicks": 1200,
@@ -17,6 +21,10 @@
     "summonCost": 20,
     "killGold": 2,
     "waveGold": 60,
+    "waveGoldGrowth": 0,
+    "spawnRampEveryWaves": 24,
+    "minSpawnIntervalTicks": 10,
+    "salvageRefundRatio": 0.35,
     "maxUnits": 30,
     "maxDispatch": 2,
     "maxUpgradeLevel": 5,
@@ -25,39 +33,76 @@
     "summonWeights": [9300, 680, 20],
     "summonRarities": ["basic", "elite", "hero"]
   },
+  "battlefields": [
+    {
+      "id": 1,
+      "name": "고물 궤도",
+      "description": "작은 폐기 위성에서 첫 채굴을 배우고 구조선으로 철수하세요.",
+      "rules": {"waveTicks":180,"totalWaves":24,"bossTicks":600,"bossHp":65000,"enemyHpPerWave":18,"spawnIntervalTicks":12,"spawnRampEveryWaves":12,"waveGold":60},
+      "stories": [
+        {"wave":6,"name":"조난 신호 구조","hp":2500,"durationTicks":450,"rewardGold":100},
+        {"wave":12,"name":"중앙 전력 복구","hp":6000,"durationTicks":450,"rewardGold":150},
+        {"wave":18,"name":"탈출 항로 확보","hp":12000,"durationTicks":450,"rewardGold":200}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "코발트 사구",
+      "description": "깊어지는 광맥을 따라 전력을 키우고 장기 채굴 뒤 탈출로를 여세요.",
+      "rules": {"waveTicks":250,"totalWaves":64,"bossTicks":900,"bossHp":450000,"enemyHpPerWave":40,"enemyHpAcceleration":0.6,"spawnIntervalTicks":12,"spawnRampEveryWaves":16,"minSpawnIntervalTicks":8,"waveGold":50,"waveGoldGrowth":2},
+      "stories": [
+        {"wave":16,"name":"조난 신호 구조","hp":15000,"durationTicks":450,"rewardGold":150},
+        {"wave":32,"name":"중앙 전력 복구","hp":45000,"durationTicks":450,"rewardGold":250},
+        {"wave":48,"name":"탈출 항로 확보","hp":90000,"durationTicks":450,"rewardGold":350}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "성운 심층부",
+      "description": "거친 심층 채굴을 견디며 상위 설계를 완성하고 마지막 봉쇄를 돌파하세요.",
+      "rules": {"waveTicks":260,"totalWaves":66,"bossTicks":900,"bossHp":500000,"enemyHpPerWave":55,"enemyHpAcceleration":1.1,"spawnIntervalTicks":12,"spawnRampEveryWaves":13,"minSpawnIntervalTicks":8,"waveGold":60,"waveGoldGrowth":2},
+      "stories": [
+        {"wave":17,"name":"조난 신호 구조","hp":20000,"durationTicks":450,"rewardGold":200},
+        {"wave":34,"name":"중앙 전력 복구","hp":70000,"durationTicks":450,"rewardGold":300},
+        {"wave":51,"name":"탈출 항로 확보","hp":140000,"durationTicks":450,"rewardGold":400}
+      ]
+    }
+  ],
   "stories": [
-    {"wave":6,"name":"관문의 봉화","hp":4000,"durationTicks":450,"rewardGold":100},
-    {"wave":12,"name":"강가의 화공 준비","hp":8000,"durationTicks":450,"rewardGold":150},
-    {"wave":18,"name":"끊어진 보급로","hp":12000,"durationTicks":450,"rewardGold":200}
+    {"wave":6,"name":"조난 신호 구조","hp":4000,"durationTicks":450,"rewardGold":100},
+    {"wave":12,"name":"중앙 전력 복구","hp":8000,"durationTicks":450,"rewardGold":150},
+    {"wave":18,"name":"탈출 항로 확보","hp":12000,"durationTicks":450,"rewardGold":200}
   ],
   "units": [
-    {"id":"shu_guard","name":"촉 창병","rarity":"basic","faction":"shu","troop":"infantry","trait":"might","attack":10,"attackIntervalTicks":10},
-    {"id":"shu_archer","name":"촉 궁수","rarity":"basic","faction":"shu","troop":"archer","trait":"strategy","attack":8,"attackIntervalTicks":8},
-    {"id":"shu_rider","name":"촉 기수","rarity":"basic","faction":"shu","troop":"cavalry","trait":"command","attack":12,"attackIntervalTicks":12},
-    {"id":"wei_guard","name":"위 방패병","rarity":"basic","faction":"wei","troop":"infantry","trait":"command","attack":10,"attackIntervalTicks":10},
-    {"id":"wei_archer","name":"위 쇠뇌수","rarity":"basic","faction":"wei","troop":"archer","trait":"strategy","attack":8,"attackIntervalTicks":8},
-    {"id":"wei_rider","name":"위 돌격병","rarity":"basic","faction":"wei","troop":"cavalry","trait":"might","attack":12,"attackIntervalTicks":12},
-    {"id":"wu_guard","name":"오 도병","rarity":"basic","faction":"wu","troop":"infantry","trait":"strategy","attack":10,"attackIntervalTicks":10},
-    {"id":"wu_archer","name":"오 활잡이","rarity":"basic","faction":"wu","troop":"archer","trait":"might","attack":8,"attackIntervalTicks":8},
-    {"id":"wu_rider","name":"오 척후병","rarity":"basic","faction":"wu","troop":"cavalry","trait":"command","attack":12,"attackIntervalTicks":12},
-    {"id":"guan_ping","name":"관평","rarity":"elite","faction":"shu","troop":"infantry","trait":"might","attack":34,"attackIntervalTicks":10},
-    {"id":"ma_liang","name":"마량","rarity":"elite","faction":"shu","troop":"archer","trait":"strategy","attack":28,"attackIntervalTicks":8},
-    {"id":"zhou_cang","name":"주창","rarity":"elite","faction":"shu","troop":"cavalry","trait":"command","attack":40,"attackIntervalTicks":12},
-    {"id":"cao_hong","name":"조홍","rarity":"elite","faction":"wei","troop":"infantry","trait":"command","attack":34,"attackIntervalTicks":10},
-    {"id":"cheng_yu","name":"정욱","rarity":"elite","faction":"wei","troop":"archer","trait":"strategy","attack":28,"attackIntervalTicks":8},
-    {"id":"cao_ren","name":"조인","rarity":"elite","faction":"wei","troop":"cavalry","trait":"might","attack":40,"attackIntervalTicks":12},
-    {"id":"lu_su","name":"노숙","rarity":"elite","faction":"wu","troop":"infantry","trait":"strategy","attack":34,"attackIntervalTicks":10},
-    {"id":"han_dang","name":"한당","rarity":"elite","faction":"wu","troop":"archer","trait":"might","attack":28,"attackIntervalTicks":8},
-    {"id":"cheng_pu","name":"정보","rarity":"elite","faction":"wu","troop":"cavalry","trait":"command","attack":40,"attackIntervalTicks":12},
-    {"id":"zhang_fei","name":"장비","rarity":"hero","faction":"shu","troop":"infantry","trait":"might","attack":120,"attackIntervalTicks":10},
-    {"id":"zhuge_liang","name":"제갈량","rarity":"hero","faction":"shu","troop":"archer","trait":"strategy","attack":96,"attackIntervalTicks":8},
-    {"id":"xiahou_dun","name":"하후돈","rarity":"hero","faction":"wei","troop":"cavalry","trait":"might","attack":144,"attackIntervalTicks":12},
-    {"id":"sima_yi","name":"사마의","rarity":"hero","faction":"wei","troop":"archer","trait":"strategy","attack":96,"attackIntervalTicks":8},
-    {"id":"gan_ning","name":"감녕","rarity":"hero","faction":"wu","troop":"infantry","trait":"might","attack":120,"attackIntervalTicks":10},
-    {"id":"zhou_yu","name":"주유","rarity":"hero","faction":"wu","troop":"archer","trait":"strategy","attack":96,"attackIntervalTicks":8},
-    {"id":"liu_bei","name":"유비","rarity":"legend","faction":"shu","troop":"cavalry","trait":"command","attack":540,"attackIntervalTicks":12},
-    {"id":"cao_cao","name":"조조","rarity":"legend","faction":"wei","troop":"infantry","trait":"command","attack":450,"attackIntervalTicks":10},
-    {"id":"sun_quan","name":"손권","rarity":"legend","faction":"wu","troop":"archer","trait":"command","attack":360,"attackIntervalTicks":8}
+    {"id":"shu_guard","name":"볼트봇","rarity":"basic","faction":"shu","troop":"infantry","trait":"might","attack":18,"attackIntervalTicks":10,"element":"fire","attackRange":160,"attackPattern":"bolt"},
+    {"id":"shu_archer","name":"캔포봇","rarity":"basic","faction":"shu","troop":"archer","trait":"strategy","attack":8,"attackIntervalTicks":8,"element":"wind","attackRange":250,"attackPattern":"blast"},
+    {"id":"shu_rider","name":"롤러봇","rarity":"basic","faction":"shu","troop":"cavalry","trait":"command","attack":12,"attackIntervalTicks":12,"element":"wind","attackRange":250,"attackPattern":"blast"},
+    {"id":"wei_guard","name":"패널봇","rarity":"basic","faction":"wei","troop":"infantry","trait":"command","attack":10,"attackIntervalTicks":10,"element":"frost","attackRange":250,"attackPattern":"bolt"},
+    {"id":"wei_archer","name":"렌즈봇","rarity":"basic","faction":"wei","troop":"archer","trait":"strategy","attack":8,"attackIntervalTicks":8,"element":"laser","attackRange":520,"attackPattern":"bolt"},
+    {"id":"wei_rider","name":"궤도봇","rarity":"basic","faction":"wei","troop":"cavalry","trait":"might","attack":12,"attackIntervalTicks":12,"element":"wind","attackRange":250,"attackPattern":"blast"},
+    {"id":"wu_guard","name":"코일봇","rarity":"basic","faction":"wu","troop":"infantry","trait":"strategy","attack":10,"attackIntervalTicks":10,"element":"electric","attackRange":300},
+    {"id":"wu_archer","name":"점화봇","rarity":"basic","faction":"wu","troop":"archer","trait":"might","attack":14,"attackIntervalTicks":8,"element":"fire","attackRange":160,"attackPattern":"bolt"},
+    {"id":"wu_rider","name":"전지봇","rarity":"basic","faction":"wu","troop":"cavalry","trait":"command","attack":12,"attackIntervalTicks":12,"element":"frost","attackRange":250,"attackPattern":"bolt"},
+    {"id":"guan_ping","name":"볼트가드","rarity":"elite","faction":"shu","troop":"infantry","trait":"might","attack":61,"attackIntervalTicks":10,"attackPattern":"bolt","element":"fire","attackRange":160},
+    {"id":"ma_liang","name":"캔스캐너","rarity":"elite","faction":"shu","troop":"archer","trait":"strategy","attack":28,"attackIntervalTicks":8,"attackPattern":"bolt","element":"frost","attackRange":250},
+    {"id":"zhou_cang","name":"수거대장","rarity":"elite","faction":"shu","troop":"cavalry","trait":"command","attack":40,"attackIntervalTicks":12,"attackPattern":"blast","element":"wind","attackRange":250},
+    {"id":"cao_hong","name":"패널키퍼","rarity":"elite","faction":"wei","troop":"infantry","trait":"command","attack":34,"attackIntervalTicks":10,"attackPattern":"arc","element":"electric","attackRange":300},
+    {"id":"cheng_yu","name":"렌즈아이","rarity":"elite","faction":"wei","troop":"archer","trait":"strategy","attack":28,"attackIntervalTicks":8,"attackPattern":"bolt","element":"laser","attackRange":520},
+    {"id":"cao_ren","name":"궤도램","rarity":"elite","faction":"wei","troop":"cavalry","trait":"might","attack":40,"attackIntervalTicks":12,"attackPattern":"blast","element":"wind","attackRange":250},
+    {"id":"lu_su","name":"코일메이커","rarity":"elite","faction":"wu","troop":"infantry","trait":"strategy","attack":34,"attackIntervalTicks":10,"attackPattern":"arc","element":"electric","attackRange":300},
+    {"id":"han_dang","name":"스파크포","rarity":"elite","faction":"wu","troop":"archer","trait":"might","attack":28,"attackIntervalTicks":8,"attackPattern":"blast","element":"wind","attackRange":250},
+    {"id":"cheng_pu","name":"충전대장","rarity":"elite","faction":"wu","troop":"cavalry","trait":"command","attack":40,"attackIntervalTicks":12,"attackPattern":"arc","element":"electric","attackRange":300},
+    {"id":"zhang_fei","name":"볼트타이탄","rarity":"hero","faction":"shu","troop":"infantry","trait":"might","attack":216,"attackIntervalTicks":10,"attackPattern":"bolt","element":"fire","attackRange":160},
+    {"id":"zhuge_liang","name":"고철박사","rarity":"hero","faction":"shu","troop":"archer","trait":"strategy","attack":96,"attackIntervalTicks":8,"attackPattern":"arc","element":"electric","attackRange":300},
+    {"id":"xiahou_dun","name":"궤도브레이커","rarity":"hero","faction":"wei","troop":"cavalry","trait":"might","attack":144,"attackIntervalTicks":12,"attackPattern":"blast","element":"wind","attackRange":250},
+    {"id":"sima_yi","name":"오비탈옵저버","rarity":"hero","faction":"wei","troop":"archer","trait":"strategy","attack":96,"attackIntervalTicks":8,"attackPattern":"bolt","element":"laser","attackRange":520},
+    {"id":"gan_ning","name":"스파크펀처","rarity":"hero","faction":"wu","troop":"infantry","trait":"might","attack":120,"attackIntervalTicks":10,"attackPattern":"blast","element":"wind","attackRange":250},
+    {"id":"zhou_yu","name":"플라즈마캐스터","rarity":"hero","faction":"wu","troop":"archer","trait":"strategy","attack":96,"attackIntervalTicks":8,"attackPattern":"arc","element":"electric","attackRange":300},
+    {"id":"liu_bei","name":"아크캐리어","rarity":"legend","faction":"shu","troop":"cavalry","trait":"command","attack":540,"attackIntervalTicks":12,"attackPattern":"arc","element":"electric","attackRange":300},
+    {"id":"cao_cao","name":"오비탈마더","rarity":"legend","faction":"wei","troop":"infantry","trait":"command","attack":450,"attackIntervalTicks":10,"attackPattern":"blast","element":"wind","attackRange":250},
+    {"id":"sun_quan","name":"스타라이트코어","rarity":"legend","faction":"wu","troop":"archer","trait":"command","attack":360,"attackIntervalTicks":8,"attackPattern":"bolt","element":"laser","attackRange":520},
+    {"id":"salvage_colossus","name":"고철거신","rarity":"legend","tier":"legend","faction":"shu","troop":"infantry","trait":"might","attack":600,"attackIntervalTicks":10,"attackPattern":"blast","element":"wind","attackRange":250},
+    {"id":"orbital_ark","name":"성운방주","rarity":"legend","tier":"ultimate","faction":"wei","troop":"cavalry","trait":"command","attack":1800,"attackIntervalTicks":10,"attackPattern":"arc","element":"electric","attackRange":300}
   ],
   "recipes": [
     {"id":"make_guan_ping","result":"guan_ping","ingredients":["shu_guard","shu_rider"],"unlockBattlefield":0},
@@ -75,8 +120,10 @@
     {"id":"make_sima_yi","result":"sima_yi","ingredients":["cheng_yu","ma_liang"],"unlockBattlefield":0},
     {"id":"make_gan_ning","result":"gan_ning","ingredients":["han_dang","cheng_pu"],"unlockBattlefield":0},
     {"id":"make_zhou_yu","result":"zhou_yu","ingredients":["lu_su","cheng_yu"],"unlockBattlefield":0},
-    {"id":"make_liu_bei","result":"liu_bei","ingredients":["zhang_fei","zhuge_liang","gan_ning"],"unlockBattlefield":1},
-    {"id":"make_cao_cao","result":"cao_cao","ingredients":["xiahou_dun","sima_yi","zhang_fei"],"unlockBattlefield":2},
-    {"id":"make_sun_quan","result":"sun_quan","ingredients":["gan_ning","zhou_yu","sima_yi"],"unlockBattlefield":3}
+    {"id":"make_liu_bei","result":"liu_bei","ingredients":["zhang_fei","zhuge_liang","gan_ning"],"unlockBattlefield":1,"researchCost":60},
+    {"id":"make_cao_cao","result":"cao_cao","ingredients":["xiahou_dun","sima_yi","zhang_fei"],"unlockBattlefield":2,"researchCost":100},
+    {"id":"make_sun_quan","result":"sun_quan","ingredients":["gan_ning","zhou_yu","sima_yi"],"unlockBattlefield":3,"researchCost":160},
+    {"id":"make_salvage_colossus","result":"salvage_colossus","ingredients":["zhang_fei","zhuge_liang","zhou_yu"],"unlockBattlefield":0},
+    {"id":"make_orbital_ark","result":"orbital_ark","ingredients":["liu_bei","cao_cao","sun_quan"],"unlockBattlefield":3,"researchCost":240}
   ]
 }

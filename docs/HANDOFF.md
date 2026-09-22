@@ -32,7 +32,7 @@
 | 개발 PC | Windows, PowerShell |
 | 당시 작업 경로 | `C:\Users\EKR\orca\projects\towerdef` |
 | 첫 테스트 플랫폼 | 사용자가 아이폰 우선으로 선택 |
-| Mac 접근 | 질문했지만 아직 답변 없음 |
+| Mac 접근 | 후속 사용자 응답에서 Mac mini 보유 확인. 사양·OS·설치 상태는 미확인 |
 | Unity | PATH 및 기본 설치 경로에서 확인되지 않음. 다른 위치 설치 여부는 미확인 |
 | Node/npm/Git | 제작팀의 읽기 전용 조사에서 CLI 존재 확인 |
 | Docker | CLI 존재, 조사 당시 Linux 엔진은 실행되지 않음 |
@@ -148,7 +148,7 @@ Nakama의 TypeScript 코드는 해당 런타임 제약에 맞춰 빌드한다. N
 
 Windows에서도 Unity 프로젝트와 서버 개발은 가능하다. 로컬 iOS 최종 빌드는 macOS의 Xcode가 필요하며, Mac을 사용할 수 없다면 Unity Build Automation을 기본 후보로 검토한다.
 
-- Mac 사용 가능 여부는 아직 미확인이다. 클라우드 경로는 장비 보유 사실을 대신하는 가정일 뿐, 구매·가입 완료 상태가 아니다.
+- 후속 응답에서 Mac mini 보유가 확인됐다. 해당 장비의 사양·OS·개발 도구를 확인해 로컬 빌드 준비를 검토한다. 클라우드는 필요할 때의 대안이며 구매·가입 완료 상태가 아니다.
 - Xcode의 개인 기기 테스트와 TestFlight·App Store 배포는 계정 조건이 다르다.
 - TestFlight와 App Store를 위해 Apple Developer Program, 서명 인증서·프로비저닝, App Store Connect 설정이 필요하다.
 - Apple 개발자 계정의 현재 안내 가격은 연 99 USD 또는 지역 통화 금액이다. 진행 시 최신 조건을 다시 확인한다.

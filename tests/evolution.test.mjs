@@ -33,11 +33,17 @@ test('only paths using the focused definition are shown, including missing branc
   assert.ok(options.every(o => !o.materials.ready));
   assert.deepEqual(evolutionOptions(content, player, 999), []);
 });
-test('displayed theoretical damage uses the authoritative three-tag bonus', () => {
-  const game = core.createGame({ playerIds: ['p'], seed: 1 });
-  const player = game.players[0]; player.upgrades.shu = 3; player.upgrades.archer = 2;
+test('displayed primary damage agrees with a real server attack for every robot and its upgrades', () => {
   for (const definition of content.units) {
-    const expected = core.getUnitAttack(player, unit(1, definition.id)) * content.rules.ticksPerSecond / definition.attackIntervalTicks;
-    assert.equal(theoreticalDps(definition, player, content.rules), expected);
+    const game = core.createGame({ playerIds: ['p'], seed: 1 });
+    const player = game.players[0]; player.upgrades.shu = 3; player.upgrades.archer = 2;
+    core.applyAction(game, player.id, { seq: 1, type: 'summon' });
+    player.units[0].definitionId = definition.id;
+    player.units[0].slot = 0;
+    player.enemies.push({ id: game.nextEntityId++, progress: 0, hp: 10000, maxHp: 10000, boss: true });
+    core.tick(game);
+    const applied = 10000 - player.enemies[0].hp;
+    const expected = applied * game.rules.ticksPerSecond / definition.attackIntervalTicks;
+    assert.ok(Math.abs(theoreticalDps(definition, player, game.rules) - expected) < 1e-8, definition.id);
   }
 });

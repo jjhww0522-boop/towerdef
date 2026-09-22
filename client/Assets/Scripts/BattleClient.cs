@@ -13,7 +13,7 @@ namespace TowerDef
         readonly Dictionary<int, UnitView> units = new Dictionary<int, UnitView>();
         readonly List<Popup> popups = new List<Popup>();
         readonly string[] tags = { "shu", "wei", "wu", "infantry", "archer", "cavalry", "might", "strategy", "command" };
-        string watchedId, tab = "소환";
+        string watchedId, tab = "로봇 뽑기";
         Vector2 scroll;
         Texture2D circle;
         Font font;
@@ -27,7 +27,7 @@ namespace TowerDef
         static void Bootstrap()
         {
             if (FindFirstObjectByType<BattleClient>() == null)
-                new GameObject("삼국지운빨디펜스 클라이언트").AddComponent<BattleClient>();
+                new GameObject("폐품로봇 원정대 클라이언트").AddComponent<BattleClient>();
         }
 
         void Awake()
@@ -135,7 +135,7 @@ namespace TowerDef
             float scale = Mathf.Min(safe.width / 1280, safe.height / 720);
             GUI.matrix = Matrix4x4.TRS(new Vector3(safe.x + (safe.width - 1280 * scale) / 2, Screen.height - safe.yMax + (safe.height - 720 * scale) / 2, 0), Quaternion.identity, Vector3.one * scale);
             Fill(new Rect(0, 0, 1280, 720), new Color(.035f, .055f, .075f));
-            Label(new Rect(26, 17, 680, 40), "삼국지운빨디펜스", title, ink);
+            Label(new Rect(26, 17, 680, 40), "폐품로봇 원정대", title, ink);
             Label(new Rect(910, 24, 350, 28), "개발용 연습 · 영구 보상 없음", small, gold);
             if (session.State == null) DrawConnection(); else DrawGame();
             Fill(new Rect(16, 675, 1248, 33), new Color(.065f, .10f, .14f));
@@ -147,8 +147,8 @@ namespace TowerDef
         void DrawConnection()
         {
             Fill(new Rect(110, 115, 1060, 500), new Color(.065f, .10f, .14f));
-            Label(new Rect(155, 147, 920, 42), "내 전장을 지키고, 함께 스토리를 돌파하세요.", title, ink);
-            Label(new Rect(155, 210, 890, 48), "소환 → 확정 조합 → 태그 강화. 스토리가 열리면 최대 2기를 파견할 수 있습니다.", text, muted);
+            Label(new Rect(155, 147, 920, 42), "내 정거장을 지키고, 함께 구조 작전에 나서세요.", title, ink);
+            Label(new Rect(155, 210, 890, 48), "로봇 뽑기 → 확정 조립 → 태그 강화. 스토리가 열리면 로봇 최대 2기를 파견할 수 있습니다.", text, muted);
             Label(new Rect(155, 280, 220, 30), "로컬 서버 주소", text, ink);
             Label(new Rect(155, 335, 220, 30), "방 이름", text, ink);
             Label(new Rect(155, 390, 220, 30), "내 참가자 ID", text, ink);
@@ -166,7 +166,7 @@ namespace TowerDef
             var me = session.Me(); var player = Watched();
             if (player == null || me == null) return;
             bool own = player.id == me.id;
-            Label(new Rect(28, 64, 780, 32), "웨이브 " + session.State.wave + "   ·   금화 " + me.gold + "   ·   " + (own ? "내 전장" : player.id + " 관전") + "   ·   " + Status(player.status), text, gold);
+            Label(new Rect(28, 64, 780, 32), "웨이브 " + session.State.wave + "   ·   고철 " + me.gold + "   ·   " + (own ? "내 정거장" : player.id + " 관전") + "   ·   " + Status(player.status), text, gold);
             DrawLane(player, own); DrawTeam(me); DrawControls(me);
             if (Click(new Rect(1002, 622, 244, 40), "방 설정으로 / 나가기", !session.Busy)) session.LeaveRoom();
         }
@@ -233,7 +233,7 @@ namespace TowerDef
             for (int i = 0; i < state.players.Length; i++)
             {
                 var player = state.players[i];
-                string lead = player.units.Length > 0 ? Name(player.units[player.units.Length - 1].definitionId) : "소환 대기";
+                string lead = player.units.Length > 0 ? Name(player.units[player.units.Length - 1].definitionId) : "로봇 뽑기 대기";
                 string caption = (player.id == me.id ? "나" : player.id) + " · " + Status(player.status) + "\n적 " + player.enemies.Length + " · 유닛 " + player.units.Length + " · " + (player.connected ? "접속" : "단절") + "\n" + lead;
                 if (Click(new Rect(1000, 110 + i * 81, 248, 73), caption)) Watch(player.id);
             }
@@ -253,7 +253,7 @@ namespace TowerDef
         void DrawControls(Player me)
         {
             Fill(new Rect(24, 450, 950, 211), new Color(.065f, .10f, .14f));
-            var tabs = new[] { "소환", "조합", "강화" };
+            var tabs = new[] { "로봇 뽑기", "조립", "강화" };
             for (int i = 0; i < tabs.Length; i++) if (Click(new Rect(37 + i * 135, 460, 125, 37), (tab == tabs[i] ? "● " : "") + tabs[i])) tab = tabs[i];
             bool active = me.status == "active" && session.Connected && !session.Busy && !session.HasPendingAction;
             bool storyActive = session.State.story != null && session.State.story.status == "active";
@@ -261,14 +261,14 @@ namespace TowerDef
             {
                 var ids = new int[selected.Count]; selected.CopyTo(ids); session.Send("dispatch", unitIds: ids);
             }
-            if (tab == "소환")
+            if (tab == "로봇 뽑기")
             {
                 int cost = session.Content.rules?.summonCost ?? 0;
-                if (Click(new Rect(41, 520, 245, 92), "랜덤 소환\n" + cost + " 금화", active && me.gold >= cost && me.units.Length < session.Content.rules.maxUnits)) session.Send("summon");
-                Label(new Rect(318, 521, 620, 40), "재료를 모아 원하는 장수로 확정 조합하세요.", text, ink);
-                Label(new Rect(318, 565, 615, 78), "장수를 눌러 파견할 유닛을 선택합니다.\n강화는 진영 · 병종 · 주특성이 같은 모든 보유 유닛에 적용됩니다.\n희귀 직접 소환과 조합 유닛의 성능은 같습니다.", small, muted);
+                if (Click(new Rect(41, 520, 245, 92), "로봇 뽑기\n" + cost + " 고철", active && me.gold >= cost && me.units.Length < session.Content.rules.maxUnits)) session.Send("summon");
+                Label(new Rect(318, 521, 620, 40), "재료를 모아 더 강한 로봇으로 확정 조립하세요.", text, ink);
+                Label(new Rect(318, 565, 615, 78), "로봇을 눌러 파견할 대원을 선택합니다.\n강화는 계열 · 형태 · 특성이 같은 모든 보유 로봇에 적용됩니다.\n뽑기와 조립으로 얻은 같은 로봇의 성능은 같습니다.", small, muted);
             }
-            else if (tab == "조합") DrawRecipes(me, active); else DrawUpgrades(me, active);
+            else if (tab == "조립") DrawRecipes(me, active); else DrawUpgrades(me, active);
         }
 
         void DrawRecipes(Player me, bool active)
@@ -287,7 +287,7 @@ namespace TowerDef
                     parts.Add(Name(entry.Key) + " " + have + "/" + entry.Value);
                 }
                 Label(new Rect(0, i * 51, 715, 47), Name(recipe.result) + (recipe.unlockBattlefield > 0 ? " [영구 해금 필요]" : "") + "\n" + string.Join(" + ", parts), small, ready ? ink : muted);
-                if (Click(new Rect(759, i * 51 + 4, 110, 39), "확정 조합", active && ready))
+                if (Click(new Rect(759, i * 51 + 4, 110, 39), "확정 조립", active && ready))
                 {
                     var materialIds = new List<int>();
                     foreach (var ingredient in recipe.ingredients)
@@ -309,7 +309,7 @@ namespace TowerDef
                 bool applies = Array.Exists(me.units, unit => selected.Contains(unit.id) && HasTag(Definition(unit.definitionId), tag));
                 int max = session.Content.rules.maxUpgradeLevel;
                 int cost = level < max ? session.Content.rules.upgradeCosts[level] : 0;
-                string caption = (applies ? "★ " : "") + TagName(tag) + "  " + level + "/" + max + (level < max ? "  ·  " + cost + " 금화" : "  ·  완료");
+                string caption = (applies ? "★ " : "") + TagName(tag) + "  " + level + "/" + max + (level < max ? "  ·  " + cost + " 고철" : "  ·  완료");
                 if (Click(new Rect(40 + (i % 3) * 304, 511 + (i / 3) * 46, 289, 39), caption, active && level < max && me.gold >= cost)) session.Send("upgrade", tag: tag);
             }
         }
@@ -332,7 +332,7 @@ namespace TowerDef
         static string Status(string status)
         { switch (status) { case "active": return "진행 중"; case "cleared": return "개인 클리어"; case "defeated": return "개인 패배"; case "left": return "이탈"; case "success": return "성공"; case "failed": return "실패"; default: return status; } }
         static string TagName(string tag)
-        { switch (tag) { case "shu": return "촉"; case "wei": return "위"; case "wu": return "오"; case "infantry": return "보병"; case "archer": return "궁병"; case "cavalry": return "기병"; case "might": return "무력"; case "strategy": return "지략"; case "command": return "통솔"; default: return tag; } }
+        { switch (tag) { case "shu": return "리사이클"; case "wei": return "오비탈"; case "wu": return "스파크"; case "infantry": return "보행"; case "archer": return "포탑"; case "cavalry": return "궤도"; case "might": return "동력"; case "strategy": return "연산"; case "command": return "제어"; default: return tag; } }
         void Label(Rect rect, string value, GUIStyle style, Color color)
         { var previous = GUI.color; GUI.color = color; GUI.Label(rect, value, style); GUI.color = previous; }
         void Fill(Rect rect, Color color)

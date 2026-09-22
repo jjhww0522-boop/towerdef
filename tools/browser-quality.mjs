@@ -32,10 +32,12 @@ async function setupPage(options = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, ...options }); contexts.push(context);
   const page = await context.newPage(); lastPage = page; page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(base); await page.locator('#quick-start').waitFor();
+  await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.locator('#quick-start:enabled').waitFor();
   return page;
 }
 async function startPractice(page, speed = '1') {
+  await page.locator('#quick-start:enabled').waitFor();
   await page.selectOption('#speed-select', speed); await page.locator('#quick-start').click();
   await page.locator('#game:not([hidden])').waitFor();
   await page.waitForFunction(() => !document.querySelector('#summon-btn').disabled);
@@ -101,7 +103,7 @@ try {
   const once = observedResults[0].state.players.find(player => player.id === playerId);
   assert.equal(once.units.length, before.player.units.length + 1);
   assert.equal(observedResults[0].state.wave, before.state.wave, 'no wave income interferes with the initial transaction');
-  assert.equal(once.gold, before.player.gold - content.rules.summonCost, 'first summon spends its cost once');
+  assert.equal(once.gold, before.player.gold - before.state.rules.summonCost, 'first summon spends its cost once');
   const preserved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('td.pending')));
   assert.deepEqual(preserved, observedActions[0], 'ambiguous request is retained unchanged');
   await page.locator('#retry-action').click();
@@ -119,6 +121,7 @@ try {
   pass('lost action response retries the same sequence and creates exactly one authoritative unit', { sequence: observedActions[0].seq, attempts: observedActions.length, resultingUnitCount: once.units.length });
 
   const firstUnit = authoritative.player.units[0];
+  await page.locator('#army-tab').click();
   await page.locator(`[data-unit-id="${firstUnit.id}"]`).click();
   await page.locator('#unit-dialog[open]').waitFor();
   const expectedPaths = content.recipes.filter(recipe => recipe.ingredients.includes(firstUnit.definitionId)).map(recipe => recipe.id).sort();
@@ -126,17 +129,17 @@ try {
   assert.deepEqual(displayedPaths, expectedPaths, 'selected unit shows exactly its own evolution branches');
   assert.ok(expectedPaths.length > 0);
   assert.equal(await page.locator('#unit-dialog [data-evolve-recipe]:enabled').count(), 0, 'a single unit cannot meet any multi-unit recipe');
-  assert.match(await page.locator('#evolution-panel').textContent(), /부족한 재료|영구 해금/);
+  assert.match(await page.locator('#evolution-panel').textContent(), /재료 부족|영구 해금/);
   pass('selected unit shows its own missing evolution paths with disabled execution');
-  assert.match(await page.locator('#queue-dispatch').textContent(), /추가/, 'opening detail does not queue a unit');
+  assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'false', 'opening detail does not queue a unit');
   await page.locator('#queue-dispatch').click();
-  assert.match(await page.locator('#queue-dispatch').textContent(), /빼기/);
+  assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'true');
   assert.match(await page.locator(`[data-unit-id="${firstUnit.id}"]`).textContent(), /파견 대기/);
   const queued = await publicPlayer(page);
   assert.equal(queued.player.lastSeq, authoritative.player.lastSeq, 'local dispatch queue issues no combat action');
   assert.equal(queued.player.units.find(unit => unit.id === firstUnit.id).dispatched, false, 'queue is separate from actual dispatch');
   await page.locator('#queue-dispatch').click();
-  assert.match(await page.locator('#queue-dispatch').textContent(), /추가/);
+  assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'false');
   assert.equal(await page.locator(`[data-unit-id="${firstUnit.id}"]`).getAttribute('aria-pressed'), 'true', 'queue changes do not change the focused unit');
   await page.locator('[data-close="unit-dialog"]').click();
   pass('evolution focus and local dispatch queue remain independent');
@@ -149,12 +152,13 @@ try {
       await page.locator('#leave-btn').click(); await page.locator('#lobby:not([hidden])').waitFor();
       await startPractice(page);
     }
-    const budget = Math.floor(content.rules.startingGold / content.rules.summonCost);
+    const opening = await publicPlayer(page);
+    const budget = Math.floor(opening.player.gold / opening.state.rules.summonCost);
     for (let summon = 0; summon <= budget && !combined; summon++) {
       const preCombine = await publicPlayer(page);
       const available = preCombine.player.units.filter(unit => !unit.dispatched);
       const recipe = content.recipes.find(candidate => {
-        if (candidate.unlockBattlefield !== 0) return false;
+        if (candidate.unlockBattlefield !== 0 && !preCombine.player.unlockedRecipes.includes(candidate.id)) return false;
         const remaining = available.map(unit => unit.definitionId);
         return candidate.ingredients.every(id => { const index = remaining.indexOf(id); if (index < 0) return false; remaining.splice(index, 1); return true; });
       });
@@ -176,6 +180,9 @@ try {
         assert.ok(packet.unitIds.every(unitId => !postCombine.units.some(unit => unit.id === unitId)), 'materials are consumed');
         const previousIds = new Set(preCombine.player.units.map(unit => unit.id));
         assert.ok(postCombine.units.some(unit => unit.definitionId === recipe.result && !previousIds.has(unit.id)), 'result unit is new');
+        const resultUnit = postCombine.units.find(unit => !previousIds.has(unit.id));
+        assert.equal(packet.unitIds[0], anchor.id, 'chosen robot is first in the ordered materials');
+        assert.equal(resultUnit.slot, anchor.slot, 'assembled robot stays at the selected material position');
         await page.waitForFunction(() => !document.querySelector('#unit-dialog').open);
         pass('selected-unit evolution consumes the clicked owned instance and closes after server acceptance', { recipeId, clickedUnitId: anchor.id, roomAttempt: roomAttempt + 1 }); combined = true; break;
       }      if (summon === budget || !(await page.locator('#summon-btn').isEnabled())) break;
@@ -196,10 +203,11 @@ try {
   assert.ok(fieldHeight >= 350, `mobile battlefield stays readable: ${fieldHeight}px high`);
   pass('mobile battlefield occupies at least 350px of height', { height: fieldHeight });
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'no horizontal overflow at 390px');
-  pass('390×844 mobile viewport has no horizontal page overflow');
+  pass('390x844 mobile viewport has no horizontal page overflow');
   for (const [selector, label] of [['#summon-btn', 'summon'], ['[data-tab="army"]', 'army tab'], ['[data-tab="recipes"]', 'recipe tab'], ['[data-tab="upgrades"]', 'upgrade tab']]) await touchTarget(mobile, selector, label);
-  await mobile.locator('#summon-btn').tap(); await mobile.locator('[data-unit-id]').first().waitFor();
+  await actionThroughUI(mobile, '#summon-btn');
   await mobile.locator('[data-tab="army"]').tap();
+  await mobile.locator('[data-unit-id]').first().waitFor();
   await touchTarget(mobile, '[data-unit-id]', 'unit details');
   await mobile.locator('[data-unit-id]').first().tap();
   await mobile.locator('#unit-dialog[open]').waitFor();
@@ -211,18 +219,46 @@ try {
   await mobile.waitForFunction(() => !document.querySelector('#unit-dialog').open);
   await mobile.locator('[data-tab="recipes"]').tap();
   await mobile.waitForFunction(() => { const r = document.querySelector('#recipes-panel').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight - 90; });
-  await mobile.locator('#codex-toggle').tap();
+  if (await mobile.locator('#codex-toggle').getAttribute('aria-expanded') !== 'true') await mobile.locator('#codex-toggle').tap();
   await mobile.locator('#codex-content:not([hidden])').waitFor();
-  assert.equal(await mobile.locator('#codex-content [data-evolve-recipe], #codex-content [data-recipe-id]').count(), 0, 'codex has no action that bypasses selecting a unit');
-  pass('expanded codex is read-only and keeps evolution on selected units');
+  const codexSnapshot = await publicPlayer(mobile);
+  const codexButtons = await mobile.locator('#codex-content [data-combine-recipe]').evaluateAll(buttons => buttons.map(button => ({ id: button.dataset.combineRecipe, enabled: !button.disabled })));
+  assert.equal(codexButtons.length, content.recipes.length, 'codex contains every configured recipe');
+  for (const button of codexButtons) {
+    const recipe = content.recipes.find(recipe => recipe.id === button.id);
+    const remaining = codexSnapshot.player.units.filter(unit => !unit.dispatched).map(unit => unit.definitionId);
+    const unlocked = recipe.unlockBattlefield === 0 || codexSnapshot.player.unlockedRecipes.includes(recipe.id);
+    const ready = unlocked && recipe.ingredients.every(id => { const index = remaining.indexOf(id); if (index < 0) return false; remaining.splice(index, 1); return true; });
+    assert.equal(button.enabled, ready, 'codex enforces owned materials and recipe research: ' + button.id);
+  }
+  pass('expanded codex enables assembly only for researched recipes with distinct owned materials');
   await touchTarget(mobile, '#codex-content [data-pin]', 'recipe goal pin');
   const focusedPin = await mobile.locator('#codex-content [data-pin]').first().getAttribute('data-pin');
   await mobile.locator('#codex-content [data-pin]').first().focus();
   await mobile.waitForTimeout(750);
   assert.equal(await mobile.evaluate(() => document.activeElement?.dataset.pin), focusedPin, 'unchanged polling preserves focused codex controls');
-  pass('recipe goal focus survives multiple unchanged server snapshots');  await mobile.locator('[data-tab="upgrades"]').tap();
+  pass('recipe goal focus survives multiple unchanged server snapshots');
+  await mobile.locator('[data-close="command-dialog"]').tap();
+  await mobile.locator('[data-tab="upgrades"]').tap();
   await touchTarget(mobile, '[data-upgrade-tag]', 'upgrade');
+  const upgrade = mobile.locator('[data-upgrade-tag]').first();
+  const tag = await upgrade.getAttribute('data-upgrade-tag'), beforeUpgrade = await publicPlayer(mobile);
+  await upgrade.tap();
+  await mobile.locator('#upgrade-inspection:not([hidden])').waitFor();
+  assert.equal((await publicPlayer(mobile)).player.lastSeq, beforeUpgrade.player.lastSeq, 'opening upgrade detail sends no action');
+  await touchTarget(mobile, '#upgrade-buy', 'upgrade purchase');
+  const { result: upgradeResult, packet: upgradePacket } = await actionThroughUI(mobile, '#upgrade-buy');
+  assert.equal(upgradePacket.tag, tag);
+  assert.equal(upgradeResult.state.players.find(player => player.id === beforeUpgrade.player.id).upgrades[tag], beforeUpgrade.player.upgrades[tag] + 1);
+  await mobile.locator('#upgrade-back').tap();
+  await mobile.locator('#upgrade-list:not([hidden])').waitFor();
+  pass('mobile upgrade inspection sends no action, purchase increases its server level, and Back returns to tag choices');
+  await mobile.locator('[data-close="command-dialog"]').tap();
+  await mobile.locator('#story-toggle').tap();
+  await mobile.locator('#co-op-dialog[open]').waitFor();
   await touchTarget(mobile, '#dispatch-btn', 'dispatch');
+  await mobile.locator('[data-close="co-op-dialog"]').tap();
+  await mobile.waitForFunction(() => !document.querySelector('#co-op-dialog').open);
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'no horizontal overflow after tab navigation');
   for (let extra = 0; extra < 5; extra++) {
     if (!(await mobile.locator('#summon-btn').isEnabled())) break;
@@ -233,7 +269,8 @@ try {
 
   // The form payload is explicitly synthetic and lives only in this temporary
   // browser context and a clearly named automated-test artifact.
-  await page.locator('#feedback-btn').click();
+  await page.locator('#battle-settings-btn').click();
+  await page.locator('#settings-feedback').click();
   await page.selectOption('#feedback-form [name="fun"]', '3');
   await page.selectOption('#feedback-form [name="clarity"]', '3');
   await page.selectOption('#feedback-form [name="retry"]', 'maybe');
@@ -245,15 +282,18 @@ try {
   assert.equal(exported.source, 'local-form-entry-unverified'); assert.equal(exported.records.length, 1);
   assert.ok(exported.records[0].comment.startsWith('[AUTOMATED UI TEST — NOT CONSUMER FEEDBACK]'));
   const serialized = JSON.stringify(exported), privateSession = await credentials(page);
-  for (const secret of [privateSession.session.token, privateSession.playerId, privateSession.session.roomId]) assert.equal(serialized.includes(secret), false, 'export excludes session identity and bearer token');
+  const privateProfile = await page.evaluate(() => JSON.parse(localStorage.getItem('td.profile')));
+  for (const secret of [privateSession.session.token, privateSession.playerId, privateSession.session.roomId, privateProfile.token, (await publicPlayer(page)).state.profile.id]) assert.equal(serialized.includes(secret), false, 'export excludes session/profile identity and bearer tokens');
   pass('synthetic feedback saves locally and exports without credentials or human-participant claims', { artifact: exportPath });
   await page.locator('[data-close="feedback-dialog"]').click();
   await Promise.all([[page, 'desktop'], [mobile, 'mobile']].map(async ([capture, label]) => {
     await capture.locator('#leave-btn').click(); await capture.locator('#lobby:not([hidden])').waitFor();
     await startPractice(capture, '6');
     for (let count = 0; count < 6; count++) await actionThroughUI(capture, '#summon-btn');
-    await capture.locator('[data-tab="army"]').click();
-    await capture.waitForFunction(() => Number(document.querySelector('#game').dataset.wave) >= 4 && Number(document.querySelector('#enemy-count').textContent.match(/적\s+(\d+)/)?.[1]) >= 3, null, { timeout: 30000 });
+    const captureState = await publicPlayer(capture);
+    const captureTimeout = Math.ceil(captureState.state.rules.waveTicks * 5 / captureState.state.rules.ticksPerSecond / captureState.state.playbackSpeed * 1000) + 10000;
+    await capture.waitForFunction(() => Number(document.querySelector('#game').dataset.wave) >= 4 && Number(document.querySelector('#enemy-count').textContent.match(/적\s+(\d+)/)?.[1]) >= 3, null, { timeout: captureTimeout });
+    assert.equal(await capture.locator('dialog[open]').count(), 0, 'live combat is visible without a management dialog');
     await capture.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     const evidence = await publicPlayer(capture);
     await capture.screenshot({ path: `artifacts/quality-${label}.jpg`, type: 'jpeg', quality: 65, fullPage: false });

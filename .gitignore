@@ -15,3 +15,4 @@ client/[Bb]uild*/
 *.mobileprovision
 *.keystore
 artifacts/
+/.towerdef-data/

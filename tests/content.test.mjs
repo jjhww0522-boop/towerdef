@@ -29,6 +29,14 @@ test('validator rejects duplicate IDs, unknown tags, rarity and nonpositive stat
   invalid(c => { c.units[0].rarity = 'mythic'; }, /rarity/i);
   invalid(c => { c.units[0].attack = Infinity; }, /attack/i);
   invalid(c => { c.units[0].attackIntervalTicks = 0; }, /attackIntervalTicks/i);
+  invalid(c => { c.units[0].attackPattern = 'freeze'; }, /attackPattern/i);
+  invalid(c => { c.units[0].attackPattern = null; }, /attackPattern/i);
+  invalid(c => { c.units[0].attackRange = 0; }, /attackRange/i);
+  invalid(c => { c.units[0].element = 'unknown'; }, /element/i);
+  invalid(c => { c.rules.frostSlowMultiplier = 0; }, /frostSlowMultiplier/i);
+  invalid(c => { c.rules.frostSlowTicks = 0; }, /frostSlowTicks/i);
+  invalid(c => { c.rules.bossSlowMultiplier = 0.1; }, /boss slow/i);
+  invalid(c => { c.rules.maxUnits = 31; }, /battlefield slots/i);
 });
 
 test('validator rejects dangling recipe references and malformed recipes', () => {
@@ -71,4 +79,21 @@ test('validator catches impossible/duplicate story timing and invalid health', (
   invalid(c => { c.stories[0].hp = NaN; }, /hp/i);
   invalid(c => { c.stories[0].durationTicks = 0; }, /durationTicks/i);
   invalid(c => { c.stories[0].durationTicks = 99999; }, /overlap|durationTicks/i);
+});
+
+test('validator checks merged planet rules and every planet story schedule', () => {
+  invalid(c => { c.battlefields[1].id = 1; }, /battlefield.*unique|stages/i);
+  invalid(c => { c.battlefields[0].rules.waveTicks = 0; }, /battlefield.*waveTicks/i);
+  invalid(c => { c.battlefields[0].rules.enemyHpAcceleration = -1; }, /battlefield.*Acceleration/i);
+  invalid(c => { c.battlefields[0].rules.typo = 1; }, /unknown rule/i);
+  invalid(c => { c.battlefields[2].stories[2].wave = 99; }, /battlefield.*wave/i);
+  invalid(c => { c.battlefields[1].stories[0].durationTicks = 99999; }, /battlefield.*overlap/i);
+  invalid(c => { c.rules.salvageRefundRatio = 1; }, /salvageRefundRatio/i);
+});
+
+test('free high-tier recipes remain valid while researched recipes require a positive cost', () => {
+  assert.deepEqual(validateContent(fixture()), []);
+  invalid(c => { c.recipes.find(r => r.unlockBattlefield > 0).researchCost = 0; }, /researchCost/i);
+  invalid(c => { c.recipes.find(r => r.result === 'salvage_colossus').researchCost = 1; }, /initial.*unlock cost/i);
+  invalid(c => { c.units[0].tier = 'ultimate'; }, /invalid tier/i);
 });
