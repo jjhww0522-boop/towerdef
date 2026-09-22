@@ -18,9 +18,9 @@ const overwhelm = (game, player) => {
   player.overcrowdedTicks = game.rules.overcrowdTicks - 1; tick(game);
 };
 
-test('three planets expose independent rules, short learning and 28–30 minute main expeditions', () => {
+test('three planets expose independent rules and objective-specific expedition deadlines', () => {
   const games = [1, 2, 3].map(battlefieldId => create({ battlefieldId }));
-  assert.deepEqual(games.map(g => (g.rules.waveTicks * g.rules.totalWaves + g.rules.bossTicks) / g.rules.ticksPerSecond), [492, 1690, 1806]);
+  assert.deepEqual(games.map(g => publicState(g).expedition.remainingTicks / g.rules.ticksPerSecond), [492, 1600, 1806]);
   assert.deepEqual(games.map(g => g.stories.map(s => s.wave)), [[6, 12, 18], [16, 32, 48], [17, 34, 51]]);
   assert.ok(games[1].rules.enemyHpAcceleration > games[0].rules.enemyHpAcceleration);
   assert.ok(games[2].rules.bossHp > games[1].rules.bossHp);
@@ -32,7 +32,7 @@ test('three planets expose independent rules, short learning and 28–30 minute 
 });
 
 test('mining transitions into evacuation at the selected planet deadline and stops spawning normal enemies', () => {
-  for (const battlefieldId of [1, 2, 3]) {
+  for (const battlefieldId of [1, 3]) {
     const game = create({ battlefieldId }), bossStart = game.rules.waveTicks * game.rules.totalWaves;
     game.tick = bossStart - 1;
     assert.equal(publicState(game).expedition.phase, 'mining');
@@ -144,21 +144,21 @@ test('partial research rewards require real combat and investment; leave, practi
 });
 
 test('evacuation clear freezes a single result and grants its bonus only to the clearing player', () => {
-  const game = create({ battlefieldId: 2 }), player = game.players[0];
+  const game = create({ battlefieldId: 3 }), player = game.players[0];
   invest(game, player); player.kills = 60;
   game.tick = game.rules.waveTicks * game.rules.totalWaves;
   player.enemies = [enemy(game, 1, true)];
   tick(game);
   assert.equal(player.status, 'cleared');
-  assert.equal(player.result.researchCredits, 80);
-  assert.equal(player.result.battlefieldId, 2);
+  assert.equal(player.result.researchCredits, 120);
+  assert.equal(player.result.battlefieldId, 3);
   assert.equal(player.result.miningProgress, 1);
   assert.equal(game.players[1].result, null);
   assert.equal(game.status, 'playing');
   const result = JSON.stringify(player.result);
   for (let i = 0; i < 100; i++) tick(game);
   assert.equal(JSON.stringify(player.result), result);
-  assert.equal(publicState(game).players[0].result.researchCredits, 80);
+  assert.equal(publicState(game).players[0].result.researchCredits, 120);
 });
 
 test('late-planet story retains personal lanes, reserved slots and equal active-player rewards', () => {

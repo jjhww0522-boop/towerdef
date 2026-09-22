@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { selectDestination } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createDevServer } from './dev-server.mjs';
@@ -24,6 +25,7 @@ try {
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('http://127.0.0.1:' + server.address().port);
+    await selectDestination(page);
     await page.evaluate(async () => {
       const { Battlefield } = await import('/battlefield.js'), update = Battlefield.prototype.update;
       Battlefield.prototype.update = function(...args) { update.apply(this, args); window.positionField = this; };

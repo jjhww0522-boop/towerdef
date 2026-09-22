@@ -10,16 +10,19 @@ export function publicState(game: GameState): object {
     status: game.status,
     practice: game.practice,
     battlefieldId: game.battlefieldId,
+    objective: game.objective,
     rules: game.rules,
     stories: game.stories,
     expedition: expeditionProgress(game),
     story: game.story,
-    bossRemainingTicks: game.tick >= game.rules.waveTicks * game.rules.totalWaves ? Math.max(0, game.rules.waveTicks * game.rules.totalWaves + game.rules.bossTicks - game.tick) : null,
+    bossRemainingTicks: game.objective.kind !== 'mining' && game.tick >= game.rules.waveTicks * game.rules.totalWaves ? Math.max(0, game.rules.waveTicks * game.rules.totalWaves + game.rules.bossTicks - game.tick) : null,
     players: game.players.map(function (player) {
       return {
         id: player.id, gold: player.gold, status: player.status,
         connected: player.connected, lastSeq: player.lastSeq,
         overcrowdedTicks: player.overcrowdedTicks, defeatReason: player.defeatReason,
+        facilityHp: player.facilityHp, lastFacilityHitTick: player.lastFacilityHitTick,
+        facilityAttackers: player.facilityHp === null ? 0 : player.enemies.filter(enemy => enemy.progress >= game.objective.arrivalProgress).length,
         upgrades: player.upgrades,
         unlockedRecipes: player.unlockedRecipes,
         result: player.result,
@@ -33,7 +36,8 @@ export function publicState(game: GameState): object {
         }),
         enemies: player.enemies.map(function (enemy) {
           return { id: enemy.id, hp: enemy.hp, maxHp: enemy.maxHp, progress: enemy.progress, boss: enemy.boss,
-            slowed: (enemy.slowUntilTick || 0) > game.tick };
+            slowed: (enemy.slowUntilTick || 0) > game.tick,
+            attackingFacility: player.facilityHp !== null && enemy.progress >= game.objective.arrivalProgress };
         })
       };
     })

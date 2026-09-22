@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { selectDestination } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, rmdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -36,7 +37,7 @@ async function newPage(viewport = { width: 390, height: 844 }) {
   const page = await context.newPage(); lastPage = page; page.setDefaultTimeout(12000);
   page.on('pageerror', error => report.errors.push(error.message));
   await page.goto(base);
-  await page.locator('#quick-start:enabled').waitFor();
+  await selectDestination(page);
   return page;
 }
 const identity = page => page.evaluate(() => ({
@@ -59,6 +60,7 @@ async function snapshot(page) {
   return { state, player };
 }
 async function start(page, speed = '1') {
+  await selectDestination(page);
   await page.selectOption('#speed-select', speed);
   await page.locator('#quick-start').tap();
   await page.locator('#game:not([hidden])').waitFor();
@@ -127,7 +129,7 @@ async function compact(page, label) {
   assert.ok(layout.dockHeight <= layout.height * .30 + 1, 'bottom controls obey the 30% upper limit');
   assert.ok(layout.dockHeight < layout.height * .20, 'collapsed controls do not permanently occupy the full 30% allowance');
   assert.ok(layout.scrollWidth <= layout.width + 1 && layout.scrollHeight <= layout.height + 1, 'combat fits the viewport without page scrolling');
-  assert.ok(layout.canvasHeight > 0 && layout.canvasTop >= -1 && layout.canvasBottom <= layout.dockTop + 1, 'battlefield stays visible above controls');
+  assert.ok(layout.canvasHeight >= layout.height * .8 && layout.canvasTop >= -1 && Math.abs(layout.canvasBottom - layout.height) <= 1, 'battlefield fills the viewport behind floating controls');
   pass(label, layout);
 }
 const roomFor = playerId => {
@@ -155,6 +157,10 @@ function finishPlayer(game, playerId) {
   for (const peer of game.players) { peer.enemies = []; peer.overcrowdedTicks = 0; }
   if (!player.units.length) give(game, player, [content.units.find(unit => unit.rarity === 'basic').id]);
   tick(game);
+  if (game.objective.kind === 'mining') {
+    assert.equal(player.status, 'cleared', 'protected mining completes without a boss');
+    return player.result;
+  }
   const boss = player.enemies.find(enemy => enemy.boss);
   assert.ok(boss, 'production core spawns the final boss');
   boss.hp = 1;
@@ -239,6 +245,7 @@ try {
   const peers = [];
   for (let index = 0; index < 3; index++) {
     const peer = await newPage(); peers.push(peer);
+    await peer.locator('#join-open').tap();
     await peer.fill('#room-input', hostSession.roomId);
     await peer.locator('#join-form button[type="submit"]').tap();
     await peer.locator('#game:not([hidden])').waitFor();
@@ -297,7 +304,7 @@ try {
   assert.ok(researched.profile.unlockedRecipes.includes(researchRecipe.id));
   assert.equal(researched.profile.researchCredits, researchFunds.researchCredits - researchRecipe.researchCost);
   await closeDialog(host, 'research-dialog');
-  await host.reload(); await host.locator('#quick-start:enabled').waitFor();
+  await host.reload(); await host.locator('#home-play:enabled').waitFor();
   assert.equal((await profile(host)).id, initialProfile.id);
   assert.equal((await profile(host)).researchCredits, researched.profile.researchCredits);
   assert.ok((await profile(host)).unlockedRecipes.includes(researchRecipe.id));
@@ -312,7 +319,7 @@ try {
   await shutdown(); rooms.length = 0;
   store = createProgressionStore({ filePath: profileFile });
   await boot(port);
-  await host.reload(); await host.locator('#quick-start:enabled').waitFor();
+  await host.reload(); await selectDestination(host);
   const restored = await profile(host);
   assert.equal(restored.id, persisted.id);
   assert.equal(restored.researchCredits, persisted.researchCredits);

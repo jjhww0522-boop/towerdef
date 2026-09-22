@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0-position-combat",
+  "version": "0.7.0-expedition-siege",
   "rules": {
     "ticksPerSecond": 10,
     "waveTicks": 250,
@@ -37,6 +37,7 @@
     {
       "id": 1,
       "name": "고물 궤도",
+      "objective": {"kind":"overcrowd","label":"방어선 유지","facilityHp":0,"arrivalProgress":0.85,"damage":0,"attackIntervalTicks":10},
       "description": "작은 폐기 위성에서 첫 채굴을 배우고 구조선으로 철수하세요.",
       "rules": {"waveTicks":180,"totalWaves":24,"bossTicks":600,"bossHp":65000,"enemyHpPerWave":18,"spawnIntervalTicks":12,"spawnRampEveryWaves":12,"waveGold":60},
       "stories": [
@@ -48,7 +49,8 @@
     {
       "id": 2,
       "name": "코발트 사구",
-      "description": "깊어지는 광맥을 따라 전력을 키우고 장기 채굴 뒤 탈출로를 여세요.",
+      "objective": {"kind":"mining","label":"채굴기","facilityHp":24000,"arrivalProgress":0.85,"damage":4,"attackIntervalTicks":10},
+      "description": "채굴기를 두드리는 적을 제거하고 마지막 광맥까지 지켜내세요.",
       "rules": {"waveTicks":250,"totalWaves":64,"bossTicks":900,"bossHp":450000,"enemyHpPerWave":40,"enemyHpAcceleration":0.6,"spawnIntervalTicks":12,"spawnRampEveryWaves":16,"minSpawnIntervalTicks":8,"waveGold":50,"waveGoldGrowth":2},
       "stories": [
         {"wave":16,"name":"조난 신호 구조","hp":15000,"durationTicks":450,"rewardGold":150},
@@ -59,7 +61,8 @@
     {
       "id": 3,
       "name": "성운 심층부",
-      "description": "거친 심층 채굴을 견디며 상위 설계를 완성하고 마지막 봉쇄를 돌파하세요.",
+      "objective": {"kind":"engine","label":"우주선 엔진","facilityHp":24000,"arrivalProgress":0.85,"damage":5,"attackIntervalTicks":10},
+      "description": "적의 포위에서 엔진을 지키고 탈출을 가로막는 보스를 쓰러뜨리세요.",
       "rules": {"waveTicks":260,"totalWaves":66,"bossTicks":900,"bossHp":500000,"enemyHpPerWave":55,"enemyHpAcceleration":1.1,"spawnIntervalTicks":12,"spawnRampEveryWaves":13,"minSpawnIntervalTicks":8,"waveGold":60,"waveGoldGrowth":2},
       "stories": [
         {"wave":17,"name":"조난 신호 구조","hp":20000,"durationTicks":450,"rewardGold":200},

@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { selectDestination } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -59,7 +60,7 @@ async function geometry(page, test, label, { detail = false, cooperative = false
       width: innerWidth, height: innerHeight, scrollX, scrollY,
       scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight,
       canvas: rect('#battlefield'), command: rect('.command-panel'), commandDialog: rect('#command-dialog[open]'), detail: rect('#unit-dialog[open]'),
-      cooperativeStrip: rect('.side-column'), unitModal: document.querySelector('#unit-dialog').matches(':modal'),
+      cooperativeStrip: rect('.side-column'), summon: rect('#summon-btn'), unitModal: document.querySelector('#unit-dialog').matches(':modal'),
       cooperative: rect('#co-op-dialog[open]'),
     };
   });
@@ -78,24 +79,25 @@ async function geometry(page, test, label, { detail = false, cooperative = false
       assert.equal(dimensions.unitModal, false, `${label}: selection does not block the battlefield`);
       assert.ok(dimensions.command.visible, `${label}: command buttons stay available`);
       assert.ok(active.right <= width - 5 && active.left >= 5, `${label}: selection is a floating box with side space`);
-      assert.ok(active.bottom <= dimensions.cooperativeStrip.top, `${label}: selection leaves cooperative and command controls uncovered`);
+      assert.ok(active.top >= dimensions.cooperativeStrip.bottom - 1 && active.bottom <= dimensions.command.top + 1, `${label}: selection leaves cooperative and command controls uncovered`);
       for (const key of ['top', 'bottom', 'left', 'right', 'width', 'height']) {
         assert.ok(Math.abs(dimensions.canvas[key] - test.restingCanvas[key]) <= 1, `${label}: selection must not change canvas ${key}`);
       }
-    } else assert.ok(Math.abs(active.bottom - height) <= 2, `${label}: panel is anchored to the viewport bottom`);
+    } else assert.ok(active.bottom <= height - 5, `${label}: controls float inside the field with bottom breathing room`);
     if (label === 'initial battlefield') {
       assert.equal(dimensions.commandDialog, null, `${label}: management content starts closed`);
       assert.equal(dimensions.detail, null, `${label}: unit details start closed`);
       assert.ok(active.height < height * 0.20, `${label}: resting controls ${active.height.toFixed(2)}px must occupy less than 20% of ${height}px`);
     }
     const bottomPanels = [dimensions.command, dimensions.commandDialog].filter(panel => panel?.visible);
-    const occupiedHeight = Math.max(...bottomPanels.map(panel => panel.bottom)) - Math.min(...bottomPanels.map(panel => panel.top));
-    assert.ok(occupiedHeight <= height * 0.30 + 1, `${label}: command and detail stack into ${occupiedHeight.toFixed(2)}px instead of sharing the bottom 30%`);
     for (const panel of bottomPanels) assert.ok(panel.height <= height * 0.30 + 1, `${label}: each visible bottom panel obeys the 30% cap`);
     const canvas = dimensions.canvas;
     assert.ok(canvas?.visible && canvas.width > 0 && canvas.height > 0, `${label}: battlefield is visible`);
-    const dock = dimensions.commandDialog?.visible ? dimensions.commandDialog : dimensions.command;
-    assert.ok(canvas.left >= -1 && canvas.right <= width + 1 && canvas.top >= -1 && canvas.bottom <= dock.top + 1, `${label}: battlefield stays above the command dock`);
+    assert.ok(canvas.left >= -1 && canvas.right <= width + 1 && canvas.top >= -1 && Math.abs(canvas.bottom - height) <= 1, `${label}: battlefield extends to the viewport bottom`);
+    assert.ok(canvas.height >= height * .8, `${label}: battlefield owns at least 80% of the screen`);
+    const summon = dimensions.summon;
+    assert.ok(summon?.visible && summon.top >= canvas.top && summon.bottom <= canvas.bottom && summon.right <= canvas.right, `${label}: summon floats inside the battlefield`);
+    assert.ok(dimensions.command.right + 4 <= summon.left, `${label}: summon and management buttons do not overlap`);
     if (label === 'populated battlefield keeps management closed') test.restingCanvas = canvas;
   } else {
     const panel = dimensions.cooperative;
@@ -169,6 +171,7 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
   page.on('pageerror', error => test.errors.push(error.message));
   try {
     await page.goto(base);
+    await selectDestination(page);
     // Observe the real renderer; interaction below still uses physical canvas taps.
     await page.evaluate(async () => {
       const { Battlefield } = await import('/battlefield.js'), update = Battlefield.prototype.update;
@@ -181,7 +184,8 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
     if (bottomInset) {
       // Simulates CSS safe-area padding only; it does not emulate iOS hardware or Safari.
       await page.evaluate(inset => {
-        for (const element of document.querySelectorAll('.command-panel, #command-dialog')) element.style.paddingBottom = inset + 'px';
+        for (const element of document.querySelectorAll('.command-panel, #summon-btn')) element.style.bottom = Math.max(14, inset) + 'px';
+        document.querySelector('#command-dialog').style.bottom = (88 + inset) + 'px';
       }, bottomInset);
     }
     await geometry(page, test, 'initial battlefield');

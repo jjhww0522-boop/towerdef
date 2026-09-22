@@ -24,7 +24,7 @@ function chooseIngredients(player, recipe) {
   // A player can pick which consumed robot keeps its position. Prefer the
   // ingredient slot where the result covers more of the enemy's looping route.
   const result = definitions.get(recipe.result);
-  chosen.sort((a, b) => coverage(result, b.slot) - coverage(result, a.slot) || a.id - b.id);
+  chosen.sort((a, b) => coverage(result, player.units.find(unit => unit.id === b).slot) - coverage(result, player.units.find(unit => unit.id === a).slot) || a - b);
   return chosen;
 }
 

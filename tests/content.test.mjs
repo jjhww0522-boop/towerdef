@@ -97,3 +97,12 @@ test('free high-tier recipes remain valid while researched recipes require a pos
   invalid(c => { c.recipes.find(r => r.result === 'salvage_colossus').researchCost = 1; }, /initial.*unlock cost/i);
   invalid(c => { c.units[0].tier = 'ultimate'; }, /invalid tier/i);
 });
+
+test('facility objectives require a known goal, valid arrival point and positive attack values', () => {
+  invalid(c => { delete c.battlefields[1].objective; }, /objective/i);
+  invalid(c => { c.battlefields[1].objective.kind = 'unknown'; }, /objective/i);
+  invalid(c => { c.battlefields[1].objective.facilityHp = 0; }, /facility/i);
+  invalid(c => { c.battlefields[1].objective.damage = -1; }, /facility/i);
+  invalid(c => { c.battlefields[1].objective.attackIntervalTicks = 0; }, /facility/i);
+  invalid(c => { c.battlefields[1].objective.arrivalProgress = 1; }, /arrival/i);
+});

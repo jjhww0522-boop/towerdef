@@ -16,6 +16,7 @@ staticFiles['/assets/enemies-walk-v1.png'] = ['assets/enemies-walk-v1.png', 'ima
 staticFiles['/casual-art.js'] = ['casual-art.js', 'text/javascript'];
 staticFiles['/evolution-model.mjs'] = ['evolution-model.mjs', 'text/javascript'];
 staticFiles['/casual-ui.css'] = ['casual-ui.css', 'text/css'];
+staticFiles['/mobile-game.css'] = ['mobile-game.css', 'text/css'];
 staticFiles['/shared/battle-geometry.js'] = ['../shared/battle-geometry.js', 'text/javascript'];
 const snapshot = room => ({ ...publicState(room.game), playbackSpeed: room.speed });
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(value);

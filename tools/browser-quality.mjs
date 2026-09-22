@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { selectDestination } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -33,11 +34,11 @@ async function setupPage(options = {}) {
   const page = await context.newPage(); lastPage = page; page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.locator('#quick-start:enabled').waitFor();
+  await selectDestination(page);
   return page;
 }
 async function startPractice(page, speed = '1') {
-  await page.locator('#quick-start:enabled').waitFor();
+  await selectDestination(page);
   await page.selectOption('#speed-select', speed); await page.locator('#quick-start').click();
   await page.locator('#game:not([hidden])').waitFor();
   await page.waitForFunction(() => !document.querySelector('#summon-btn').disabled);

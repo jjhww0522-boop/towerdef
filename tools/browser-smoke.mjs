@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readdir, access, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { selectDestination } from './playtest-navigation.mjs';
 
 const base = process.env.PLAYTEST_URL || 'http://127.0.0.1:7351';
 let executablePath = process.env.CHROME_PATH;
@@ -33,9 +34,10 @@ try {
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base);
-  await page.locator('#quick-start:enabled').waitFor();
+  await page.locator('#home-play:enabled').waitFor();
   await page.screenshot({ path: 'artifacts/start-screen.png', fullPage: true });
   check('start screen renders');
+  await selectDestination(page);
   await page.selectOption('#speed-select', '6');
   await page.click('#quick-start');
   await page.locator('#summon-btn').waitFor({ state: 'visible' });
@@ -60,7 +62,7 @@ try {
   assert.equal(upgraded.player.upgrades[tag], beforeUpgrade.player.upgrades[tag] + 1);
   check('upgrade inspection is free and confirmed purchase advances the authoritative level');
   await page.reload();
-  await page.locator('#quick-start:enabled').waitFor();
+  await page.locator('#home-play:enabled').waitFor();
   await page.locator('#resume-btn').click();
   await page.locator('#summon-btn').waitFor({ state: 'visible' });
   await page.locator('#army-tab').click();
@@ -86,7 +88,8 @@ try {
     const peer = await peerContext.newPage();
     peer.on('pageerror', error => errors.push(error.message));
     await peer.goto(base);
-    await peer.locator('#quick-start:enabled').waitFor();
+    await selectDestination(peer);
+    await peer.locator('#join-open').click();
     await peer.fill('#room-input', roomId);
     await peer.locator('#join-form button[type="submit"]').click();
     await peer.locator('#summon-btn').waitFor({ state: 'visible' });

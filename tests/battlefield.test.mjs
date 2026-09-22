@@ -249,13 +249,13 @@ test('reduced motion retains confirmed targeting without moving effects or weapo
 test('tall portrait and wide landscape canvases use their space and keep sprites selectable', () => {
   const r = renderer(true);
   r.bounds({ width: 390, height: 693 }); r.update(lane(null)); r.view.draw(1400);
-  assert.equal(r.view.worldHeight, 1040);
+  assert.equal(r.view.worldHeight, Math.round(600 * 693 / 390));
   assert.ok(r.view.position(9).y > 750);
   const unit = r.view.units.get(1), x = unit.x * r.view.scale + r.view.ox, y = (unit.y - 49) * r.view.scale + r.view.oy;
   r.listeners.click({ clientX: x, clientY: y });
   assert.deepEqual(r.selections, [1]);
   r.resize(false); r.bounds({ width: 667, height: 217 }); r.view.draw(1450);
-  assert.equal(r.view.worldHeight, 330);
+  assert.equal(r.view.worldHeight, Math.round(1000 * 217 / 667));
   assert.ok(r.view.position(20).y < r.view.path(.6).y);
 });
 

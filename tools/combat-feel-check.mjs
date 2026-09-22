@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { selectDestination } from './playtest-navigation.mjs';
 import { createDevServer } from './dev-server.mjs';
 import core from '../dist/server/core/index.js';
 
@@ -36,7 +37,7 @@ try {
     };
   });
   page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
-  await page.goto(base); await page.locator('#quick-start:enabled').waitFor();
+  await page.goto(base); await selectDestination(page);
   await page.screenshot({ path: 'artifacts/combat-lobby.png', fullPage: true });
   await page.locator('#quick-start').tap(); await page.locator('#summon-btn:enabled').waitFor();
   await page.locator('#summon-btn').tap();

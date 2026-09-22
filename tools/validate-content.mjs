@@ -141,6 +141,12 @@ function validateDefinition(content, validateStages = true) {
       if (!integer(stage.id) || stage.id > 3 || stageIds.has(stage.id)) errors.push(label + 'expected unique id 1..3');
       stageIds.add(stage.id);
       if (!text(stage.name) || !text(stage.description)) errors.push(label + 'name and description required');
+      const objective = stage.objective;
+      if (!object(objective) || !['overcrowd', 'mining', 'engine'].includes(objective.kind) || !text(objective.label)) errors.push(label + 'valid objective required');
+      else if (objective.kind !== 'overcrowd') {
+        if (!integer(objective.facilityHp) || !positive(objective.damage) || !integer(objective.attackIntervalTicks)) errors.push(label + 'facility health, damage and attack interval must be positive');
+        if (!positive(objective.arrivalProgress) || objective.arrivalProgress >= 1) errors.push(label + 'facility arrival must be within the path');
+      }
       if (!object(stage.rules)) { errors.push(label + 'rules overrides required'); continue; }
       for (const key of Object.keys(stage.rules)) if (!(key in content.rules)) errors.push(label + 'unknown rule ' + key);
       errors.push(...validateDefinition({ ...content, rules: { ...rules, ...stage.rules }, stories: stage.stories }, false).map(error => label + error));

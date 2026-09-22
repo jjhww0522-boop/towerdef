@@ -7,34 +7,27 @@
   <title>폐품로봇 원정대 · 지구로 돌아갈 자원을 찾아서</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/casual-ui.css">
+  <link rel="stylesheet" href="/mobile-game.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <header class="masthead">
-    <a class="brand" href="/" aria-label="폐품로봇 원정대 처음으로"><span class="seal" aria-hidden="true">▣</span><span>폐품로봇 원정대<small>SCRAP CREW · EARTH EXPEDITION</small></span></a>
-    <div class="header-actions"><span class="practice-label">지구 귀환 프로젝트</span><button id="feedback-btn" class="quiet">플레이 의견</button><button id="settings-btn" class="icon-button" aria-label="설정">⚙</button></div>
-  </header>
-
   <main id="lobby" class="lobby">
-    <section class="hero-copy">
-      <p class="eyebrow"><span class="tiny-rule"></span> 운으로 모으고, 판단으로 완성하는</p>
-      <h1>쓸모없는 고철?<br>우리의 <em>다음 에이스.</em></h1>
-      <p class="hero-description">고갈된 지구에 남은 희망, 작은 폐품 로봇들.<br>행성의 자원을 채굴하고, 모두 살아 돌아오세요.</p>
-      <div class="research-summary"><div><small>연구 크레딧</small><strong id="research-credits">—</strong></div><button id="research-btn" class="secondary" disabled>설계도 연구 ↗</button></div>
-      <fieldset class="planet-select"><legend>이번 원정의 목적지</legend><div id="planet-list" class="planet-list" aria-label="행성 선택"></div></fieldset>
-      <div class="lobby-actions"><button id="quick-start" class="primary large" disabled>원정 준비 중…</button><button id="resume-btn" class="secondary large" hidden>이전 전장으로</button></div>
-      <div class="practice-options"><label for="speed-select">진행 속도</label><select id="speed-select"><option value="1">원정 · 1배속</option><option value="3">연습 · 3배속 / 보상 없음</option><option value="6">연습 · 6배속 / 보상 없음</option></select><span id="expedition-duration">목적지 정보를 불러오는 중</span></div>
-      <form id="join-form" class="join-form"><label for="room-input">동료의 방에 함께하기</label><div><input id="room-input" name="room" placeholder="방 코드 입력" maxlength="32" pattern="[A-Za-z0-9_-]+" autocomplete="off" required><button class="secondary" type="submit" disabled>참가</button></div><small>최대 4명 · 빈자리는 봇으로 채우지 않습니다</small></form>
-      <p id="lobby-notice" class="lobby-notice" role="status">원정 기록을 불러오고 있습니다.</p>
-      <p class="local-save-note">이 서버에 원정 기록을 저장합니다. 다른 기기와의 계정 연동은 아직 지원하지 않습니다.</p>
+    <section id="home-screen" class="home-screen" aria-label="원정대 홈">
+      <div class="home-top"><span class="credit-balance">연구 크레딧 <strong id="research-credits">—</strong></span><button id="settings-btn" class="icon-button" aria-label="설정">⚙</button></div>
+      <div class="home-brand"><p class="eyebrow">SCRAP CREW</p><h1>폐품로봇<br><em>원정대</em></h1><p>작은 고철로, 먼 우주까지.</p></div>
+      <div class="home-scene" aria-hidden="true"><div class="home-planet"></div><div class="home-orbit"></div><div id="hero-robots" class="hero-robots"></div><div class="landing-pad"></div></div>
+      <div class="home-actions"><button id="home-play" class="primary large" disabled>출정 준비 중…</button><button id="resume-btn" class="secondary" hidden>이전 전장으로</button><div class="home-utilities"><button id="research-btn" class="text-button" disabled><span aria-hidden="true">⌘</span> 설계도 연구</button><button id="feedback-btn" class="text-button">플레이 의견</button></div></div>
     </section>
-    <section class="hero-art" aria-label="폐품 로봇 원정대 미리보기">
-      <div class="orbit-ring"></div><span class="orbit-label">LAST HOPE / EARTH EXPEDITION</span>
-      <div id="hero-robots" class="hero-robots"></div>
-      <div class="hero-caption"><span>로봇 뽑기 → 조립 → 출격</span><strong>작은 고철에서 시작하는 큰 한 방.</strong></div>
+    <section id="stage-screen" class="stage-screen" aria-labelledby="stage-title" hidden>
+      <div class="stage-heading"><button id="stage-back" class="icon-button" aria-label="홈으로">‹</button><div><p class="eyebrow">SELECT DESTINATION</p><h1 id="stage-title">어디로 떠날까?</h1></div><button id="join-open" class="secondary">함께하기</button></div>
+      <div id="planet-list" class="planet-list" aria-label="행성 선택"></div>
+      <section class="mission-brief" aria-labelledby="destination-name"><small id="destination-type"></small><h2 id="destination-name"></h2><p id="destination-description"></p><dl><div><dt>목표</dt><dd id="destination-win"></dd></div><div><dt>위험</dt><dd id="destination-loss"></dd></div></dl></section>
+      <div class="departure-controls"><div class="practice-options"><label for="speed-select">진행</label><select id="speed-select"><option value="1">원정 · 1배속</option><option value="3">연습 · 3배속 / 보상 없음</option><option value="6">연습 · 6배속 / 보상 없음</option></select></div><span id="expedition-duration"></span><button id="quick-start" class="primary large" disabled>원정 준비 중…</button></div>
     </section>
-    <section class="principles" aria-label="플레이 방법"><article><span>01</span><div><h2>행성에 착륙</h2><p>내 구역은 내가 지키고.</p></div></article><article><span>02</span><div><h2>최종 로봇 설계</h2><p>나온 재료로 다음 수를 계획하고.</p></div></article><article><span>03</span><div><h2>자원과 함께 귀환</h2><p>성과로 새로운 설계도를 연구해요.</p></div></article></section>
+    <p id="lobby-notice" class="lobby-notice" role="status">원정 기록을 불러오는 중…</p>
   </main>
+
+  <dialog id="join-dialog" aria-labelledby="join-title"><div class="dialog-heading"><h2 id="join-title">동료와 함께</h2><button data-close="join-dialog" class="icon-button" aria-label="참가 창 닫기">×</button></div><form id="join-form" class="join-form"><label for="room-input">방 코드</label><div><input id="room-input" name="room" placeholder="동료의 방 코드" maxlength="32" pattern="[A-Za-z0-9_-]+" autocomplete="off" required><button class="primary" type="submit" disabled>참가</button></div><small>최대 4명 · 출발한 동료가 원정대 메뉴에서 코드를 공유할 수 있어요.</small><p id="join-notice" role="status"></p></form></dialog>
 
   <main id="game" class="game-shell" hidden>
     <section class="game-overview" aria-label="전투 현황">
@@ -47,7 +40,11 @@
       <section class="arena-panel">
         <div class="panel-heading"><div><h2 id="lane-title">내 전장</h2><span id="lane-status" class="chip">방어 중</span><span id="expedition-phase" class="chip">채굴 0%</span></div><div class="threat-readout"><span id="enemy-count">적 0 / 70</span><progress id="threat-meter" max="100" value="0" aria-labelledby="enemy-count threat-label"></progress><span id="threat-label" class="visually-hidden">적 밀집도</span></div></div>
         <div class="canvas-wrap">
-          <canvas id="battlefield" width="1000" height="440" aria-label="내 구역의 전투 화면. 아래 로봇 목록에서도 선택할 수 있습니다."></canvas>
+          <canvas id="battlefield" width="1000" height="440" aria-label="내 구역의 전투 화면. 로봇 버튼의 목록에서도 선택할 수 있습니다."></canvas>
+          <aside class="side-column"><button id="story-toggle" class="co-op-summary"><span>스토리</span><strong id="story-summary">준비 중</strong></button><button id="team-toggle" class="co-op-summary"><span>원정대</span><strong id="team-summary">1 / 4</strong></button></aside>
+          <section class="command-panel" aria-label="전장 조작"><div class="command-toolbar"><div class="tabs" aria-label="로봇 관리"><button id="army-tab" data-tab="army" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><span class="control-icon" aria-hidden="true">▣</span>로봇 <span id="army-count">0</span></button><button id="recipes-tab" data-tab="recipes" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><span class="control-icon" aria-hidden="true">⌘</span>조립 <span id="ready-count">0</span></button><button id="upgrades-tab" data-tab="upgrades" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><span class="control-icon" aria-hidden="true">↑</span>강화</button></div></div></section>
+          <button id="summon-btn" class="primary field-summon" disabled><span class="summon-symbol" aria-hidden="true">＋</span><strong>로봇 뽑기</strong><span id="summon-cost">20 고철</span></button>
+          <footer class="game-footer"><span id="notice" role="status"></span><button id="retry-action" class="text-button" hidden>재시도</button><button id="reconnect-btn" class="text-button" hidden>재접속</button><button id="new-game-btn" class="text-button">새 원정</button></footer>
           <div id="boss-hud" class="boss-hud" hidden><div><strong id="boss-label">탈출 보스</strong><span id="boss-hp"></span></div><progress id="boss-health" max="100" value="100" aria-labelledby="boss-label"></progress></div>
           <div id="combat-alert" class="combat-alert" role="status" aria-atomic="true" hidden><strong id="combat-alert-title"></strong><span id="combat-alert-subtitle"></span></div>
           <div id="field-hint" class="field-hint">로봇 뽑기를 눌러 첫 로봇을 만나세요.</div>
@@ -59,13 +56,7 @@
         </div>
         <div class="arena-footer"><span id="battle-rule">채굴 준비</span><span id="run-time">00:00</span><span id="next-wave">다음 웨이브 —</span></div>
       </section>
-      <aside class="side-column"><button id="story-toggle" class="co-op-summary"><span>공동 스토리</span><strong id="story-summary">6 웨이브에 시작</strong><span aria-hidden="true">↗</span></button><button id="team-toggle" class="co-op-summary"><span>원정대</span><strong id="team-summary">1 / 4 접속</strong><span aria-hidden="true">↗</span></button></aside>
     </div>
-
-    <section class="command-panel">
-      <div class="command-toolbar"><div class="tabs" aria-label="로봇 관리"><button id="army-tab" data-tab="army" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false">로봇 <span id="army-count">0</span></button><button id="recipes-tab" data-tab="recipes" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false">조립 <span id="ready-count">0</span></button><button id="upgrades-tab" data-tab="upgrades" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false">강화</button></div><button id="summon-btn" class="primary" disabled>로봇 뽑기 <span id="summon-cost">20 고철</span></button></div>
-      <footer class="game-footer"><span id="notice" role="status"></span><button id="retry-action" class="text-button" hidden>재시도</button><button id="reconnect-btn" class="text-button" hidden>재접속</button><button id="new-game-btn" class="text-button">새 원정</button></footer>
-    </section>
   </main>
 
   <dialog id="command-dialog" class="command-dialog" aria-labelledby="command-title">

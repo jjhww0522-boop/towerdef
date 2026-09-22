@@ -12,17 +12,18 @@ export interface Unit {
   lastAttackHits: AttackHit[];
   investedGold: number;
 }
-export interface Enemy { id: number; hp: number; maxHp: number; progress: number; boss: boolean; slowUntilTick?: number }
+export interface Enemy { id: number; hp: number; maxHp: number; progress: number; boss: boolean; slowUntilTick?: number; siegeCooldownTicks?: number }
 export type Rules = typeof content.rules;
 export interface ExpeditionResult {
   battlefieldId: number; status: 'defeated' | 'cleared' | 'left'; cleared: boolean; researchCredits: number;
   wave: number; kills: number; elapsedTicks: number; miningProgress: number;
-  reason: 'overcrowded' | 'boss_timeout' | null;
+  reason: 'overcrowded' | 'boss_timeout' | 'facility_destroyed' | null;
 }
 export interface Player {
   id: string; gold: number; status: 'active' | 'defeated' | 'cleared' | 'left';
   connected: boolean; lastSeq: number; units: Unit[]; enemies: Enemy[];
-  defeatReason: 'overcrowded' | 'boss_timeout' | null;
+  defeatReason: 'overcrowded' | 'boss_timeout' | 'facility_destroyed' | null;
+  facilityHp: number | null; lastFacilityHitTick: number | null;
   upgrades: { [tag: string]: number }; disconnectedAtTick: number | null;
   overcrowdedTicks: number; lastActionKey: string; lastActionResult: ActionResult;
   unlockedRecipes: string[]; kills: number; investmentActions: number; result: ExpeditionResult | null;
@@ -33,6 +34,7 @@ export interface GameState {
   status: 'playing' | 'finished'; practice: boolean; players: Player[]; story: Story | null;
   rngState: number; placementRngState: number; nextEntityId: number;
   battlefieldId: number; rules: Rules; stories: typeof content.stories;
+  objective: typeof content.battlefields[number]['objective'];
 }
 
 const tags = ['shu', 'wei', 'wu', 'infantry', 'archer', 'cavalry', 'might', 'strategy', 'command'];
@@ -58,13 +60,14 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
     const unlockedRecipes = content.recipes.filter(recipe => recipe.unlockBattlefield > 0 && Array.isArray(requestedUnlocks) && requestedUnlocks.indexOf(recipe.id) >= 0).map(recipe => recipe.id);
     return { id, gold: rules.startingGold, status: 'active' as 'active', connected: true, lastSeq: 0,
       units: [], enemies: [], upgrades, disconnectedAtTick: null, overcrowdedTicks: 0, defeatReason: null,
+      facilityHp: battlefield.objective.kind === 'overcrowd' ? null : battlefield.objective.facilityHp, lastFacilityHitTick: null,
       lastActionKey: '', lastActionResult: { ok: false }, unlockedRecipes, kills: 0, investmentActions: 0, result: null };
   });
   return { protocolVersion: '1', contentVersion: content.version, tick: 0, wave: 1,
     status: 'playing', practice: options.practice !== false, players, story: null,
     rngState: (options.seed >>> 0) || 0x6d2b79f5,
     placementRngState: ((options.seed ^ 0x9e3779b9) >>> 0) || 0x6d2b79f5, nextEntityId: 1, battlefieldId, rules,
-    stories: battlefield.stories.map(story => ({ ...story })) };
+    objective: { ...battlefield.objective }, stories: battlefield.stories.map(story => ({ ...story })) };
 }
 
 export function expeditionProgress(game: GameState) {
@@ -73,7 +76,7 @@ export function expeditionProgress(game: GameState) {
   return {
     phase: game.status === 'finished' ? 'complete' : game.tick >= miningTicks ? 'evacuation' : 'mining',
     miningProgress: completedWaves / game.rules.totalWaves, completedWaves, totalWaves: game.rules.totalWaves,
-    remainingTicks: Math.max(0, miningTicks + game.rules.bossTicks - game.tick)
+    remainingTicks: Math.max(0, miningTicks + (game.objective.kind === 'mining' ? 0 : game.rules.bossTicks) - game.tick)
   };
 }
 
@@ -286,18 +289,31 @@ export function tick(game: GameState): void {
     }
     const spawnInterval = Math.max(rules.minSpawnIntervalTicks, rules.spawnIntervalTicks - Math.floor((game.wave - 1) / rules.spawnRampEveryWaves));
     if (game.tick < bossStart && game.tick % spawnInterval === 0) spawnEnemy(game, p, false);
-    if (game.tick === bossStart) spawnEnemy(game, p, true);
-    p.overcrowdedTicks = p.enemies.length >= rules.overcrowdCount ? p.overcrowdedTicks + 1 : 0;
+    if (game.tick === bossStart && game.objective.kind !== 'mining') spawnEnemy(game, p, true);
+    p.overcrowdedTicks = game.objective.kind === 'overcrowd' && p.enemies.length >= rules.overcrowdCount ? p.overcrowdedTicks + 1 : 0;
     if (p.overcrowdedTicks >= rules.overcrowdTicks) retire(game, p, 'defeated', 'overcrowded');
-    else if (game.tick >= bossStart + rules.bossTicks) retire(game, p, 'defeated', 'boss_timeout');
+    else if (game.objective.kind !== 'mining' && game.tick >= bossStart + rules.bossTicks) retire(game, p, 'defeated', 'boss_timeout');
   });
   game.players.forEach(p => {
     if (p.status !== 'active') return;
     p.enemies.forEach(e => {
       const slowed = (e.slowUntilTick || 0) >= game.tick;
       const speed = slowed ? (e.boss ? rules.bossSlowMultiplier : rules.frostSlowMultiplier) : 1;
-      e.progress = (e.progress + rules.enemyProgressPerTick * speed) % 1;
+      const next = e.progress + rules.enemyProgressPerTick * speed;
+      e.progress = p.facilityHp === null ? next % 1 : Math.min(game.objective.arrivalProgress, next);
+      if (p.facilityHp !== null && e.progress >= game.objective.arrivalProgress) {
+        // Arrived enemies stay alive and attack independently; slow affects travel only.
+        e.siegeCooldownTicks = Math.max(0, (e.siegeCooldownTicks || 0) - 1);
+        if (e.siegeCooldownTicks === 0) {
+          p.facilityHp = Math.max(0, p.facilityHp - game.objective.damage * (e.boss ? 6 : 1));
+          p.lastFacilityHitTick = game.tick;
+          e.siegeCooldownTicks = game.objective.attackIntervalTicks;
+        }
+      }
     });
+    // Destruction wins ties with completion and prevents this lane earning story rewards.
+    if (p.facilityHp === 0) { retire(game, p, 'defeated', 'facility_destroyed'); return; }
+    if (game.objective.kind === 'mining' && game.tick >= bossStart) { retire(game, p, 'cleared'); return; }
     p.units.forEach(u => {
       if (u.attackCooldownTicks > 0) u.attackCooldownTicks--;
       if (u.attackCooldownTicks > 0) return;

@@ -6,7 +6,7 @@ const elementColors = { fire: '#ff9c54', wind: '#9eeab7', frost: '#86dcff', lase
 const WORLD_W = 1000, WORLD_H = 440, MAX_EFFECTS = 120;
 const slot = (n, width = WORLD_W, height = WORLD_H) => projectPoint(unitPoint(n), roadFor(width, height), width === 600);
 const roadFor = (width, height) => ({ left: width * .12, right: width * .84,
-  top: height * (width === 600 ? .18 : .24), bottom: height * (width === 600 ? .88 : height === 330 ? .86 : .8) });
+  top: height * (width === 600 ? .22 : .27), bottom: height * .80 });
 const path = (progress, width = WORLD_W, height = WORLD_H) => {
   const point = enemyPoint(progress);
   return { ...projectPoint(point, roadFor(width, height), width === 600), face: point.face };
@@ -46,8 +46,7 @@ export class Battlefield {
     const portrait = typeof matchMedia === 'function' && matchMedia('(max-width:600px)').matches;
     const bounds = this.canvas.getBoundingClientRect();
     const width = portrait ? 600 : WORLD_W;
-    const height = portrait ? Math.max(700, Math.min(1040, Math.round(600 * bounds.height / Math.max(1, bounds.width)))) :
-      bounds.width / Math.max(1, bounds.height) > 2.7 ? 330 : WORLD_H;
+    const height = Math.max(280, Math.min(1600, Math.round(width * bounds.height / Math.max(1, bounds.width))));
     if (this.worldWidth === width && this.worldHeight === height) return;
     this.worldWidth = width; this.worldHeight = height; this.effects.length = 0;
     for (const view of this.units.values()) {
@@ -121,6 +120,8 @@ export class Battlefield {
     const now = performance.now(), changedLane = !this.player || this.player.id !== player.id;
     const resuming = changedLane || (this.lastSnapshotAt > 0 && now - this.lastSnapshotAt > 2000);
     if (changedLane) { this.units.clear(); this.enemies.clear(); this.effects.length = 0; this.lastSnapshotAt = 0; }
+    if (!changedLane && player.lastFacilityHitTick != null && player.lastFacilityHitTick !== this.player?.lastFacilityHitTick) this.facilityHitAt = now;
+    if (changedLane) this.facilityHitAt = -10000;
     this.player = player; this.definitions = definitions; this.selected = selected;
     this.speed = speed; this.reduced = reduced;
     if (reduced) this.effects.length = 0;
@@ -292,7 +293,33 @@ export class Battlefield {
     }
     if (this.groundCache?.key === key) this.ctx.drawImage(this.groundCache.surface, 0, 0, this.worldWidth, this.worldHeight);
     else this.drawDeck();
-    this.miningRig(now);
+    if (this.objective && this.objective.kind !== 'overcrowd') this.facility(now);
+    else this.miningRig(now);
+  }
+
+  facility(now) {
+    const objective = this.objective, point = this.path(objective.arrivalProgress), portrait = this.worldWidth === 600;
+    const x = point.x - (portrait ? 37 : 25), y = point.y - (portrait ? 0 : 18), context = this.ctx;
+    const hit = now - (this.facilityHitAt ?? -10000) < 220, health = clamp(this.player.facilityHp / objective.facilityHp);
+    const color = health <= .3 ? '#ff9575' : '#a4e2c9';
+    this.ellipse(x, y + 14, 27, 8, '#050c16aa');
+    this.rect(x - 24, y - 29, 48, 42, hit && !this.reduced ? '#84584b' : '#304b5b', 7);
+    this.rect(x - 19, y - 24, 38, 12, objective.kind === 'engine' ? '#82aeda' : '#e0b160', 3);
+    if (objective.kind === 'engine') {
+      this.circle(x, y - 1, 14, '#0b1c2b'); this.circle(x, y - 1, 9, '#8ccee1');
+      context.strokeStyle = '#d1eef2'; context.lineWidth = 2; context.beginPath();
+      context.arc(x, y - 1, 6, this.reduced ? 0 : now / 400, (this.reduced ? 0 : now / 400) + Math.PI * 1.4); context.stroke();
+    } else {
+      this.rect(x - 5, y - 8, 10, 24, '#acc2c7', 2);
+      for (let n = 0; n < 3; n++) this.rect(x - 7, y - 6 + n * 7, 14, 2, '#203946');
+    }
+    this.rect(x - 26, y + 21, 52, 5, '#0a1721', 2); this.rect(x - 26, y + 21, 52 * health, 5, color, 2);
+    this.text(objective.label, x + (portrait ? 12 : 0), y - 43, portrait ? 15 : 11, color);
+    if (this.player.facilityAttackers) this.text(`공격 ${this.player.facilityAttackers}기`, x + (portrait ? 12 : 0), y + 43, portrait ? 14 : 11, '#ffb496');
+    if (hit) {
+      context.strokeStyle = '#ffc194'; context.lineWidth = this.reduced ? 2 : 4;
+      context.beginPath(); context.moveTo(point.x, point.y - 12); context.lineTo(x, y - 5); context.stroke();
+    }
   }
 
   drawSky(terrain, road) {
@@ -416,9 +443,9 @@ export class Battlefield {
       this.circle(x, y, 4, '#142331'); this.circle(x, y, 1.8, '#dcc794');
     }
     for (const direction of [.09, .34, .60, .86]) {
-      const point = this.path(direction), vertical = point.x === road.left || point.x === road.right;
+      const point = this.path(direction), next = this.path(direction + .002);
       context.save(); context.translate(point.x, point.y);
-      context.rotate(vertical ? (point.x === road.right ? Math.PI / 2 : -Math.PI / 2) : (point.face < 0 ? Math.PI : 0));
+      context.rotate(Math.atan2(next.y - point.y, next.x - point.x));
       context.strokeStyle = '#a0bfbd'; context.lineWidth = 3;
       context.beginPath(); context.moveTo(-4, -5); context.lineTo(2, 0); context.lineTo(-4, 5); context.stroke(); context.restore();
     }
@@ -444,8 +471,9 @@ export class Battlefield {
     context.beginPath(); context.moveTo(campX, campY - 46); context.lineTo(campX, campY - 36);
     context.moveTo(campX - 4, campY - 40); context.lineTo(campX, campY - 36); context.lineTo(campX + 4, campY - 40); context.stroke();
     this.text('스토리', campX, campY + 51, this.worldWidth === 600 ? 16 : 11, '#d9eee5');
-    this.rect(road.left - 21, road.top - 27, 42, 7, '#e2a75a', 2);
-    this.text('진입', road.left, road.top - 36, this.worldWidth === 600 ? 16 : 11, '#ffd09a');
+    const entrance = this.path(0);
+    this.rect(entrance.x - 21, entrance.y - 27, 42, 7, '#e2a75a', 2);
+    this.text('진입', entrance.x, entrance.y - 36, this.worldWidth === 600 ? 16 : 11, '#ffd09a');
     const serviceY = road.bottom + 57;
     this.rect(road.left + 18, serviceY, 95, 12, '#29414b', 2);
     for (let i = 0; i < 5; i++) this.rect(road.left + 23 + i * 17, serviceY + 3, 10, 3, '#a5c4bd55', 1);
@@ -580,13 +608,15 @@ export class Battlefield {
   enemyFrameIndex(enemy, now = 0) {
     if (!this.walkFrames.length) return enemy.boss ? 6 : (enemy.id % 3) * 4 + (enemy.id % 4 === 0 ? 2 : 0);
     const row = enemy.boss ? 2 : enemy.id % 3 === 0 ? 1 : 0;
-    const moving = !this.reduced && this.player.status === 'active';
+    const moving = !this.reduced && this.player.status === 'active' && !enemy.attackingFacility;
     return row * 4 + (moving ? Math.floor(now / 110 * Math.min(this.speed, 3) + enemy.id) % 4 : 0);
   }
   enemy(view, now) {
     const enemy = view.enemy, position = this.path(this.progress(view, now)), context = this.ctx;
+    // Small visual offsets make the stationary crowd readable; combat still uses the shared path point.
+    if (enemy.attackingFacility) { position.x += (enemy.id % 3 - 1) * 8; position.y += Math.floor(enemy.id % 9 / 3) * 5; }
     const size = enemy.boss ? 106 : 51 + enemy.id % 3 * 3;
-    const walking = !this.reduced && this.player.status === 'active';
+    const walking = !this.reduced && this.player.status === 'active' && !enemy.attackingFacility;
     const bounce = walking ? Math.abs(Math.sin(now * .009 * Math.min(this.speed, 3) + enemy.id)) * 2 : 0;
     const lean = walking ? Math.sin(now * .009 * Math.min(this.speed, 3) + enemy.id) * .035 : 0;
     this.ellipse(position.x, position.y + 2, enemy.boss ? 28 : 12, enemy.boss ? 9 : 4, '#10272275');

@@ -60,6 +60,18 @@ const rules = () => state?.rules || content.rules;
 const missions = () => state?.stories || content.stories;
 const isUnlocked = recipe => recipe.unlockBattlefield === 0 || (me()?.unlockedRecipes || profile?.unlockedRecipes || []).includes(recipe.id);
 const durationText = ticks => { const seconds = Math.ceil(ticks / content.rules.ticksPerSecond); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; };
+const expeditionTicks = (planet, r) => r.waveTicks * r.totalWaves + (planet.objective?.kind === 'mining' ? 0 : r.bossTicks);
+function objectiveCopy(planet, r) {
+  const kind = planet.objective?.kind || 'overcrowd';
+  return kind === 'mining' ? { type: '시설 방어 · 채굴', win: '채굴 완료까지 채굴기 보호', loss: '채굴기 체력 0 · 도착한 적이 계속 공격' } :
+    kind === 'engine' ? { type: '시설 방어 · 탈출', win: '엔진을 지키며 충전 후 보스 처치', loss: '엔진 체력 0 또는 보스 제한 시간 초과' } :
+      { type: '순환 방어 · 첫 원정', win: '채굴 완료 후 최종 보스 처치', loss: `적 ${r.overcrowdCount}기 이상 ${r.overcrowdTicks / r.ticksPerSecond}초 유지 또는 보스 시간 초과` };
+}
+function showLobbyScreen(screen) {
+  $('#home-screen').hidden = screen !== 'home'; $('#stage-screen').hidden = screen !== 'stages';
+  $('#lobby').dataset.screen = screen;
+  (screen === 'home' ? $('#home-play') : $('#stage-back')).focus({ preventScroll: true });
+}
 const renderedHTML = new WeakMap();
 const html = (selector, value) => { const element = $(selector); if (renderedHTML.get(element) !== value) { element.innerHTML = value; renderedHTML.set(element, value); } };
 const text = (selector, value) => { $(selector).textContent = value; };
@@ -102,13 +114,17 @@ function renderLobby() {
   if (!profile.unlockedBattlefields.includes(selectedBattlefield)) selectedBattlefield = 1;
   html('#planet-list', content.battlefields.map(planet => {
     const available = profile.unlockedBattlefields.includes(planet.id), r = { ...content.rules, ...planet.rules };
-    const minutes = Math.ceil((r.waveTicks * r.totalWaves + r.bossTicks) / r.ticksPerSecond / 60);
-    return `<button class="planet-card" data-battlefield="${planet.id}" aria-pressed="${planet.id === selectedBattlefield}" ${available ? '' : 'disabled'}><span class="planet-orb planet-${planet.id}" aria-hidden="true"></span><span><strong>${escape(planet.name)}</strong><small>${available ? (planet.id === 1 ? '첫 원정 · ' : '장기 원정 · ') + '약 ' + minutes + '분' : '이전 행성 탈출 후 개방'}</small></span><span class="planet-marker">${profile.clearedBattlefields.includes(planet.id) ? '✓' : available ? '↗' : '잠김'}</span></button>`;
+    const minutes = Math.ceil(expeditionTicks(planet, r) / r.ticksPerSecond / 60);
+    return `<button class="planet-card" data-battlefield="${planet.id}" aria-pressed="${planet.id === selectedBattlefield}" ${available ? '' : 'disabled'}><span class="planet-orb planet-${planet.id}" aria-hidden="true"></span><span><strong>${escape(planet.name)}</strong><small>${available ? (planet.id === 1 ? '첫 원정 · ' : '장기 원정 · ') + '약 ' + minutes + '분' : '이전 행성 클리어'}</small></span><span class="planet-marker">${profile.clearedBattlefields.includes(planet.id) ? '✓' : available ? '↗' : '잠김'}</span></button>`;
   }).join(''));
   const planet = content.battlefields.find(p => p.id === selectedBattlefield), r = { ...content.rules, ...planet.rules };
   const speed = Number($('#speed-select').value);
   text('#research-credits', profile.researchCredits.toLocaleString());
-  text('#expedition-duration', `${planet.name} · ${durationText(r.waveTicks * r.totalWaves + r.bossTicks)}${speed > 1 ? ' / 배속 연습은 보상 없음' : ' / 채굴 후 탈출'}`);
+  const goal = objectiveCopy(planet, r);
+  text('#destination-name', planet.name); text('#destination-type', goal.type); text('#destination-description', planet.description);
+  text('#destination-win', goal.win); text('#destination-loss', goal.loss);
+  text('#expedition-duration', `최대 ${durationText(expeditionTicks(planet, r))}${speed > 1 ? ' · 배속 연습 / 보상 없음' : ' · 원정 보상 저장'}`);
+  text('#home-play', '출정'); $('#home-play').disabled = joining;
   text('#quick-start', speed === 1 ? '원정 출발 ↗' : '보상 없는 연습 시작 ↗');
   $('#quick-start').disabled = joining;
   $('#join-form button').disabled = joining;
@@ -124,7 +140,7 @@ async function prepareLobby() {
       if (!save(localStorage, 'td.profile', { token: profileToken })) toast('브라우저 저장을 사용할 수 없어 창을 닫으면 원정 기록에 다시 연결하기 어렵습니다.');
     }
     acceptProfile(result.profile);
-    text('#lobby-notice', '혼자 출발하거나 방 코드로 최대 4명이 함께할 수 있어요.');
+    text('#lobby-notice', '');
   } catch (error) {
     text('#lobby-notice', `${error.message} 새로고침하면 다시 연결합니다.`);
     text('#quick-start', '연결 확인 필요'); $('#quick-start').disabled = true;
@@ -189,7 +205,7 @@ async function joinRoom(roomId, resume = false) {
     state = null; selected.clear(); focusedId = null; for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close(); watchedId = playerId; resultShown = false; active = true; $('#lobby').hidden = true; $('#game').hidden = false; $('#resume-btn').hidden = false;
     clearTimeout(alertTimer); $('#combat-alert').hidden = true; alertPriority = 0;
     accept(result.state); notice('로봇 뽑기로 첫 로봇을 만나세요.', 'success'); nextPoll = performance.now() + 200;
-  } catch (error) { text('#lobby-notice', error.message); if (state) notice(error.message, 'error'); }
+  } catch (error) { text('#lobby-notice', error.message); text('#join-notice', error.message); if (state) notice(error.message, 'error'); }
   finally { joining = false; $('#quick-start').disabled = !profile; $('#join-form button').disabled = !profile; }
 }
 
@@ -226,6 +242,8 @@ function accept(next) {
       combatAlert('마지막 위협 접근', '채굴 완료 · 보스를 막고 탈출하세요', 'danger', 3); sound('alarm');
     } else if (oldLane && oldLane.overcrowdedTicks === 0 && watched()?.overcrowdedTicks > 0) {
       combatAlert('방어선 과밀', `${rules().overcrowdTicks / rules().ticksPerSecond}초 안에 적의 수를 줄이세요`, 'danger', 3); sound('alarm');
+    } else if (oldLane?.facilityHp > state.objective?.facilityHp * .3 && watched()?.facilityHp <= state.objective.facilityHp * .3) {
+      combatAlert(`${state.objective.label} 위험`, '시설 앞에 쌓인 적을 제거하세요', 'danger', 3); sound('alarm');
     }
   }
   render();
@@ -351,17 +369,20 @@ function render() {
   const planet = content.battlefields.find(p => p.id === state.battlefieldId);
   const expedition = state.expedition;
   text('#planet-title', planet?.name || '행성 원정');
-  text('#expedition-phase', expedition?.phase === 'evacuation' ? '탈출 방어' : expedition?.phase === 'complete' ? '원정 종료' : `채굴 ${Math.floor((expedition?.miningProgress || 0) * 100)}%`);
+  const facility = state.objective?.kind !== 'overcrowd' && lane.facilityHp != null;
+  text('#expedition-phase', expedition?.phase === 'evacuation' ? '탈출 방어' : expedition?.phase === 'complete' ? '원정 종료' : `${state.objective?.kind === 'engine' ? '충전' : '채굴'} ${Math.floor((expedition?.miningProgress || 0) * 100)}%`);
   text('#command-wallet', `${player.gold.toLocaleString()} 고철`);
-  text('#run-time', `${durationText(state.tick)} / ${durationText(r.waveTicks * r.totalWaves + r.bossTicks)}`);
-  text('#rules-help', `개인 방어: 적 ${r.overcrowdCount}기 이상이 ${r.overcrowdTicks / r.ticksPerSecond}초 유지되면 패배. 채굴 후 보스를 ${r.bossTicks / r.ticksPerSecond}초 안에 막으면 탈출합니다. 다른 구역의 적은 대신 공격할 수 없어요.`);
-  $('.arena-panel').dataset.danger = String(lane.overcrowdedTicks > 0);
+  text('#run-time', `${durationText(state.tick)} / ${durationText(expeditionTicks(planet, r))}`);
+  const objective = objectiveCopy(planet, r);
+  text('#rules-help', `목표: ${objective.win}. 패배: ${objective.loss}. ${facility ? '적은 시설 앞에 멈춰 계속 공격합니다. 냉동은 이동만 느리게 합니다. ' : ''}다른 구역의 적은 대신 공격할 수 없어요.`);
+  $('.arena-panel').dataset.danger = String(facility ? lane.facilityHp <= state.objective.facilityHp * .3 : lane.overcrowdedTicks > 0);
   $('.game-footer').dataset.visible = String(!connected || !!pending || $('#notice').classList.contains('error'));
   if ($('#invite-room').textContent !== session.roomId) text('#copy-room', '복사');
   text('#invite-room', session.roomId);
   text('#connection-state', connected ? '● 연결됨' : '● 연결 확인 중'); $('#connection-state').className = connected ? 'connected' : 'disconnected'; $('#reconnect-btn').hidden = connected; $('#retry-action').hidden = !pending; $('#retry-action').disabled = actionBusy;
-  text('#lane-title', lane.id === playerId ? '내 구역' : '동료 구역'); text('#lane-status', statuses[lane.status]); text('#enemy-count', `적 ${lane.enemies.length} / ${r.overcrowdCount}`);
-  $('#threat-meter').value = Math.min(100, lane.enemies.length / r.overcrowdCount * 100);
+  text('#lane-title', lane.id === playerId ? '내 구역' : '동료 구역'); text('#lane-status', statuses[lane.status]);
+  text('#enemy-count', facility ? `${state.objective.label} ${Math.ceil(lane.facilityHp / state.objective.facilityHp * 100)}% · 공격 ${lane.facilityAttackers}기` : `적 ${lane.enemies.length} / ${r.overcrowdCount}`);
+  $('#threat-meter').value = facility ? lane.facilityHp / state.objective.facilityHp * 100 : Math.min(100, lane.enemies.length / r.overcrowdCount * 100);
   text('#threat-label', lane.overcrowdedTicks > 0 ? `과밀 · ${((r.overcrowdTicks - lane.overcrowdedTicks) / r.ticksPerSecond).toFixed(1)}초` : lane.enemies.length >= r.overcrowdCount * .7 ? '적 밀집' : '방어선');
   const boss = lane.enemies.find(enemy => enemy.boss);
   $('#boss-hud').hidden = !boss;
@@ -373,14 +394,14 @@ function render() {
   text('#battle-rule', lane.overcrowdedTicks > 0 ? `과밀! ${(Math.max(0, r.overcrowdTicks - lane.overcrowdedTicks) / r.ticksPerSecond).toFixed(1)}초` : `${planet?.name || '원정'}${state.practice ? ' · 연습' : ''}`);
   text('#next-wave', state.bossRemainingTicks != null ? `보스 제한 ${(state.bossRemainingTicks / r.ticksPerSecond).toFixed(1)}초` : `다음 웨이브 ${Math.ceil((r.waveTicks - state.tick % r.waveTicks) / r.ticksPerSecond)}초`);
   $('#field-hint').hidden = lane.units.length > 0 && lane.status === 'active'; text('#field-hint', lane.status !== 'active' ? `${statuses[lane.status]} · 동료 카드를 눌러 다른 전장을 확인하세요.` : '로봇 뽑기를 눌러 첫 로봇을 만나세요.');
-  field.expedition = expedition; field.battlefieldId = state.battlefieldId;
+  field.expedition = expedition; field.battlefieldId = state.battlefieldId; field.objective = state.objective;
   field.update(lane, definitions, lane.id === playerId ? new Set(focusedId === null ? [] : [focusedId]) : new Set(), speed, settings.reduced);
   text('#team-count', `${state.players.length} / 4`); html('#team-list', state.players.map((p, index) => `<button class="team-card ${p.id === lane.id ? 'active' : ''}" data-watch="${escape(p.id)}" aria-label="${p.id === playerId ? '내' : '동료 ' + (index + 1)} 전장 관전"><span class="team-badge">${p.id === playerId ? '나' : index + 1}</span><div><strong>${p.id === playerId ? '내 전장' : '동료 ' + (index + 1)} · ${statuses[p.status]}</strong><small>로봇 ${p.units.length} · 적 ${p.enemies.length} · ${p.connected ? '접속' : '연결 끊김'}</small></div><span aria-hidden="true">›</span></button>`).join(''));
   const story = state.story, mission = missions().find(s => s.wave === story?.wave) || missions().find(s => s.wave > state.wave) || missions().at(-1);
   text('#story-title', mission.name); text('#story-status', story?.status === 'active' ? '진행 중' : story?.status === 'success' ? '성공' : story?.status === 'failed' ? '종료' : '준비 중');
-  text('#story-summary', story?.status === 'active' ? `${Math.ceil(story.remainingTicks / r.ticksPerSecond)}초 · 파견 대기 ${selected.size}` : story?.status === 'success' ? '성공 · 로봇 복귀' : story?.status === 'failed' ? '종료 · 로봇 복귀' : `${mission.wave} 웨이브에 시작`);
+  text('#story-summary', story?.status === 'active' ? `${Math.ceil(story.remainingTicks / r.ticksPerSecond)}초 · 파견 ${selected.size}` : story?.status === 'success' ? '성공' : story?.status === 'failed' ? '종료' : `${mission.wave}웨이브`);
   $('#story-toggle').dataset.active = String(story?.status === 'active');
-  text('#team-summary', `${state.players.filter(p => p.connected).length} / ${state.players.length} 접속 · 최대 4명`);
+  text('#team-summary', `${state.players.filter(p => p.connected).length} / 4`);
   text('#story-description', story?.status === 'active' ? `남은 시간 ${(story.remainingTicks / r.ticksPerSecond).toFixed(1)}초 · 성공 보상 ${mission.rewardGold} 고철` : story?.status === 'success' ? `공동 목표 달성 · ${mission.rewardGold} 고철 지급` : story?.status === 'failed' ? '추가 보상 없음 · 개인 방어는 계속' : `${mission.wave} 웨이브에 시작해요.`);
   $('#story-health span').style.width = story ? `${Math.max(0, story.hp / story.maxHp) * 100}%` : '0%';
   const dispatching = player.units.filter(u => selected.has(u.id)), away = player.units.filter(u => u.dispatched).length;
@@ -415,7 +436,7 @@ function showResult() {
   for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   resultShown = true; const player = me(); mark('result');
   text('#result-title', player.status === 'cleared' ? '자원과 함께, 지구로.' : '이번 원정은 여기까지.');
-  text('#result-description', player.status === 'cleared' ? '채굴을 마치고 마지막 위협을 막았어요. 새 설계도를 연구하고 다음 행성에 도전하세요.' : player.defeatReason === 'boss_timeout' ? '탈출 제한 시간 안에 최종 보스를 막지 못했어요. 다음 원정에서는 상위 조합과 강화 시점을 바꿔보세요.' : player.defeatReason === 'overcrowded' ? `적 ${rules().overcrowdCount}마리 이상이 ${rules().overcrowdTicks / rules().ticksPerSecond}초 동안 쌓였어요. 방어에 쓸 중간 조합도 챙겨보세요.` : '개인 방어가 종료되었어요. 동료의 전투는 계속됩니다.');
+  text('#result-description', player.status === 'cleared' ? (state.objective?.kind === 'mining' ? '채굴기를 끝까지 지켜 자원을 확보했어요. 새로운 행성으로 떠나보세요.' : '마지막 위협을 막고 탈출했어요. 새 설계도를 연구하고 다음 행성에 도전하세요.') : player.defeatReason === 'facility_destroyed' ? `${state.objective.label}이 파괴되었어요. 시설 앞에 쌓인 적을 제거할 화력과 조립 위치를 확보해보세요.` : player.defeatReason === 'boss_timeout' ? '제한 시간 안에 최종 보스를 막지 못했어요. 상위 조합과 강화 시점을 바꿔보세요.' : player.defeatReason === 'overcrowded' ? `적 ${rules().overcrowdCount}마리 이상이 ${rules().overcrowdTicks / rules().ticksPerSecond}초 동안 쌓였어요. 방어에 쓸 중간 조합도 챙겨보세요.` : '개인 방어가 종료되었어요. 동료의 전투는 계속됩니다.');
   html('#result-stats', `<div><strong>${state.wave}</strong><span>도달 웨이브</span></div><div><strong>${metrics?.actionCounts.combine || 0}</strong><span>확인된 조합</span></div><div><strong>${metrics?.actionCounts.dispatch || 0}</strong><span>확인된 파견</span></div>`);
   text('#result-research', state.practice ? '배속·연습 원정 · 연구 보상 없음' : `연구 크레딧 +${player.result?.researchCredits || 0}`);
   text('#result-save-note', state.practice ? '연습에서는 행성과 설계도를 해금할 수 없어요.' : `보유 ${profile?.researchCredits || 0} 크레딧 · 성과를 이 서버에 저장했어요.`);
@@ -432,7 +453,7 @@ async function leave() {
   if (me()?.status === 'active' && (!connected || pending || !await sendAction('leave'))) return;
   active = false; state = null; connected = false; setPending(null); $('#game').hidden = true; $('#lobby').hidden = false;
   for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
-  text('#lobby-notice', '귀환했습니다. 설계도를 연구하거나 다음 목적지를 고르세요.'); renderLobby();
+  text('#lobby-notice', ''); $('#resume-btn').hidden = true; renderLobby(); showLobbyScreen('home');
 }
 function applySettings() {
   document.body.classList.toggle('reduce-motion', settings.reduced); $('#reduced-motion').checked = settings.reduced; $('#sound-enabled').checked = settings.sound;
@@ -490,6 +511,9 @@ function feedbackSnapshot() { return state && me() ? { contentVersion: state.con
 function openFeedback() { $('#result-dialog').close(); text('#feedback-count', `저장된 의견 ${read(localStorage, 'td.feedback', []).length}개`); $('#feedback-dialog').showModal(); }
 
 $('#quick-start').addEventListener('click', newGame);
+$('#home-play').addEventListener('click', () => { renderLobby(); showLobbyScreen('stages'); });
+$('#stage-back').addEventListener('click', () => showLobbyScreen('home'));
+$('#join-open').addEventListener('click', () => { text('#join-notice', ''); $('#join-dialog').showModal(); });
 $('#speed-select').addEventListener('change', renderLobby);
 $('#research-btn').addEventListener('click', () => { renderResearch(); $('#research-dialog').showModal(); });
 $('#blueprint-pin').addEventListener('click', () => {

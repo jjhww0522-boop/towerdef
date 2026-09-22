@@ -15,6 +15,7 @@
     "test:expedition": "node tools/expedition-browser-check.mjs",
     "test:combat": "node tools/combat-feel-check.mjs",
     "test:position": "node tools/position-combat-check.mjs",
+    "test:flow": "node tools/mobile-flow-check.mjs",
     "test:network": "npm run build && node tools/network-playtest.mjs",
     "simulate": "npm run build && node tools/simulate.mjs"
   },
