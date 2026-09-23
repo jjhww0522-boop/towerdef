@@ -29,7 +29,7 @@ test('enemies stop at the facility and each attacks repeatedly without being con
 
 test('cold delays arrival but does not reduce an arrived enemy attack rate', () => {
   const game = create(), owner = game.players[0];
-  const enemy = attacker(game, owner, { progress: game.objective.arrivalProgress - .0025 });
+  const enemy = attacker(game, owner, { progress: game.objective.arrivalProgress - game.rules.enemyProgressPerTick * game.rules.frostSlowMultiplier * 1.5 });
   enemy.slowUntilTick = 100;
   tick(game); assert.equal(owner.facilityHp, game.objective.facilityHp);
   tick(game); assert.equal(owner.facilityHp, game.objective.facilityHp - game.objective.damage);
@@ -41,7 +41,7 @@ test('killing an attacker stops its damage; allies and dispatched robots cannot 
   const game = create(), [owner, peer] = game.players;
   for (const player of [owner, peer]) {
     applyAction(game, player.id, { seq: 1, type: 'summon' });
-    Object.assign(player.units[0], { definitionId: 'shu_guard', slot: 25 });
+    Object.assign(player.units[0], { definitionId: 'shu_guard', slot: 10 });
   }
   const enemy = attacker(game, owner, { hp: 1 });
   owner.units[0].dispatched = true;

@@ -28,7 +28,10 @@ function portraitStyle(definition) {
 const errors = { INSUFFICIENT_GOLD: '고철 부족 · 적 처치나 다음 웨이브에서 얻어요.', UNIT_CAP: '보유 한도에 도달했습니다. 재료를 조합해 자리를 만드세요.', INVALID_INGREDIENTS: '재료가 변경되었습니다. 현재 로봇을 확인하고 다시 조합하세요.', RECIPE_LOCKED: '이 전설은 영구 해금이 필요합니다. 이번 연습에서는 사용할 수 없습니다.', DISPATCH_CAP: '이미 파견한 로봇을 포함해 최대 2기까지 지원할 수 있습니다.', NO_ACTIVE_STORY: '지금은 진행 중인 스토리가 없습니다.', NOT_ACTIVE: '내 전투가 종료되었습니다. 동료를 관전하거나 새 연습을 시작하세요.', INVALID_UNITS: '선택한 로봇을 확인하세요. 이미 파견한 로봇은 다시 보낼 수 없습니다.', UPGRADE_CAP: '최대 강화 단계입니다.', room_full_or_finished: '가득 찼거나 참가 가능한 시간이 지난 방입니다. 새 방으로 시작하세요.', player_already_claimed: '참가 정보를 복구할 수 없습니다. 새 연습으로 시작하세요.', session_required: '서버가 재시작되었거나 세션이 만료되었습니다. 다시 연결하거나 새 연습을 시작하세요.', version_mismatch: '콘텐츠가 변경되었습니다. 페이지를 새로고침하세요.', invalid_room_or_player_id: '방 코드는 영문, 숫자, 밑줄, 하이픈 1~32자로 입력하세요.', local_room_limit_restart_server: '연습방 한도에 도달했습니다. 로컬 서버를 재시작하세요.', DISCONNECTED: '연결을 복구한 뒤 다시 시도하세요.' };
 let content, definitions, state = null, session = read(sessionStorage, 'td.session', null), pending = read(sessionStorage, 'td.pending', null);
 Object.assign(errors, {
-  RECIPE_LOCKED: '아직 연구하지 않은 설계도예요. 귀환 후 연구소에서 해금하세요.',
+  RECIPE_LOCKED: '아직 잠긴 조합이에요. 설계도에서 해금 조건을 확인하세요.',
+  SUMMON_COOLDOWN: '다음 로봇을 준비하고 있어요.',
+  TUTORIAL_ACTION_REQUIRED: '안내된 행동을 먼저 해보세요.',
+  tutorial_solo: '기동 훈련은 혼자 진행해요.',
   insufficient_research_credits: '연구 크레딧이 부족해요. 원정에서 더 모아보세요.',
   battlefield_locked: '아직 갈 수 없는 행성이에요. 이전 행성에서 먼저 탈출하세요.',
   profile_required: '원정 기록에 연결하지 못했어요. 새로고침해 다시 연결하세요.',
@@ -59,9 +62,9 @@ const rules = () => state?.rules || content.rules;
 const missions = () => state?.stories || content.stories;
 const isUnlocked = recipe => recipe.unlockBattlefield === 0 || (me()?.unlockedRecipes || profile?.unlockedRecipes || []).includes(recipe.id);
 const durationText = ticks => { const seconds = Math.ceil(ticks / content.rules.ticksPerSecond); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; };
-const expeditionTicks = (planet, r) => r.waveTicks * r.totalWaves + (planet.objective?.kind === 'mining' ? 0 : r.bossTicks);
+const expeditionTicks = (planet, r) => r.waveTicks * r.totalWaves + (planet?.objective?.kind === 'mining' ? 0 : r.bossTicks);
 function objectiveCopy(planet, r) {
-  const kind = planet.objective?.kind || 'overcrowd';
+  const kind = planet?.objective?.kind || 'overcrowd';
   return kind === 'mining' ? { type: '시설 방어 · 채굴', win: '채굴 완료까지 채굴기 보호', loss: '채굴기 체력 0 · 도착한 적이 계속 공격' } :
     kind === 'engine' ? { type: '시설 방어 · 탈출', win: '엔진을 지키며 충전 후 보스 처치', loss: '엔진 체력 0 또는 보스 제한 시간 초과' } :
       { type: '순환 방어', win: '채굴 완료 후 최종 보스 처치', loss: `적 ${r.overcrowdCount}기 이상 ${r.overcrowdTicks / r.ticksPerSecond}초 유지 또는 보스 시간 초과` };
@@ -73,7 +76,7 @@ function showLobbyScreen(screen) {
 }
 const renderedHTML = new WeakMap();
 const html = (selector, value) => { const element = $(selector); if (renderedHTML.get(element) !== value) { element.innerHTML = value; renderedHTML.set(element, value); } };
-const text = (selector, value) => { $(selector).textContent = value; };
+const text = (selector, value) => { const element = $(selector); if (element.textContent !== String(value)) element.textContent = value; };
 function notice(message, kind = '') { text('#notice', message); $('#notice').className = kind; $('.game-footer').dataset.visible = String(kind === 'error' || !!pending || !connected); }
 function toast(message) { text('#toast', message); $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').hidden = true, 3200); }
 function combatAlert(title, subtitle = '', tone = 'wave', priority = 1) {
@@ -183,6 +186,8 @@ function renderLobby() {
   $('#quick-start').disabled = joining || !available;
   $('#join-form button').disabled = joining;
   $('#research-btn').disabled = false;
+  $('#tutorial-start').disabled = joining;
+  text('#tutorial-start', profile.tutorialCompleted ? '기동 훈련 다시 하기' : '처음이라면 · 기동 훈련');
 }
 
 async function prepareLobby() {
@@ -201,14 +206,17 @@ async function prepareLobby() {
   }
 }
 
+function unlockCopy(recipe) {
+  return recipe.unlockType === 'clear' ? '1-' + recipe.unlockBattlefield + ' 클리어 시 해금' : '1-' + recipe.unlockBattlefield + ' 클리어 후 연구';
+}
 function renderResearch() {
   if (!profile || !content) return;
   text('#research-balance', profile.researchCredits.toLocaleString());
   html('#research-list', content.recipes.filter(recipe => recipe.unlockBattlefield > 0).map(recipe => {
     const d = definitions.get(recipe.result), unlocked = profile.unlockedRecipes.includes(recipe.id);
+    const automatic = recipe.unlockType === 'clear';
     const eligible = profile.clearedBattlefields.includes(recipe.unlockBattlefield), affordable = profile.researchCredits >= recipe.researchCost;
-    const prerequisite = content.battlefields.find(p => p.id === recipe.unlockBattlefield)?.name || recipe.unlockBattlefield;
-    return `<article class="research-card"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><h3>${escape(d.name)} <small>${rarityName(d)}</small></h3><p class="research-condition">${unlocked ? '다음 원정부터 조립 가능' : eligible ? '재료: ' + recipe.ingredients.map(name).map(escape).join(' + ') : escape(prerequisite) + ' 클리어 후 연구'}</p>${unlocked ? '' : `<p class="research-cost">${recipe.researchCost} 크레딧${eligible && !affordable ? ' · ' + (recipe.researchCost - profile.researchCredits) + ' 부족' : ''}</p>`}<button class="text-button" data-plan-recipe="${recipe.id}">조립 경로</button></div><button class="${unlocked ? 'secondary' : 'primary'}" data-research-recipe="${recipe.id}" aria-label="${escape(d.name)} ${unlocked ? '연구 완료' : '연구'}" ${researching || unlocked || !eligible || !affordable ? 'disabled' : ''}>${unlocked ? '연구 완료' : '연구'}</button></article>`;
+    return `<article class="research-card"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><h3>${escape(d.name)} <small>${rarityName(d)}</small></h3><p class="research-condition">${unlocked ? '다음 원정부터 조립 가능' : unlockCopy(recipe)}</p>${unlocked || automatic ? '' : `<p class="research-cost">${recipe.researchCost} 크레딧${eligible && !affordable ? ' · ' + (recipe.researchCost - profile.researchCredits) + ' 부족' : ''}</p>`}<button class="text-button" data-plan-recipe="${recipe.id}">조립 경로</button></div>${automatic ? `<span class="unlock-state">${unlocked ? '해금 완료' : '클리어 보상'}</span>` : `<button class="${unlocked ? 'secondary' : 'primary'}" data-research-recipe="${recipe.id}" aria-label="${escape(d.name)} ${unlocked ? '연구 완료' : '연구'}" ${researching || unlocked || !eligible || !affordable ? 'disabled' : ''}>${unlocked ? '연구 완료' : '연구'}</button>`}</article>`;
   }).join(''));
 }
 
@@ -236,21 +244,21 @@ function openBlueprint(recipeId) {
     const assembly = content.recipes.find(r => r.result === unitId);
     const requirements = new Map();
     if (assembly && missing > 0) for (const ingredient of assembly.ingredients) requirements.set(ingredient, (requirements.get(ingredient) || 0) + missing);
-    return `<li><div class="blueprint-node ${missing ? '' : 'available'}"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><strong>${escape(d.name)} ×${count}</strong><small>${rarityName(d)} · ${owned ? owned + '기 배정' : assembly ? '조립 필요' : '뽑기 필요'}${assembly && !isUnlocked(assembly) ? ' · 연구 잠김' : ''}</small></div></div>${requirements.size && depth < content.recipes.length ? '<ul>' + [...requirements].map(([id, need]) => branch(id, need, depth + 1)).join('') + '</ul>' : ''}</li>`;
+    return `<li><div class="blueprint-node ${missing ? '' : 'available'}"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><strong>${escape(d.name)} ×${count}</strong><small>${rarityName(d)} · ${owned ? owned + '기 배정' : assembly ? '조립 필요' : '뽑기 필요'}${assembly && !isUnlocked(assembly) ? ' · ' + unlockCopy(assembly) : ''}</small></div></div>${requirements.size && depth < content.recipes.length ? '<ul>' + [...requirements].map(([id, need]) => branch(id, need, depth + 1)).join('') + '</ul>' : ''}</li>`;
   }
   html('#blueprint-tree', `<ul>${branch(recipe.result, 1)}</ul>`);
   text('#blueprint-pin', pinned === recipeId ? '이번 판 목표 해제' : '이번 판 목표로 지정');
   $('#blueprint-dialog').showModal();
 }
 
-async function joinRoom(roomId, resume = false) {
+async function joinRoom(roomId, resume = false, tutorial = false) {
   if (joining || actionBusy) return;
   joining = true; active = false; $('#quick-start').disabled = true; $('#join-form button').disabled = true; text('#lobby-notice', '전장과 콘텐츠를 준비하고 있습니다…');
   try {
     content = await api('/content', null, null); definitions = new Map(content.units.map(u => [u.id, u]));
     const token = resume && session?.roomId === roomId ? session.token : null;
-    const speed = Number($('#speed-select').value);
-    const result = await api('/session', { roomId, playerId, protocolVersion: '1', contentVersion: content.version, speed, practice: speed !== 1, profileToken, battlefieldId: selectedBattlefield }, token);
+    const speed = tutorial ? 1 : Number($('#speed-select').value);
+    const result = await api('/session', { roomId, playerId, protocolVersion: '1', contentVersion: content.version, speed, practice: speed !== 1, tutorial, profileToken, battlefieldId: selectedBattlefield }, token);
     if (result.profileToken) { profileToken = result.profileToken; save(localStorage, 'td.profile', { token: profileToken }); }
     acceptProfile(result.profile);
     const fresh = !resume || result.token !== session?.token;
@@ -267,6 +275,9 @@ function accept(next) {
   if (next.protocolVersion !== '1' || next.contentVersion !== content.version) { active = false; connected = false; notice(errors.version_mismatch, 'error'); return; }
   if (state && next.tick < state.tick) return;
   const previous = state; state = next; connected = true; acceptProfile(next.profile);
+  if (state.tutorial && previous?.tutorial?.step !== state.tutorial.step) {
+    focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close();
+  }
   const player = me(); if (!player) { active = false; notice('내 참가 정보를 찾을 수 없습니다. 새 연습으로 시작하세요.', 'error'); return; }
   selected = new Set([...selected].filter(unitId => player.units.some(u => u.id === unitId && !u.dispatched)));
   if (!player.units.some(u => u.id === focusedId && !u.dispatched) || player.status !== 'active') {
@@ -339,7 +350,7 @@ function materials(recipe, focus = null) { return recipeMaterials(recipe, me()?.
 function materialHTML(recipe) { return materials(recipe).entries.map(e => `<span class="material ${e.have >= e.need ? 'enough' : ''}">${escape(name(e.key))} <b>${e.have}/${e.need}</b></span>`).join(''); }
 function assemblyStatus(recipe, stock) {
   const missing = stock.entries.filter(entry => entry.have < entry.need).map(entry => `${name(entry.key)} ${entry.need - entry.have}기`);
-  return [isUnlocked(recipe) ? '' : '설계도 연구 필요', missing.length ? missing.join(' · ') + ' 부족' : isUnlocked(recipe) ? '조립 가능' : ''].filter(Boolean).join(' · ');
+  return [isUnlocked(recipe) ? '' : unlockCopy(recipe), missing.length ? missing.join(' · ') + ' 부족' : isUnlocked(recipe) ? '조립 가능' : ''].filter(Boolean).join(' · ');
 }
 function controlsAvailable() { return connected && !actionBusy && !pending && me()?.status === 'active'; }
 function dismissUnit() {
@@ -365,7 +376,7 @@ function renderEvolution() {
   const selling = !!unit && saleId === unit.id;
   $('#sale-inspection').hidden = !selling;
   if (!unit) { html('#evolution-panel', ''); return; }
-  const definition = definitions.get(unit.definitionId), choices = evolutionOptions(content, player, focusedId);
+  const definition = definitions.get(unit.definitionId), choices = evolutionOptions(content, player, focusedId).filter(({ recipe }) => isUnlocked(recipe) && (!state.tutorial || recipe.id === 'make_cheng_yu'));
   text('#unit-title', definition.name);
   $('#unit-title').title = definition.name;
   text('#unit-subtitle', ({ fire: '화염 · 근거리', wind: '바람 · 범위 공격', frost: '냉동 · 감속', laser: '레이저 · 원거리', electric: '전격 · 연쇄 공격' })[definition.element] || attackRole(definition));
@@ -378,8 +389,9 @@ function renderEvolution() {
   $('#queue-dispatch').disabled = !controlsAvailable() || (!selected.has(unit.id) && selected.size + away >= rules().maxDispatch);
   text('#sell-unit', selling ? '취소' : '판매');
   $('#sell-unit').setAttribute('aria-expanded', String(selling));
-  $('#sell-unit').disabled = !controlsAvailable();
-  $('#confirm-sale').disabled = !controlsAvailable();
+  $('#sell-unit').disabled = !controlsAvailable() || !!state.tutorial && (state.tutorial.step !== 'sell' || unit.id !== state.tutorial.saleUnitId);
+  $('#queue-dispatch').hidden = !!state.tutorial;
+  $('#confirm-sale').disabled = $('#sell-unit').disabled;
   if (selling) {
     text('#sale-description', `뽑기 비용 ${Math.round(rules().salvageRefundRatio * 100)}% 회수`);
     text('#confirm-sale', `판매 · +${unit.salvageGold || 0} 고철`);
@@ -388,20 +400,26 @@ function renderEvolution() {
   renderUnitInspection(player, unit, definition);
   const options = choices.length ? choices.map(({ recipe, materials: m }, index) => {
     const result = definitions.get(recipe.result);
+    const tutorialAnchor = !state.tutorial || state.tutorial.step === 'combine' && focusedId === state.tutorial.anchorUnitId;
     return `<article class="evolution-card ${m.ready ? 'ready' : ''}" data-evolution-result="${result.id}">
       <div class="evolution-main"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(result)}" aria-hidden="true"></span><h3>${escape(result.name)}</h3></div></div>
-      <button class="primary evolve-button" data-evolve-recipe="${recipe.id}" aria-label="${escape(result.name)} ${m.ready ? '조립' : escape(assemblyStatus(recipe, m))}" ${!controlsAvailable() || !m.ready ? 'disabled' : ''}>조립</button>
-      <p class="assembly-status">${escape(assemblyStatus(recipe, m))}</p></div>
+      <button class="primary evolve-button" data-evolve-recipe="${recipe.id}" aria-label="${escape(result.name)} ${m.ready ? '조립' : escape(assemblyStatus(recipe, m))}" ${!controlsAvailable() || !m.ready || !tutorialAnchor ? 'disabled' : ''}>조립</button>
+      <p class="assembly-status">${escape(state.tutorial && m.ready && !tutorialAnchor ? '처음 렌즈봇을 선택해 조립하세요.' : assemblyStatus(recipe, m))}</p></div>
       <div class="assembly-footer"><span class="assembly-consumption">${recipe.ingredients.length}기 소모 · 이 자리 조립</span><button class="text-button" data-evolution-detail="${recipe.id}">상세</button>${choices.length > 1 ? `<button class="text-button" data-evolution-next="${(index + 1) % choices.length}" aria-label="다음 조립 보기 · 현재 ${index + 1}/${choices.length}">${index + 1}/${choices.length} ›</button>` : ''}</div>
     </article>`;
-  }).join('') : '<p class="empty-roster">최종 조립 완성</p>';
+  }).join('') : '<p class="empty-roster">지금 사용할 수 있는 조립이 없어요.</p>';
   html('#evolution-panel', options);
   if ($('#unit-dialog').open) {
     const dialog = $('#unit-dialog'), area = $('.canvas-wrap').getBoundingClientRect(), canvas = field.canvas.getBoundingClientRect();
     const position = field.position(unit.slot), robotHeight = field.unitHeight(definition) * field.scale;
     const center = canvas.top - area.top + field.oy + position.y * field.scale - robotHeight * .47;
-    const top = Math.max(...['.canvas-wrap>.side-column', '.arena-panel>.panel-heading', '#boss-hud', '#threat-label']
-      .map(selector => $(selector)).filter(element => element.getClientRects().length > 0)
+    if (innerHeight <= 500 && !state.tutorial) {
+      const targetRight = canvas.left - area.left + field.ox + position.x * field.scale > area.width / 2;
+      dialog.style.width = 'min(480px, calc(100% - 24px))';
+      dialog.style.left = targetRight ? '12px' : 'auto'; dialog.style.right = targetRight ? 'auto' : '12px';
+    } else { dialog.style.width = ''; dialog.style.left = ''; dialog.style.right = ''; }
+    const top = Math.max(0, ...['.canvas-wrap>.side-column', '.arena-panel>.panel-heading', '#boss-hud', '#threat-label', '#tutorial-guide']
+      .map(selector => $(selector)).filter(element => element.getClientRects().length > 0 && (element.id !== 'tutorial-guide' || innerHeight > 500))
       .map(element => element.getBoundingClientRect().bottom - area.top)) + 6;
     const bottom = Math.min($('.command-panel').getBoundingClientRect().top, $('#summon-btn').getBoundingClientRect().top) - area.top - 10;
     const height = dialog.getBoundingClientRect().height, lower = Math.max(top, bottom - height);
@@ -451,11 +469,13 @@ function renderUpgrade() {
 function render() {
   if (!state || !content || !me()) return;
   const player = me(), lane = watched(), r = rules(), can = controlsAvailable(), speed = state.playbackSpeed || 1;
+  $('#game').dataset.tutorial = String(!!state.tutorial);
+  renderTutorial();
   $('#game').dataset.stateStatus = player.status; $('#game').dataset.wave = state.wave;
   text('#room-label', '방 ' + session.roomId); html('#wave-value', `${String(state.wave).padStart(2, '0')} <small>/ ${r.totalWaves}</small>`); text('#gold-value', player.gold.toLocaleString()); html('#unit-value', `${player.units.length} <small>/ ${r.maxUnits}</small>`); text('#speed-label', speed + '배속' + (state.practice ? ' · 연습' : ' · 원정'));
   const planet = content.battlefields.find(p => p.id === state.battlefieldId);
   const expedition = state.expedition;
-  text('#planet-title', planet?.name || '행성 원정');
+  text('#planet-title', state.tutorial ? '기동 훈련' : planet?.name || '행성 원정');
   const facility = state.objective?.kind !== 'overcrowd' && lane.facilityHp != null;
   text('#expedition-phase', expedition?.phase === 'evacuation' ? '탈출 방어' : expedition?.phase === 'complete' ? '원정 종료' : `${state.objective?.kind === 'engine' ? '충전' : '채굴'} ${Math.floor((expedition?.miningProgress || 0) * 100)}%`);
   text('#command-wallet', `${player.gold.toLocaleString()} 고철`);
@@ -485,11 +505,11 @@ function render() {
   text('#battle-rule', lane.overcrowdedTicks > 0 ? `과밀! ${(Math.max(0, r.overcrowdTicks - lane.overcrowdedTicks) / r.ticksPerSecond).toFixed(1)}초` : `${planet?.name || '원정'}${state.practice ? ' · 연습' : ''}`);
   $('#next-wave').hidden = state.bossRemainingTicks != null;
   text('#next-wave', `다음 무리 ${Math.ceil((r.waveTicks - state.tick % r.waveTicks) / r.ticksPerSecond)}초`);
-  $('#field-hint').hidden = lane.units.length > 0 && lane.status === 'active'; text('#field-hint', lane.status !== 'active' ? `${statuses[lane.status]} · 동료 카드를 눌러 다른 전장을 확인하세요.` : '로봇을 뽑아 방어를 시작하세요.');
+  $('#field-hint').hidden = !!state.tutorial || lane.units.length > 0 && lane.status === 'active'; text('#field-hint', lane.status !== 'active' ? `${statuses[lane.status]} · 동료 카드를 눌러 다른 전장을 확인하세요.` : '로봇을 뽑아 방어를 시작하세요.');
   field.expedition = expedition; field.battlefieldId = state.battlefieldId; field.objective = state.objective;
   field.update(lane, definitions, lane.id === playerId ? new Set(focusedId === null ? [] : [focusedId]) : new Set(), speed, settings.reduced);
   text('#team-count', `${state.players.length} / 4`); html('#team-list', state.players.map((p, index) => `<button class="team-card ${p.id === lane.id ? 'active' : ''}" data-watch="${escape(p.id)}" aria-label="${p.id === playerId ? '내' : '동료 ' + (index + 1)} 전장 관전"><span class="team-badge">${p.id === playerId ? '나' : index + 1}</span><div><strong>${p.id === playerId ? '내 전장' : '동료 ' + (index + 1)} · ${statuses[p.status]}</strong><small>로봇 ${p.units.length} · 적 ${p.enemies.length} · ${p.connected ? '접속' : '연결 끊김'}</small></div><span aria-hidden="true">›</span></button>`).join(''));
-  const story = state.story, mission = missions().find(s => s.wave === story?.wave) || missions().find(s => s.wave > state.wave) || missions().at(-1);
+  const story = state.story, mission = missions().find(s => s.wave === story?.wave) || missions().find(s => s.wave > state.wave) || missions().at(-1) || { name: '', wave: 0, rewardGold: 0 };
   text('#story-title', mission.name); text('#story-status', story?.status === 'active' ? '진행 중' : story?.status === 'success' ? '성공' : story?.status === 'failed' ? '종료' : '준비 중');
   text('#story-summary', story?.status === 'active' ? `${Math.ceil(story.remainingTicks / r.ticksPerSecond)}초 · 파견 ${selected.size}` : story?.status === 'success' ? '성공' : story?.status === 'failed' ? '종료' : `${mission.wave}웨이브`);
   $('#story-toggle').dataset.active = String(story?.status === 'active');
@@ -499,22 +519,61 @@ function render() {
   const dispatching = player.units.filter(u => selected.has(u.id)), away = player.units.filter(u => u.dispatched).length;
   text('#story-detail', dispatching.length ? `${dispatching.map(u => name(u.definitionId)).join(' · ')} 파견 예정. 이 로봇은 내 방어에서 빠지고 종료 시 복귀합니다.` : `파견한 로봇은 내 방어에서 빠집니다. 스토리 종료 시 복귀합니다. 현재 지원 ${away}/${r.maxDispatch}기`);
   text('#dispatch-btn', dispatching.length ? `${dispatching.length}기 파견 · 현재 지원 ${away}/${r.maxDispatch}` : `로봇 상세에서 파견 대기 · ${away}/${r.maxDispatch}`); $('#dispatch-btn').disabled = !can || story?.status !== 'active' || !selected.size || selected.size + away > r.maxDispatch;
-  text('#summon-cost', r.summonCost + ' 고철'); $('#summon-btn').disabled = !can || player.gold < r.summonCost || player.units.length >= r.maxUnits; text('#army-count', player.units.length);
+  const cooldown = player.summonCooldownRemainingTicks || 0;
+  text('#summon-cost', player.units.length >= r.maxUnits ? '자리 가득 참' : r.summonCost + ' 고철');
+  $('#summon-btn').disabled = !can || cooldown > 0 || player.gold < r.summonCost || player.units.length >= r.maxUnits || !!state.tutorial && !['summon', 'fill', 'replacement'].includes(state.tutorial.step);
+  $('#summon-btn').dataset.cooling = String(cooldown > 0);
+  $('#summon-btn').style.setProperty('--summon-ready', 1 - cooldown / Math.max(1, r.summonCooldownTicks));
+  text('#army-count', player.units.length);
   const ready = content.recipes.filter(recipe => materials(recipe).ready); text('#ready-count', ready.length); $('#recipes-tab').dataset.ready = String(ready.length > 0);
   const selectedDefinitions = player.units.filter(u => u.id === focusedId).map(u => definitions.get(u.definitionId));
   $('#clear-selection').hidden = selected.size === 0;
   text('#selection-info', selectedDefinitions.length ? `${selectedDefinitions[0].name} 선택 · 조립은 로봇을 누르세요` : '로봇을 눌러 조립 · 옆으로 넘겨 보기');
   html('#roster', player.units.length ? player.units.map(u => { const d = definitions.get(u.definitionId); return `<button class="unit-card ${u.dispatched ? 'dispatched' : ''}" data-unit-id="${u.id}" data-faction="${d.faction}" data-rarity="${d.rarity}" aria-pressed="${focusedId === u.id}" ${u.dispatched || player.status !== 'active' ? 'disabled' : ''} aria-label="${escape(d.name)} ${rarityName(d)} ${u.dispatched ? '파견 중' : '선택'}"><span class="unit-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><strong>${escape(d.name)}</strong><small>${u.dispatched ? '파견 중' : `${selected.has(u.id) ? '파견 대기 · ' : ''}${rarityName(d)} · ${names[d.trait]}`}</small></div></button>`; }).join('') : '<p class="empty-roster">로봇을 뽑아 방어를 시작하세요. 공격은 자동이에요.</p>');
-  const recipes = content.recipes.filter(recipe => !$('#craftable-only').checked || materials(recipe).ready);
-  html('#recipe-list', recipes.length ? recipes.map(recipe => { const m = materials(recipe), d = definitions.get(recipe.result); return `<article class="recipe-card ${m.ready ? 'ready' : ''} ${isUnlocked(recipe) ? '' : 'locked'}"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><h3>${escape(d.name)}<small>${rarityName(d)}${isUnlocked(recipe) ? '' : ' · 연구 필요'}</small></h3></div><button class="pin-button" data-pin="${recipe.id}" aria-label="${escape(d.name)} 목표 ${pinned === recipe.id ? '해제' : '고정'}" aria-pressed="${pinned === recipe.id}">◇</button></div><div class="materials">${materialHTML(recipe)}</div><p class="assembly-status">${escape(assemblyStatus(recipe, m))}</p><div class="recipe-actions"><button class="text-button" data-plan-recipe="${recipe.id}">조립 경로</button><button class="secondary" data-combine-recipe="${recipe.id}" aria-label="${escape(d.name)} ${m.ready ? '조립할 위치 선택' : escape(assemblyStatus(recipe, m))}" ${can && m.ready ? '' : 'disabled'}>위치 선택</button></div></article>`; }).join('') : '<p class="empty-roster">지금 가능한 조립이 없어요. 재료를 더 모으거나 전체 조립표를 확인하세요.</p>');
+  const recipes = content.recipes.filter(recipe => isUnlocked(recipe) && (!state.tutorial || recipe.id === 'make_cheng_yu') && (!$('#craftable-only').checked || materials(recipe).ready));
+  html('#recipe-list', recipes.length ? recipes.map(recipe => { const m = materials(recipe), d = definitions.get(recipe.result); return `<article class="recipe-card ${m.ready ? 'ready' : ''} ${isUnlocked(recipe) ? '' : 'locked'}"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><h3>${escape(d.name)}<small>${rarityName(d)}${isUnlocked(recipe) ? '' : ' · ' + unlockCopy(recipe)}</small></h3></div><button class="pin-button" data-pin="${recipe.id}" aria-label="${escape(d.name)} 목표 ${pinned === recipe.id ? '해제' : '고정'}" aria-pressed="${pinned === recipe.id}">◇</button></div><div class="materials">${materialHTML(recipe)}</div><p class="assembly-status">${escape(assemblyStatus(recipe, m))}</p><div class="recipe-actions"><button class="text-button" data-plan-recipe="${recipe.id}">조립 경로</button><button class="secondary" data-combine-recipe="${recipe.id}" aria-label="${escape(d.name)} ${m.ready ? '조립할 위치 선택' : escape(assemblyStatus(recipe, m))}" ${can && m.ready ? '' : 'disabled'}>위치 선택</button></div></article>`; }).join('') : '<p class="empty-roster">지금 가능한 조립이 없어요. 재료를 더 모으거나 전체 조립표를 확인하세요.</p>');
   html('#upgrade-list', Object.keys(names).map(tag => { const level = player.upgrades[tag], max = level >= r.maxUpgradeLevel, cost = r.upgradeCosts[level], applies = selectedDefinitions.some(d => [d.faction, d.troop, d.trait].includes(tag)); return `<button class="upgrade-button ${applies ? 'applies' : ''}" data-upgrade-tag="${tag}"><span>${names[tag]}<span class="level">${level}/${r.maxUpgradeLevel}</span></span><small>${max ? '강화 완료' : cost + ' 고철 · 효과 보기'}</small></button>`; }).join(''));
   const goal = content.recipes.find(recipe => recipe.id === pinned); $('#pinned-goal').hidden = !goal;
   if (goal) html('#pinned-goal', `<span>◇ 이번 판의 목표</span><strong>${escape(name(goal.result))}</strong><div class="materials">${materialHTML(goal)}</div><button class="text-button" data-plan-recipe="${goal.id}">조립 경로 →</button>`);
   renderEvolution(); renderUpgrade(); renderGuide(ready); $('#leave-btn').disabled = actionBusy || joining; $('#new-game-btn').disabled = actionBusy || joining;
 }
 
+function renderTutorial() {
+  const t = state?.tutorial, guide = $('#tutorial-guide');
+  guide.hidden = !t || t.step === 'complete';
+  field.tutorialTargetId = null;
+  document.querySelectorAll('.tutorial-focus').forEach(el => el.classList.remove('tutorial-focus'));
+  if (!t) return;
+  guide.dataset.step = t.step;
+  $('#tutorial-rule').hidden = t.step !== 'intro';
+  const picked = focusedId === (t.step === 'sell' ? t.saleUnitId : t.anchorUnitId);
+  const copy = {
+    intro: ['출발 준비', '지구의 자원이 바닥났어.', '다른 행성에서 자원을 구하자. 내가 도와줄게!', '같이 해보자'],
+    summon: ['1 · 뽑기', '첫 로봇을 깨워볼까?', '아래의 로봇 뽑기를 눌러봐.', ''],
+    inspect: ['2 · 조립', picked ? '코일봇 1기가 부족해.' : '렌즈봇을 눌러봐.', picked ? '이제 재료를 더 뽑아보자.' : '조립 방법을 살펴보자.', picked ? '재료 찾기' : '렌즈봇 선택'],
+    fill: ['3 · 자리 만들기', t.drawCount === 1 ? '재료를 더 뽑아보자.' : '한 번 더 뽑아봐.', '훈련장에는 로봇이 들어갈 자리가 3칸이야.', ''],
+    sell: ['3 · 판매', picked ? '관리·상세 → 판매' : '자리가 꽉 찼네!', picked ? '팔면 자리와 고철을 얻어.' : '지금 필요 없는 점화봇을 눌러서 팔아보자.', picked ? '' : '점화봇 선택'],
+    replacement: ['3 · 다시 뽑기', '빈자리 확보!', '로봇 뽑기를 눌러 코일봇을 받아봐.', ''],
+    combine: ['4 · 조립 완성', picked ? '렌즈아이로 조립!' : '이제 재료가 모였어.', picked ? '재료 2기가 합쳐져. 선택한 로봇의 자리는 그대로야.' : '렌즈봇을 다시 눌러봐.', picked ? '' : '렌즈봇 선택'],
+    boss_ready: ['5 · 보스', '보스에게는 집중 화력!', '렌즈아이는 멀리 있는 적 한 기를 공격해. 보스를 막아보자.', '보스전 시작'],
+    countdown: ['5 · 보스', '보스 등장까지 ' + Math.max(0, Math.ceil((t.bossAtTick - state.tick) / rules().ticksPerSecond)) + '초', '시간이 되면 마지막 보스가 나타나. 공격은 자동이야.', ''],
+    boss: ['5 · 보스', '폭주 압축기를 막아!', '위의 체력 막대를 봐. 제한 시간 안에 쓰러뜨리면 성공!', ''],
+    complete: ['', '', '', '']
+  }[t.step];
+  text('#tutorial-step', '안내 로봇 토비 · ' + copy[0]);
+  text('#tutorial-title', copy[1]); text('#tutorial-description', copy[2]);
+  text('#tutorial-next', copy[3]); $('#tutorial-next').hidden = !copy[3];
+  $('#tutorial-next').disabled = !controlsAvailable();
+  $('#tutorial-mascot').style.backgroundImage = 'url("' + unitSpriteUrl(definitions.get('wei_guard')) + '")';
+  if (['summon', 'fill', 'replacement'].includes(t.step)) $('#summon-btn').classList.add('tutorial-focus');
+  if (['inspect', 'combine', 'sell'].includes(t.step)) {
+    field.tutorialTargetId = t.step === 'sell' ? t.saleUnitId : t.anchorUnitId;
+    if (t.step === 'sell' && picked) $('#unit-manage').classList.add('tutorial-focus');
+  }
+}
+
 function renderGuide(ready) {
-  $('#guide').hidden = !settings.guide; if (!settings.guide) return;
+  $('#guide').hidden = !settings.guide || !!state.tutorial; if (!settings.guide || state.tutorial) return;
   const m = metrics?.milestones || {}, story = state.story;
   let step = '01 · 로봇 뽑기', title = '로봇을 뽑아 방어를 시작하세요.', description = '공격은 자동이에요.';
   if (m.summon && !m.combine) { step = '02 · 조립'; title = ready.length ? '조립 가능! 로봇을 눌러보세요.' : '로봇을 누르면 필요한 재료가 보여요.'; description = '조립하면 표시된 재료 로봇이 소모돼요.'; }
@@ -532,14 +591,24 @@ function showResult() {
   html('#result-stats', `<div><strong>${state.wave}</strong><span>도달 웨이브</span></div><div><strong>${metrics?.actionCounts.combine || 0}</strong><span>확인된 조합</span></div><div><strong>${metrics?.actionCounts.dispatch || 0}</strong><span>확인된 파견</span></div>`);
   text('#result-research', state.practice ? '배속·연습 원정 · 연구 보상 없음' : `연구 크레딧 +${player.result?.researchCredits || 0}`);
   text('#result-save-note', state.practice ? '연습에서는 행성과 설계도가 해금되지 않아요.' : `보유 ${profile?.researchCredits || 0} 크레딧 · 원정 기록 저장됨`);
+  text('#result-lobby', state.tutorial ? '첫 행성으로' : '귀환 · 연구소로');
+  text('#result-retry', state.tutorial ? '훈련 다시 하기' : '다시 도전');
+  $('#result-stats').hidden = !!state.tutorial;
+  if (state.tutorial) {
+    text('#result-title', player.status === 'cleared' ? '출발 준비 완료!' : '한 번 더 해볼까?');
+    text('#result-description', '행성을 탐험하며 로봇을 키워보자. 스테이지를 깨면 새로운 조합이 열려!');
+    text('#result-research', '뽑기 → 판매 → 조립 → 보스 처치');
+    text('#result-save-note', '기동 훈련은 엔진을 쓰지 않아요. 언제든 다시 연습할 수 있어요.');
+  }
   $('#spectate-btn').hidden = !state.players.some(p => p.status === 'active');
   if (!$('#result-dialog').open) $('#result-dialog').showModal();
 }
 async function newGame() {
   if (actionBusy || joining || !profile) return;
-  if (profile.engines?.count === 0) { await openEngines(); return; }
+  const tutorial = !!state?.tutorial;
+  if (!tutorial && profile.engines?.count === 0) { await openEngines(); return; }
   if (me()?.status === 'active' && (!connected || pending || !await sendAction('leave'))) return;
-  active = false; state = null; connected = false; $('#game').hidden = true; $('#lobby').hidden = false; $('#result-dialog').close(); setPending(null); await joinRoom(id('war-'));
+  active = false; state = null; connected = false; $('#game').hidden = true; $('#lobby').hidden = false; $('#result-dialog').close(); setPending(null); await joinRoom(id(tutorial ? 'training-' : 'war-'), false, tutorial);
 }
 async function leave() {
   if (actionBusy || joining) return;
@@ -623,6 +692,12 @@ function openFeedback() { $('#result-dialog').close(); text('#feedback-count', `
 
 for (const button of document.querySelectorAll('[data-engine-open]')) button.addEventListener('click', openEngines);
 $('#quick-start').addEventListener('click', newGame);
+$('#tutorial-start').addEventListener('click', () => joinRoom(id('training-'), false, true));
+$('#tutorial-next').addEventListener('click', async () => {
+  const t = state?.tutorial; if (!t) return;
+  if (['inspect', 'sell', 'combine'].includes(t.step) && focusedId !== (t.step === 'sell' ? t.saleUnitId : t.anchorUnitId)) { selectUnit(t.step === 'sell' ? t.saleUnitId : t.anchorUnitId); return; }
+  await sendAction('tutorial_next', t.step === 'inspect' ? { unitIds: [t.anchorUnitId] } : {});
+});
 $('#home-play').addEventListener('click', () => { renderLobby(); showLobbyScreen('stages'); });
 $('#stage-back').addEventListener('click', () => showLobbyScreen('home'));
 $('#planet-picker').addEventListener('click', () => $('#planet-dialog').showModal());
@@ -660,7 +735,7 @@ $('#copy-room').addEventListener('click', async () => {
 $('#retry-action').addEventListener('click', () => sendAction(null, {}, true));
 $('#reconnect-btn').addEventListener('click', () => joinRoom(session.roomId, true));
 $('#new-game-btn').addEventListener('click', newGame); $('#result-retry').addEventListener('click', newGame); $('#leave-btn').addEventListener('click', leave);
-$('#result-lobby').addEventListener('click', async () => { await leave(); renderResearch(); $('#research-dialog').showModal(); });
+$('#result-lobby').addEventListener('click', async () => { const tutorial = !!state?.tutorial; await leave(); if (tutorial) showLobbyScreen('stages'); else { renderResearch(); $('#research-dialog').showModal(); } });
 $('#spectate-btn').addEventListener('click', () => $('#result-dialog').close());
 $('#clear-selection').addEventListener('click', () => { selected.clear(); render(); });
 $('#craftable-only').addEventListener('change', render);
@@ -672,7 +747,7 @@ $('#reduced-motion').addEventListener('change', event => { settings.reduced = ev
 $('#sound-enabled').addEventListener('change', async event => { settings.sound = event.target.checked; if (settings.sound) { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); await audioContext.resume(); } catch { settings.sound = false; toast('이 브라우저에서는 효과음을 사용할 수 없습니다.'); } } applySettings(); sound('summon'); });
 document.addEventListener('click', event => {
   const unitDialog = $('#unit-dialog');
-  if (unitDialog.open && !unitDialog.contains(event.target) && !event.target.closest('dialog:modal') && event.target !== $('#battlefield')) dismissUnit();
+  if (unitDialog.open && !unitDialog.contains(event.target) && !event.target.closest('dialog:modal') && event.target !== $('#battlefield') && !event.target.closest('#tutorial-guide')) dismissUnit();
   const button = event.target.closest('button'); if (!button || button.disabled) return;
   if (button.dataset.tab) switchTab(button.dataset.tab);
   if (button.dataset.unitId) { if (watchedId !== playerId) watchedId = playerId; selectUnit(Number(button.dataset.unitId)); }

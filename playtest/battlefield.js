@@ -54,7 +54,7 @@ export class Battlefield {
     const bounds = this.canvas.getBoundingClientRect();
     const width = portrait ? 600 : WORLD_W;
     const height = Math.max(280, Math.min(1600, Math.round(width * bounds.height / Math.max(1, bounds.width))));
-    const mapId = this.battlefieldId || 1, changedMap = this.layoutBattlefieldId !== undefined && this.layoutBattlefieldId !== mapId;
+    const mapId = this.battlefieldId ?? 1, changedMap = this.layoutBattlefieldId !== undefined && this.layoutBattlefieldId !== mapId;
     if (this.worldWidth === width && this.worldHeight === height && !changedMap) return;
     this.layoutBattlefieldId = mapId;
     if (changedMap) {
@@ -519,8 +519,9 @@ export class Battlefield {
     const headingY = road.top - (this.worldWidth === 600 ? 55 : 45);
     this.rect(road.left + 23, headingY - 19, 152, 28, '#1c303c', 3);
     this.rect(road.left + 23, headingY - 19, 3, 28, '#f0b767');
-    this.text('SECTOR / 0' + (this.battlefieldId || 1), road.left + 100, headingY, 13, '#c2d2d4');
+    this.text(this.battlefieldId === 0 ? 'TRAINING' : 'SECTOR / 0' + this.battlefieldId, road.left + 100, headingY, 13, '#c2d2d4');
     // The story dispatch pad replaces the old banner without moving its slots.
+    if (this.battlefieldId !== 0) {
     const campX = this.worldWidth * .934, campY = this.worldHeight * .50;
     this.rect(campX - 33, campY - 64, 66, 100, '#08131d', 9);
     this.rect(campX - 29, campY - 68, 58, 99, '#344f59', 7);
@@ -533,6 +534,7 @@ export class Battlefield {
     context.beginPath(); context.moveTo(campX, campY - 46); context.lineTo(campX, campY - 36);
     context.moveTo(campX - 4, campY - 40); context.lineTo(campX, campY - 36); context.lineTo(campX + 4, campY - 40); context.stroke();
     this.text('스토리', campX, campY + 51, this.worldWidth === 600 ? 16 : 11, '#d9eee5');
+    }
     for (let routeIndex = 0; routeIndex < layout.routes.length; routeIndex++) {
       const entrance = this.path(0, routeIndex), toward = this.path(.01, routeIndex);
       const angle = Math.atan2(toward.y - entrance.y, toward.x - entrance.x);
@@ -649,6 +651,13 @@ export class Battlefield {
       context.beginPath(); context.ellipse(x, y + 2, 25 * trim, 9 * trim, 0, 0, Math.PI * 2); context.stroke();
       context.strokeStyle = '#fff3a6'; context.lineWidth = 3; context.stroke();
       this.circle(x, y - height - 8, 3, '#ffe3a0');
+    }
+    if (unit.id === this.tutorialTargetId) {
+      context.strokeStyle = '#ffe39a'; context.lineWidth = 3;
+      context.beginPath(); context.ellipse(x, y + 4, 32, 13, 0, 0, Math.PI * 2); context.stroke();
+      const arrowY = y - height - 20 + (this.reduced ? 0 : Math.sin(now / 240) * 3);
+      context.fillStyle = '#ffe39a'; context.beginPath(); context.moveTo(x - 10, arrowY);
+      context.lineTo(x + 10, arrowY); context.lineTo(x, arrowY + 12); context.closePath(); context.fill();
     }
     let pose = 'idle';
     if (!this.reduced && age >= 0) {

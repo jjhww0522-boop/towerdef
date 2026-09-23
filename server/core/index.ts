@@ -2,7 +2,7 @@ import contentData from '../../shared/content.json';
 import { unitPoint, enemyPoint, distanceSquared, getBattlefieldLayout } from '../../shared/battle-geometry';
 
 export const content = contentData;
-export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave';
+export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave' | 'tutorial_next';
 export interface Action { seq: number; type: ActionType; recipeId?: string; tag?: string; unitIds?: number[] }
 export interface ActionResult { ok: boolean; error?: string }
 export interface AttackHit { targetId: number | string; progress?: number; routeIndex?: number; damage: number; boss?: boolean }
@@ -21,7 +21,7 @@ export interface ExpeditionResult {
 }
 export interface Player {
   id: string; gold: number; status: 'active' | 'defeated' | 'cleared' | 'left';
-  connected: boolean; lastSeq: number; units: Unit[]; enemies: Enemy[]; enemySpawnCount: number;
+  connected: boolean; lastSeq: number; nextSummonTick: number; units: Unit[]; enemies: Enemy[]; enemySpawnCount: number;
   defeatReason: 'overcrowded' | 'boss_timeout' | 'facility_destroyed' | null;
   facilityHp: number | null; lastFacilityHitTick: number | null;
   upgrades: { [tag: string]: number }; disconnectedAtTick: number | null;
@@ -29,9 +29,13 @@ export interface Player {
   unlockedRecipes: string[]; kills: number; investmentActions: number; result: ExpeditionResult | null;
 }
 export interface Story { wave: number; hp: number; maxHp: number; remainingTicks: number; status: 'active' | 'success' | 'failed' }
+export interface Tutorial {
+  step: 'intro' | 'summon' | 'inspect' | 'fill' | 'sell' | 'replacement' | 'combine' | 'boss_ready' | 'countdown' | 'boss' | 'complete';
+  drawCount: number; anchorUnitId: number | null; saleUnitId: number | null; bossAtTick: number | null;
+}
 export interface GameState {
   protocolVersion: string; contentVersion: string; tick: number; wave: number;
-  status: 'playing' | 'finished'; practice: boolean; players: Player[]; story: Story | null;
+  status: 'playing' | 'finished'; practice: boolean; tutorial: Tutorial | null; players: Player[]; story: Story | null;
   rngState: number; placementRngState: number; nextEntityId: number;
   battlefieldId: number; rules: Rules; stories: typeof content.stories;
   objective: typeof content.battlefields[number]['objective'];
@@ -43,34 +47,46 @@ const playerById = (game: GameState, id: string): Player | undefined => game.pla
 const definition = (id: string) => content.units.filter(u => u.id === id)[0];
 const safeInteger = (value: number): boolean => typeof value === 'number' && isFinite(value) && Math.floor(value) === value && value > 0 && value <= 9007199254740991;
 
-export function createGame(options: { playerIds: string[]; seed: number; practice?: boolean; battlefieldId?: number; unlockedRecipesByPlayer?: { [playerId: string]: string[] } }): GameState {
+export function createGame(options: { playerIds: string[]; seed: number; practice?: boolean; tutorial?: boolean; battlefieldId?: number; unlockedRecipesByPlayer?: { [playerId: string]: string[] } }): GameState {
   if (!options.playerIds.length || options.playerIds.length > 8) throw new Error('Expected 1 to 8 players');
   if (!isFinite(options.seed)) throw new Error('Expected finite seed');
-  const battlefieldId = options.battlefieldId === undefined ? 1 : options.battlefieldId;
-  const battlefield = content.battlefields.filter(b => b.id === battlefieldId)[0];
+  if (options.tutorial && options.playerIds.length !== 1) throw new Error('Tutorial is solo');
+  const battlefieldId = options.tutorial ? 0 : options.battlefieldId === undefined ? 1 : options.battlefieldId;
+  const battlefield = content.battlefields.filter(b => b.id === (options.tutorial ? 1 : battlefieldId))[0];
   if (!battlefield) throw new Error('Unknown battlefield');
   const rules: Rules = { ...content.rules, ...battlefield.rules };
+  if (options.tutorial) Object.assign(rules, { maxUnits: 3, startingGold: 100, waveTicks: 80,
+    totalWaves: 1,
+    bossTicks: 600, bossHp: 720, waveGold: 0, waveGoldGrowth: 0 });
   const ids: string[] = [];
   const players = options.playerIds.map(id => {
     if (typeof id !== 'string' || !id.length || ids.indexOf(id) >= 0) throw new Error('Expected unique non-empty player IDs');
     ids.push(id);
     const upgrades: { [tag: string]: number } = {};
     tags.forEach(tag => { upgrades[tag] = 0; });
-    const requestedUnlocks = options.unlockedRecipesByPlayer && options.unlockedRecipesByPlayer[id] || [];
+    const requestedUnlocks = options.tutorial ? [] : options.unlockedRecipesByPlayer && options.unlockedRecipesByPlayer[id] || [];
     const unlockedRecipes = content.recipes.filter(recipe => recipe.unlockBattlefield > 0 && Array.isArray(requestedUnlocks) && requestedUnlocks.indexOf(recipe.id) >= 0).map(recipe => recipe.id);
-    return { id, gold: rules.startingGold, status: 'active' as 'active', connected: true, lastSeq: 0,
+    return { id, gold: rules.startingGold, status: 'active' as 'active', connected: true, lastSeq: 0, nextSummonTick: 0,
       units: [], enemies: [], enemySpawnCount: 0, upgrades, disconnectedAtTick: null, overcrowdedTicks: 0, defeatReason: null,
       facilityHp: battlefield.objective.kind === 'overcrowd' ? null : battlefield.objective.facilityHp, lastFacilityHitTick: null,
       lastActionKey: '', lastActionResult: { ok: false }, unlockedRecipes, kills: 0, investmentActions: 0, result: null };
   });
   return { protocolVersion: '1', contentVersion: content.version, tick: 0, wave: 1,
-    status: 'playing', practice: options.practice !== false, players, story: null,
+    status: 'playing', practice: options.tutorial === true || options.practice !== false, players, story: null,
+    tutorial: options.tutorial ? { step: 'intro', drawCount: 0, anchorUnitId: null, saleUnitId: null, bossAtTick: null } : null,
     rngState: (options.seed >>> 0) || 0x6d2b79f5,
     placementRngState: ((options.seed ^ 0x9e3779b9) >>> 0) || 0x6d2b79f5, nextEntityId: 1, battlefieldId, rules,
-    objective: { ...battlefield.objective }, stories: battlefield.stories.map(story => ({ ...story })) };
+    objective: { ...battlefield.objective }, stories: options.tutorial ? [] : battlefield.stories.map(story => ({ ...story })) };
 }
 
 export function expeditionProgress(game: GameState) {
+  if (game.tutorial) {
+    const arrival = game.tutorial.bossAtTick, ready = arrival !== null, boss = ready && game.tick >= arrival!;
+    return { phase: game.status === 'finished' ? 'complete' : boss ? 'evacuation' : 'mining',
+      miningProgress: ready ? Math.max(0, Math.min(1, 1 - (arrival! - game.tick) / 80)) : 0,
+      completedWaves: boss ? 1 : 0, totalWaves: 1,
+      remainingTicks: ready ? Math.max(0, arrival! + game.rules.bossTicks - game.tick) : 0 };
+  }
   const miningTicks = game.rules.waveTicks * game.rules.totalWaves;
   const completedWaves = Math.min(game.rules.totalWaves, Math.floor(game.tick / game.rules.waveTicks));
   return {
@@ -120,6 +136,7 @@ function retire(game: GameState, player: Player, status: 'defeated' | 'cleared' 
     researchCredits: eligible ? game.battlefieldId * (milestones * 5 + (status === 'cleared' ? 25 : 0)) : 0,
     wave: game.wave, kills: player.kills, elapsedTicks: game.tick, miningProgress: progress.miningProgress, reason
   };
+  if (game.tutorial && status === 'cleared') game.tutorial.step = 'complete';
   player.status = status;
   player.defeatReason = reason;
   returnUnits(player);
@@ -133,24 +150,53 @@ function updateFinished(game: GameState): void {
 }
 
 function performAction(game: GameState, player: Player, action: Action): ActionResult {
-  const rules = game.rules;
+  const rules = game.rules, tutorial = game.tutorial;
+  if (tutorial) {
+    if (action.type === 'tutorial_next') {
+      if (tutorial.step === 'intro') tutorial.step = 'summon';
+      else if (tutorial.step === 'inspect' && action.unitIds && action.unitIds.length === 1 && action.unitIds[0] === tutorial.anchorUnitId) tutorial.step = 'fill';
+      else if (tutorial.step === 'boss_ready') {
+        tutorial.step = 'countdown'; tutorial.bossAtTick = game.tick + 80;
+        rules.waveTicks = tutorial.bossAtTick;
+      } else return fail('TUTORIAL_ACTION_REQUIRED');
+      return { ok: true };
+    }
+    const allowed = action.type === 'leave' ||
+      action.type === 'summon' && ['summon', 'fill', 'sell', 'replacement'].indexOf(tutorial.step) >= 0 ||
+      action.type === 'salvage' && tutorial.step === 'sell' && action.unitIds && action.unitIds.length === 1 && action.unitIds[0] === tutorial.saleUnitId ||
+      action.type === 'combine' && tutorial.step === 'combine' && action.recipeId === 'make_cheng_yu' && action.unitIds && action.unitIds[0] === tutorial.anchorUnitId;
+    if (!allowed) return fail('TUTORIAL_ACTION_REQUIRED');
+  }
   switch (action.type) {
     case 'summon': {
       if (player.units.length >= rules.maxUnits) return fail('UNIT_CAP');
       if (player.gold < rules.summonCost) return fail('INSUFFICIENT_GOLD');
-      const roll = random(game) * 10000;
-      let rarity = rules.summonRarities[2];
-      if (roll < rules.summonWeights[0]) rarity = rules.summonRarities[0];
-      else if (roll < rules.summonWeights[0] + rules.summonWeights[1]) rarity = rules.summonRarities[1];
-      const pool = content.units.filter(u => u.rarity === rarity);
-      const unit = pool[Math.floor(random(game) * pool.length)];
+      if (game.tick < player.nextSummonTick) return fail('SUMMON_COOLDOWN');
+      let unit;
+      if (tutorial) unit = definition(['wei_archer', 'wei_guard', 'wu_archer', 'wu_guard'][tutorial.drawCount]);
+      else {
+        const roll = random(game) * 10000;
+        let rarity = rules.summonRarities[2];
+        if (roll < rules.summonWeights[0]) rarity = rules.summonRarities[0];
+        else if (roll < rules.summonWeights[0] + rules.summonWeights[1]) rarity = rules.summonRarities[1];
+        const pool = content.units.filter(u => u.rarity === rarity);
+        unit = pool[Math.floor(random(game) * pool.length)];
+      }
       const emptySlots: number[] = [];
       for (let slot = 0; slot < rules.maxUnits; slot++) {
         if (!player.units.some(u => u.slot === slot)) emptySlots.push(slot);
       }
-      const slot = emptySlots[Math.floor(random(game, true) * emptySlots.length)];
+      const slot = tutorial ? emptySlots[0] : emptySlots[Math.floor(random(game, true) * emptySlots.length)];
       player.gold -= rules.summonCost;
-      player.units.push(newUnit(game, unit.id, slot));
+      const created = newUnit(game, unit.id, slot);
+      player.units.push(created);
+      if (tutorial) {
+        tutorial.drawCount++;
+        if (tutorial.drawCount === 1) { tutorial.anchorUnitId = created.id; tutorial.step = 'inspect'; }
+        else if (tutorial.drawCount === 3) { tutorial.saleUnitId = created.id; tutorial.step = 'sell'; }
+        else if (tutorial.drawCount === 4) tutorial.step = 'combine';
+      }
+      player.nextSummonTick = game.tick + rules.summonCooldownTicks;
       return { ok: true };
     }
     case 'combine': {
@@ -167,6 +213,7 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
       const investedGold = units.reduce((sum, unit) => sum + (unit.investedGold || rules.summonCost), 0);
       player.units = player.units.filter(u => units.indexOf(u) < 0);
       player.units.push(newUnit(game, recipe.result, slot, investedGold));
+      if (tutorial) tutorial.step = 'boss_ready';
       return { ok: true };
     }
     case 'upgrade': {
@@ -191,6 +238,7 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
       const units = selectedUnits(player, action.unitIds, rules);
       if (!units || units.length !== 1) return fail('INVALID_UNITS');
       player.gold += Math.floor((units[0].investedGold || rules.summonCost) * rules.salvageRefundRatio);
+      if (tutorial) tutorial.step = 'replacement';
       player.units = player.units.filter(unit => unit !== units[0]);
       return { ok: true };
     }
@@ -252,10 +300,10 @@ function attackTargets(enemies: Enemy[], primary: Enemy, pattern: string, battle
   if (pattern !== 'blast' && pattern !== 'arc') return targets;
   for (let hop = 0; hop < 2; hop++) {
     const origin = pattern === 'blast' ? primary : targets[targets.length - 1].enemy;
-    const radius = pattern === 'blast' ? 0.06 : 0.1;
+    const worldRadius = pattern === 'blast' ? 115.92 : 193.2;
     const closed = getBattlefieldLayout(battlefieldId).routes[0].closed;
-    // Preserve the legacy loop's splash reach in world units on open routes.
-    const worldRadius = radius * getBattlefieldLayout(1).routes[0].length;
+    // Keep the original physical reach when route lengths change.
+    const radius = worldRadius / getBattlefieldLayout(battlefieldId).routes[0].length;
     let closest: Enemy | undefined, closestDistance = Infinity;
     enemies.forEach(enemy => {
       if (targets.some(target => target.enemy.id === enemy.id)) return;
@@ -277,7 +325,8 @@ export function tick(game: GameState): void {
   if (game.status !== 'playing') return;
   const rules = game.rules;
   game.tick++;
-  const bossStart = rules.waveTicks * rules.totalWaves;
+  if (game.tutorial?.step === 'countdown' && game.tick >= game.tutorial.bossAtTick!) game.tutorial.step = 'boss';
+  const bossStart = game.tutorial && game.tutorial.bossAtTick === null ? Infinity : rules.waveTicks * rules.totalWaves;
   const nextWave = Math.min(rules.totalWaves, Math.floor(game.tick / rules.waveTicks) + 1);
   if (nextWave !== game.wave) {
     game.wave = nextWave;
@@ -293,7 +342,7 @@ export function tick(game: GameState): void {
       retire(game, p, 'left'); return;
     }
     const spawnInterval = Math.max(rules.minSpawnIntervalTicks, rules.spawnIntervalTicks - Math.floor((game.wave - 1) / rules.spawnRampEveryWaves));
-    if (game.tick < bossStart && game.tick % spawnInterval === 0) spawnEnemy(game, p, false);
+    if (!game.tutorial && game.tick < bossStart && game.tick % spawnInterval === 0) spawnEnemy(game, p, false);
     if (game.tick === bossStart && game.objective.kind !== 'mining') spawnEnemy(game, p, true);
     p.overcrowdedTicks = game.objective.kind === 'overcrowd' && p.enemies.length >= rules.overcrowdCount ? p.overcrowdedTicks + 1 : 0;
     if (p.overcrowdedTicks >= rules.overcrowdTicks) retire(game, p, 'defeated', 'overcrowded');

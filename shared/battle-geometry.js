@@ -1,7 +1,7 @@
 // Combat coordinates are independent of screen size and orientation.
-export const BOARD_WIDTH = 720;
-export const BOARD_HEIGHT = 246;
-export const SLOT_COUNT = 30;
+export const BOARD_WIDTH = 420;
+export const BOARD_HEIGHT = 220;
+export const SLOT_COUNT = 10;
 
 function grid(columns, rows, x, y, stepX, stepY) {
   const points = [];
@@ -18,8 +18,8 @@ function rows(xs, ys) {
 function quadrants() {
   const points = [];
   for (const sy of [-1, 1]) for (const sx of [-1, 1]) {
-    for (const pair of [[90, 90], [90, 210], [90, 330], [210, 90], [210, 210], [330, 90]]) {
-      points.push({ x: 360 + sx * pair[0], y: 360 + sy * pair[1] });
+    for (const pair of [[120, 120], [120, 360], [120, 600], [360, 120], [600, 120]]) {
+      points.push({ x: 720 + sx * pair[0], y: 720 + sy * pair[1] });
     }
   }
   return points;
@@ -33,32 +33,31 @@ function route(vertices, closed = false) {
   }
   return { points, closed, length };
 }
-function openLayout(routes, slots, facility) {
-  return { width: 720, height: 720, rotateInPortrait: false, routes, slots, facility };
+function openLayout(width, height, routes, slots, facility) {
+  return { width, height, rotateInPortrait: false, routes, slots, facility };
 }
 
 // Slot indices are permanent within a stage, including while a robot is dispatched.
-// Stage 1 keeps the original 30 coordinates and rectangular loop exactly.
+// The introductory loop starts compact; later maps expand area and total route length.
 const layouts = {
+  0: { width: 420, height: 220, rotateInPortrait: true,
+    routes: [route([[0, 0], [420, 0], [420, 220], [0, 220]], true)],
+    slots: [{ x: 80, y: 90 }, { x: 210, y: 140 }, { x: 340, y: 90 }], facility: null },
   1: { width: BOARD_WIDTH, height: BOARD_HEIGHT, rotateInPortrait: true,
-    routes: [route([[0, 0], [720, 0], [720, 246], [0, 246]], true)],
-    slots: grid(10, 3, 98, 79, 60, 61), facility: null },
-  2: openLayout([route([[360, 0], [360, 630]])],
-    rows([150, 270, 450, 570], [0, 100, 200, 300, 400, 500, 600]),
-    { x: 360, y: 695 }),
-  3: openLayout([route([[0, 360], [630, 360]])],
-    rows([0, 120, 240, 360, 480, 600, 720], [150, 270, 450, 570])
-      .filter(point => !((point.y === 150 || point.y === 570) && point.x === 360)),
-    { x: 695, y: 360 }),
-  4: openLayout([route([[0, 360], [270, 360]]), route([[720, 360], [450, 360]])],
-    [...rows([60, 180, 300, 420, 540, 660], [150, 570]),
-      ...[60, 180, 420, 540, 660].map(x => ({ x, y: 270 })),
-      ...[60, 180, 300, 540, 660].map(x => ({ x, y: 450 }))],
-    { x: 360, y: 360 }),
-  5: openLayout([route([[0, 360], [270, 360]]), route([[720, 360], [450, 360]]),
-    route([[360, 0], [360, 270]]), route([[360, 720], [360, 450]])],
-    quadrants(),
-    { x: 360, y: 360 })
+    routes: [route([[0, 0], [420, 0], [420, 220], [0, 220]], true)],
+    slots: grid(5, 2, 50, 65, 80, 90), facility: null },
+  2: openLayout(600, 1440, [route([[300, 0], [300, 1360]])],
+    rows([180, 420], [120, 360, 600, 840, 1080, 1320]),
+    { x: 300, y: 1420 }),
+  3: openLayout(1640, 800, [route([[0, 400], [1550, 400]])],
+    rows([90, 330, 570, 810, 1050, 1290, 1530], [280, 520]),
+    { x: 1620, y: 400 }),
+  4: openLayout(1920, 880, [route([[0, 440], [870, 440]]), route([[1920, 440], [1050, 440]])],
+    rows([120, 360, 600, 840, 1080, 1320, 1560, 1800], [320, 560]),
+    { x: 960, y: 440 }),
+  5: openLayout(1440, 1440, [route([[0, 720], [630, 720]]), route([[1440, 720], [810, 720]]),
+    route([[720, 0], [720, 630]]), route([[720, 1440], [720, 810]])],
+    quadrants(), { x: 720, y: 720 })
 };
 
 export function getBattlefieldLayout(battlefieldId = 1) { return layouts[battlefieldId] || layouts[1]; }
@@ -89,7 +88,7 @@ export function distanceSquared(a, b) {
   return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
 }
 
-// Only the legacy loop rotates in portrait. Open maps keep their ingress direction.
+// Only the introductory loop rotates in portrait. Open maps keep their ingress direction.
 export function projectPoint(point, road, portrait, battlefieldId = 1) {
   const layout = getBattlefieldLayout(battlefieldId), rotate = portrait && layout.rotateInPortrait;
   const x = point.x / layout.width, y = point.y / layout.height;

@@ -4,17 +4,21 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createDevServer } from './dev-server.mjs';
 import core from '../dist/server/core/index.js';
+import { createProgressionStore } from './progression.mjs';
+import { getBattlefieldLayout } from '../shared/battle-geometry.js';
 
 // Controlled server fixtures exercise real browser inputs and authoritative rules.
 const rooms = [], errors = [], report = { source: 'controlled_position_combat_browser_test', cases: [] };
-const server = createDevServer({ automaticTicks: false, onRoomCreated(room) {
+const store = createProgressionStore(), anchorSlot = getBattlefieldLayout(1).slots.length - 1;
+const server = createDevServer({ progressionStore: store, automaticTicks: false, onRoomCreated(room) {
   rooms.push(room);
   const game = room.game, player = game.players[0]; player.gold = 1000;
-  for (const [definitionId, slot] of [['shu_guard', 26], ['shu_rider', 2], ['wei_guard', 18], ['wei_archer', 5]]) {
-    core.applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' });
+  for (const [definitionId, slot] of [['shu_guard', anchorSlot], ['shu_rider', 2], ['wei_guard', 3], ['wei_archer', 0]]) {
+    while (game.tick < player.nextSummonTick) core.tick(game);
+    assert.equal(core.applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' }).ok, true);
     Object.assign(player.units.at(-1), { definitionId, slot });
   }
-  player.enemies = [.20, .21, .22, .70].map(progress => ({ id: game.nextEntityId++, progress, hp: 5000, maxHp: 5000, boss: false }));
+  player.enemies = [.36, .37, .38, .70].map(progress => ({ id: game.nextEntityId++, progress, hp: 5000, maxHp: 5000, boss: false }));
 } });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 await mkdir('artifacts', { recursive: true });
@@ -22,6 +26,8 @@ const browser = await chromium.launch({ headless: true, executablePath: process.
 try {
   for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
     const context = await browser.newContext({ viewport: size, isMobile: size.width < 1000, hasTouch: true });
+    const created = store.createProfile(); store.completeTutorial(created.profile.id);
+    await context.addInitScript(token => localStorage.setItem('td.profile', JSON.stringify({ token })), created.profileToken);
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('http://127.0.0.1:' + server.address().port);
@@ -63,15 +69,15 @@ try {
     assert.equal(result.ok, true);
     assert.equal(packet.unitIds[0], anchor.id);
     const assembled = player.units.find(unit => unit.definitionId === 'guan_ping');
-    assert.equal(assembled.slot, 26, 'selected slot wins over lower-numbered ingredient slot');
+    assert.equal(assembled.slot, anchorSlot, 'selected slot wins over lower-numbered ingredient slot');
     assert.equal(player.units.some(unit => unit.slot === 2), false);
     await page.waitForFunction(id => window.positionField.units.has(id), assembled.id);
     const nextSize = size.width === 390 ? { width: 844, height: 390 } : { width: 390, height: 844 };
     await page.setViewportSize(nextSize);
     await page.waitForTimeout(400);
-    assert.equal(player.units.find(unit => unit.id === assembled.id).slot, 26);
-    assert.equal(await page.evaluate(id => window.positionField.units.get(id).unit.slot, assembled.id), 26);
-    report.cases.push({ viewport: size, status: 'passed', anchorSlot: 26, freedSlot: 2, path });
+    assert.equal(player.units.find(unit => unit.id === assembled.id).slot, anchorSlot);
+    assert.equal(await page.evaluate(id => window.positionField.units.get(id).unit.slot, assembled.id), anchorSlot);
+    report.cases.push({ viewport: size, status: 'passed', anchorSlot, freedSlot: 2, path });
     console.log('PASS selected placement, range display, frost telemetry and rotation', size.width);
     await context.close();
   }
@@ -80,5 +86,5 @@ try {
 } finally {
   report.errors = errors;
   await writeFile('artifacts/position-combat-browser-report.json', JSON.stringify(report, null, 2));
-  await browser.close(); await new Promise(resolve => server.close(resolve));
+  await browser.close(); await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
 }

@@ -18,7 +18,8 @@
     "test:flow": "node tools/mobile-flow-check.mjs",
     "test:chapter": "node tools/engine-chapter-check.mjs",
     "test:network": "npm run build && node tools/network-playtest.mjs",
-    "simulate": "npm run build && node tools/simulate.mjs"
+    "simulate": "npm run build && node tools/simulate.mjs",
+    "test:tutorial": "node tools/tutorial-browser-check.mjs"
   },
   "devDependencies": {
     "agent-browser": "0.38.1",

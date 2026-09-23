@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { createGame, applyAction, tick, content } from '../dist/server/core/index.js';
 import { publicState } from '../dist/server/protocol.js';
 
-const create = () => createGame({ playerIds: ['one', 'two'], seed: 9 });
+const create = () => {
+  const game = createGame({ playerIds: ['one', 'two'], seed: 9 });
+  game.rules.summonCooldownTicks = 0; // Attack signals are independent of summon timing.
+  return game;
+};
 function summon(game, player) {
   assert.equal(applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' }).ok, true);
   player.units[player.units.length - 1].slot = player.units.length - 1;
@@ -66,14 +70,14 @@ test('story attack uses a wave-specific target and cannot emit phantom attacks a
   tick(game);
   assert.equal(game.story.status, 'success');
   assert.equal(first.lastAttackTick, storyStart + 1);
-  assert.equal(first.lastTargetId, 'story:6');
+  assert.equal(first.lastTargetId, 'story:' + game.stories[0].wave);
   assert.equal(first.dispatched, false);
   assert.equal(second.lastAttackTick, null);
   assert.equal(second.lastTargetId, null);
-  assert.deepEqual(first.lastAttackHits, [{ targetId: 'story:6', damage: 1, boss: true }]);
+  assert.deepEqual(first.lastAttackHits, [{ targetId: 'story:' + game.stories[0].wave, damage: 1, boss: true }]);
   assert.deepEqual(second.lastAttackHits, []);
   const visible = publicState(game).players[0].units[0];
-  assert.equal(visible.lastTargetId, 'story:6');
+  assert.equal(visible.lastTargetId, 'story:' + game.stories[0].wave);
 });
 
 test('defeated players do not advance their last attack signal', () => {

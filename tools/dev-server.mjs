@@ -31,6 +31,13 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
   const rooms = new Map();
   const sessions = new Map();
   function settleRoom(room) {
+    if (room.game.tutorial) {
+      const player = room.game.players[0], profileId = room.profileIds.get(player.id);
+      if (player.status === 'cleared' && profileId && !room.settledProfiles.has(profileId)) {
+        progressionStore.completeTutorial(profileId); room.settledProfiles.add(profileId);
+      }
+      return;
+    }
     if (room.game.practice) return;
     for (const player of room.game.players) {
       const profileId = room.profileIds.get(player.id);
@@ -114,11 +121,13 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
       if (request.method === 'POST' && path === '/session') {
         const { roomId, playerId } = body;
         if (body.speed !== undefined && ![1, 3, 6].includes(body.speed)) return send(response, 400, { error: 'invalid_speed' });
+        if (body.tutorial !== undefined && typeof body.tutorial !== 'boolean') return send(response, 400, { error: 'invalid_tutorial' });
         if (body.practice !== undefined && typeof body.practice !== 'boolean') return send(response, 400, { error: 'invalid_practice' });
         if (!validId(roomId) || !validId(playerId)) return send(response, 400, { error: 'invalid_room_or_player_id' });
         if ((body.protocolVersion && body.protocolVersion !== '1') ||
             (body.contentVersion && body.contentVersion !== content.version)) return send(response, 409, { error: 'version_mismatch' });
         let room = rooms.get(roomId);
+        const tutorial = room ? !!room.game.tutorial : body.tutorial === true;
         let profileToken = body.profileToken;
         let profile = profileToken === undefined ? progressionStore.authenticate(token) : progressionStore.authenticate(profileToken);
         if (profileToken === undefined && profile) profileToken = token;
@@ -142,24 +151,25 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
             }
           }
         }
+        if (room && tutorial && !existing) return send(response, 409, { error: 'tutorial_solo' });
         if (room && !existing && (room.game.status !== 'playing' || room.game.players.length >= 4 || room.game.tick >= (room.game.rules || content.rules).waveTicks * (room.game.rules || content.rules).totalWaves)) return send(response, 409, { error: 'room_full_or_finished' });
         if (!room && rooms.size >= 32) return send(response, 409, { error: 'local_room_limit_restart_server' });
         // An invitation chooses the room's battlefield, never the joiner's stale selection.
-        const battlefieldId = room ? room.game.battlefieldId || 1 : body.battlefieldId ?? 1;
-        if (!Number.isInteger(battlefieldId) || !(content.battlefields || [{ id: 1 }]).some(field => field.id === battlefieldId)) return send(response, 400, { error: 'invalid_battlefield' });
+        const battlefieldId = tutorial ? 0 : room ? room.game.battlefieldId || 1 : body.battlefieldId ?? 1;
+        if (!tutorial && (!Number.isInteger(battlefieldId) || !(content.battlefields || [{ id: 1 }]).some(field => field.id === battlefieldId))) return send(response, 400, { error: 'invalid_battlefield' });
         if (!profile) {
           const created = progressionStore.createProfile();
           profile = created.profile; profileToken = created.profileToken;
         }
         profile = progressionStore.getProfile(profile.id);
-        if (!profile.unlockedBattlefields.includes(battlefieldId)) return send(response, 409, { error: 'battlefield_locked', battlefieldId });
+        if (!tutorial && !profile.unlockedBattlefields.includes(battlefieldId)) return send(response, 409, { error: 'battlefield_locked', battlefieldId });
         if (!existing) {
-          const speed = room?.speed || body.speed || 1;
-          const practice = room ? room.game.practice : speed !== 1 || body.practice === true;
-          const initial = createGame({ playerIds: [playerId], seed: randomInt(1, 2147483647), practice,
+          const speed = tutorial ? 1 : room?.speed || body.speed || 1;
+          const practice = tutorial || (room ? room.game.practice : speed !== 1 || body.practice === true);
+          const initial = createGame({ playerIds: [playerId], seed: randomInt(1, 2147483647), practice, tutorial,
             battlefieldId, unlockedRecipesByPlayer: { [playerId]: profile.unlockedRecipes } });
           const expeditionId = room?.expeditionId || randomUUID();
-          progressionStore.consumeEngine(profile.id, expeditionId);
+          if (!tutorial) progressionStore.consumeEngine(profile.id, expeditionId);
           if (!room) {
             room = { game: initial, speed, expeditionId, profileIds: new Map(), settledProfiles: new Set() };
             rooms.set(roomId, room);

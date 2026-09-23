@@ -26,6 +26,14 @@ export function createProgressionStore({ filePath = null, content = core.content
     }
   }
   const battlefields = () => content.battlefields || [{ id: 1 }];
+  function unlockedRecipes(profile) {
+    const recipes = [...profile.unlockedRecipes];
+    for (const recipe of content.recipes) {
+      if (recipe.unlockType === 'clear' && recipe.unlockBattlefield > 0 && recipe.researchCost === 0 &&
+          profile.clearedBattlefields.includes(recipe.unlockBattlefield) && !recipes.includes(recipe.id)) recipes.push(recipe.id);
+    }
+    return recipes;
+  }
   function engineBalance(profile, timestamp = now()) {
     const stored = profile.engines || { count: ENGINE_MAX, nextRecoveryAt: null };
     let { count, nextRecoveryAt } = stored;
@@ -38,9 +46,10 @@ export function createProgressionStore({ filePath = null, content = core.content
   }
   const view = (profile, timestamp = now()) => ({
     id: profile.id,
+    tutorialCompleted: profile.tutorialCompleted === true,
     engines: { ...engineBalance(profile, timestamp), max: ENGINE_MAX, recoveryIntervalMs: ENGINE_RECOVERY_MS, serverTime: timestamp },
     researchCredits: profile.researchCredits,
-    unlockedRecipes: [...profile.unlockedRecipes],
+    unlockedRecipes: unlockedRecipes(profile),
     clearedBattlefields: [...profile.clearedBattlefields],
     unlockedBattlefields: battlefields().filter(field => field.id === 1 || profile.clearedBattlefields.includes(field.id - 1)).map(field => field.id),
     stats: { ...profile.stats },
@@ -73,7 +82,7 @@ export function createProgressionStore({ filePath = null, content = core.content
   return {
     createProfile() {
       const profileToken = randomBytes(32).toString('hex'), id = randomUUID();
-      const profile = { id, tokenHash: hash(profileToken), researchCredits: 0, unlockedRecipes: [], clearedBattlefields: [],
+      const profile = { id, tokenHash: hash(profileToken), tutorialCompleted: false, researchCredits: 0, unlockedRecipes: [], clearedBattlefields: [],
         stats: { expeditions: 0, clears: 0 }, lastResult: null, rewards: {},
         engines: { count: ENGINE_MAX, nextRecoveryAt: null }, engineEntries: {} };
       const next = clone(data); next.profiles[id] = profile; commit(next);
@@ -85,6 +94,14 @@ export function createProgressionStore({ filePath = null, content = core.content
       return profile ? view(profile) : null;
     },
     getProfile(profileId) { return view(requireProfile(profileId)); },
+    completeTutorial(profileId) {
+      const profile = requireProfile(profileId);
+      if (profile.tutorialCompleted === true) return { applied: false, profile: view(profile) };
+      const next = clone(data), updated = next.profiles[profileId];
+      updated.tutorialCompleted = true;
+      commit(next);
+      return { applied: true, profile: view(updated) };
+    },
     consumeEngine(profileId, expeditionId) {
       const profile = requireProfile(profileId);
       if (typeof expeditionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(expeditionId)) throw new Error('Invalid authoritative expedition ID.');
@@ -121,7 +138,7 @@ export function createProgressionStore({ filePath = null, content = core.content
     research(profileId, recipeId) {
       const profile = requireProfile(profileId);
       const recipe = content.recipes.find(item => item.id === recipeId);
-      if (!recipe || !(recipe.unlockBattlefield > 0) || !Number.isSafeInteger(recipe.researchCost) || recipe.researchCost <= 0) {
+      if (!recipe || recipe.unlockType === 'clear' || !(recipe.unlockBattlefield > 0) || !Number.isSafeInteger(recipe.researchCost) || recipe.researchCost <= 0) {
         throw new ProgressionError('recipe_not_researchable', 400);
       }
       if (profile.unlockedRecipes.includes(recipeId)) return { ok: true, alreadyUnlocked: true, profile: view(profile) };
@@ -137,6 +154,7 @@ export function createProgressionStore({ filePath = null, content = core.content
       const profile = requireProfile(profileId);
       if (typeof expeditionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(expeditionId)) throw new Error('Invalid authoritative expedition ID.');
       if (Object.hasOwn(profile.rewards, expeditionId)) return { applied: false, profile: view(profile) };
+      if (result?.practice === true || result?.tutorial === true) return { applied: false, profile: view(profile) };
       if (!result || !['cleared', 'defeated', 'left'].includes(result.status) || result.cleared !== (result.status === 'cleared') ||
           !Number.isSafeInteger(result.researchCredits) || result.researchCredits < 0 ||
           (result.status === 'left' && result.researchCredits !== 0) || !view(profile).unlockedBattlefields.includes(result.battlefieldId)) {
@@ -149,6 +167,7 @@ export function createProgressionStore({ filePath = null, content = core.content
         updated.clearedBattlefields.push(result.battlefieldId);
         updated.clearedBattlefields.sort((a, b) => a - b);
       }
+      updated.unlockedRecipes = unlockedRecipes(updated);
       updated.stats.expeditions++;
       if (result.cleared) updated.stats.clears++;
       updated.lastResult = { ...clone(result), expeditionId };

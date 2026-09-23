@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createGame, applyAction, tick, content, getUnitAttack } from '../dist/server/core/index.js';
 import { publicState } from '../dist/server/protocol.js';
 
-function setup(definitionId = 'shu_guard', slot = 8) {
+function setup(definitionId = 'shu_guard', slot = 3) {
   const game = createGame({ playerIds: ['one', 'two'], seed: 9 });
   game.rules.spawnIntervalTicks = game.rules.minSpawnIntervalTicks = 99999;
   const player = game.players[0];
@@ -21,7 +21,7 @@ function addEnemy(game, player, progress, hp = 10000, boss = false) {
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
 
 test('default bolt damages only the oldest enemy and publishes its real position and damage', () => {
-  const { game, player, unit } = setup('shu_guard', 5);
+  const { game, player, unit } = setup('shu_guard', 2);
   const oldest = addEnemy(game, player, 0.2), next = addEnemy(game, player, 0.21);
   assert.deepEqual(unit.lastAttackHits, []);
   tick(game);
@@ -37,7 +37,7 @@ test('blast uses circular proximity, the closest two neighbors, and never hits a
   const primary = addEnemy(game, player, 0.99);
   const farther = addEnemy(game, player, 0.04);
   const nearest = addEnemy(game, player, 0.98), acrossSeam = addEnemy(game, player, 0.015);
-  const outside = addEnemy(game, player, 0.07);
+  const outside = addEnemy(game, player, 0.1);
   const peer = addEnemy(game, game.players[1], 0.99);
   const damage = getUnitAttack(player, unit);
   tick(game);
@@ -50,7 +50,7 @@ test('blast uses circular proximity, the closest two neighbors, and never hits a
 test('blast stops at its radius while arc chains from each previous hit and caps at three targets', () => {
   for (const definitionId of ['han_dang', 'lu_su']) {
     const { game, player, unit } = setup(definitionId, 0);
-    const enemies = [0.94, 0.025, 0.11, 0.195].map(progress => addEnemy(game, player, progress));
+    const enemies = [1 - 140 / 1280, 0, 140 / 1280, 280 / 1280].map(progress => addEnemy(game, player, progress));
     const damage = getUnitAttack(player, unit);
     tick(game);
     if (definitionId === 'han_dang') {

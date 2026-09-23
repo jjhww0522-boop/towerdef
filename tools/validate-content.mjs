@@ -38,13 +38,13 @@ function validateDefinition(content, validateStages = true) {
   }
 
   const rules = content.rules;
-  if (rules.maxUnits > SLOT_COUNT) errors.push('rules.maxUnits exceeds battlefield slots');
+  if (validateStages && rules.maxUnits !== SLOT_COUNT) errors.push('rules.maxUnits must match default battlefield slots');
   if (!integer(rules.frostSlowTicks)) errors.push('rules.frostSlowTicks must be a positive integer');
   for (const field of ['frostSlowMultiplier', 'bossSlowMultiplier']) {
     if (!positive(rules[field]) || rules[field] >= 1) errors.push('rules.' + field + ' must be above zero and below one');
   }
   if (rules.bossSlowMultiplier < rules.frostSlowMultiplier) errors.push('boss slow must not be stronger than normal slow');
-  for (const field of ['ticksPerSecond', 'waveTicks', 'totalWaves', 'bossTicks', 'spawnIntervalTicks', 'spawnRampEveryWaves', 'minSpawnIntervalTicks', 'overcrowdCount', 'overcrowdTicks', 'disconnectGraceTicks', 'startingGold', 'summonCost', 'killGold', 'waveGold', 'maxUnits', 'maxDispatch', 'maxUpgradeLevel']) {
+  for (const field of ['ticksPerSecond', 'waveTicks', 'totalWaves', 'bossTicks', 'spawnIntervalTicks', 'spawnRampEveryWaves', 'minSpawnIntervalTicks', 'overcrowdCount', 'overcrowdTicks', 'disconnectGraceTicks', 'startingGold', 'summonCost', 'summonCooldownTicks', 'killGold', 'waveGold', 'maxUnits', 'maxDispatch', 'maxUpgradeLevel']) {
     if (!integer(rules[field])) errors.push('rules.' + field + ' must be a positive integer');
   }
   for (const field of ['bossHp', 'enemyBaseHp', 'enemyHpPerWave', 'enemyProgressPerTick', 'upgradeBonus']) {
@@ -80,8 +80,10 @@ function validateDefinition(content, validateStages = true) {
     if (!Number.isSafeInteger(recipe.unlockBattlefield) || recipe.unlockBattlefield < 0 || recipe.unlockBattlefield > 5) errors.push(label + ' invalid unlockBattlefield (expected 0..5)');
     if (result) {
       if (result.rarity === 'basic') errors.push(label + ' recipe result cannot be basic');
-      if (result.rarity !== 'legend' && recipe.unlockBattlefield > 0) errors.push(label + ' only legends can require unlocks; other recipes must be initially available');
-      if (recipe.unlockBattlefield > 0 && !integer(recipe.researchCost)) errors.push(label + ' locked recipe requires a positive researchCost');
+      if (recipe.unlockType !== undefined && !['clear', 'research'].includes(recipe.unlockType)) errors.push(label + ' invalid unlockType');
+      if (result.rarity !== 'legend' && recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear') errors.push(label + ' only legends can require research unlocks');
+      if (recipe.unlockBattlefield > 0 && recipe.unlockType === 'clear' && recipe.researchCost !== 0) errors.push(label + ' clear unlock requires zero researchCost');
+      if (recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear' && !integer(recipe.researchCost)) errors.push(label + ' researched recipe requires a positive researchCost');
       if (recipe.unlockBattlefield === 0 && recipe.researchCost !== undefined) errors.push(label + ' initially available recipe cannot have a research unlock cost');
       if (resultRecipes.has(recipe.result)) errors.push('duplicate recipe result: ' + recipe.result);
       resultRecipes.set(recipe.result, recipe);
@@ -114,7 +116,7 @@ function validateDefinition(content, validateStages = true) {
     for (const unit of units.values()) {
       const recipe = resultRecipes.get(unit.id);
       if (unit.rarity !== 'basic' && !recipe) errors.push('missing recipe for ' + unit.id);
-      if ((unit.rarity !== 'legend' || (recipe && recipe.unlockBattlefield <= unlock)) && !reachable.has(unit.id)) errors.push(unit.id + ' is not reachable from basic units at unlock ' + unlock);
+      if ((unit.rarity === 'basic' || (recipe && recipe.unlockBattlefield <= unlock)) && !reachable.has(unit.id)) errors.push(unit.id + ' is not reachable from basic units at unlock ' + unlock);
     }
   }
 

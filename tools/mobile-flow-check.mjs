@@ -14,6 +14,10 @@ await mkdir('artifacts', { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH });
 const pass = label => { checks.push(label); console.log('PASS ' + label); };
 let completed = false;
+async function completedTutorial(context) {
+  const created = store.createProfile(); store.completeTutorial(created.profile.id);
+  await context.addInitScript(token => localStorage.setItem('td.profile', JSON.stringify({ token })), created.profileToken);
+}
 async function readableText(page, selector, minimumFontSize) {
   const reading = await page.locator(selector).evaluate(element => {
     const r = element.getBoundingClientRect(), style = getComputedStyle(element);
@@ -37,7 +41,7 @@ async function readableText(page, selector, minimumFontSize) {
 try {
   for (const size of [{ width: 360, height: 640 }, { width: 390, height: 844 }, { width: 667, height: 375 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
     const context = await browser.newContext({ viewport: size, hasTouch: true, isMobile: size.width < 1000 });
-    const page = await context.newPage(); page.setDefaultTimeout(12000);
+    await completedTutorial(context); const page = await context.newPage(); page.setDefaultTimeout(12000);
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base); await page.locator('#home-play:enabled').waitFor();
     await page.evaluate(() => document.fonts.ready);
@@ -106,6 +110,7 @@ try {
     assert.equal(await page.locator('#unit-dialog').isVisible(), true, 'closing management returns to the selected summary');
     await page.screenshot({ path: `artifacts/mobile-flow-${size.width}-battle.png` });
     await page.locator('[data-close="unit-dialog"]').tap();
+    while (room.game.tick < player.nextSummonTick) core.tick(room.game);
     await page.reload(); await page.locator('#home-play:enabled').waitFor();
     await page.locator('#resume-btn').tap(); await page.locator('#summon-btn:enabled').waitFor();
     assert.equal(rooms.at(-1), room);
@@ -115,7 +120,7 @@ try {
   }
   // Explicit server fixtures unlock later planets; no real account or progress is modified.
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
+  await completedTutorial(context); const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
   await page.goto(base); await page.locator('#home-play:enabled').waitFor();
   const token = await page.evaluate(() => JSON.parse(localStorage.getItem('td.profile')).token);
   const profile = store.authenticate(token);
@@ -146,7 +151,7 @@ try {
 
   for (const size of [{ width: 360, height: 640 }, { width: 390, height: 844 }, { width: 667, height: 375 }]) {
     const riskContext = await browser.newContext({ viewport: size, isMobile: true, hasTouch: true });
-    const riskPage = await riskContext.newPage();
+    await completedTutorial(riskContext); const riskPage = await riskContext.newPage();
     riskPage.on('pageerror', error => errors.push(error.message));
     await riskPage.goto(base); await selectDestination(riskPage);
     await riskPage.locator('#quick-start').tap(); await riskPage.locator('#summon-btn:enabled').waitFor();
@@ -193,5 +198,5 @@ try {
   completed = true;
 } finally {
   await writeFile('artifacts/mobile-flow-report.json', JSON.stringify({ source: 'controlled_browser_checks', actualParticipants: 0, status: completed ? 'passed' : 'failed', checks, errors }, null, 2));
-  await browser.close(); await new Promise(resolve => server.close(resolve));
+  await browser.close(); await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
 }

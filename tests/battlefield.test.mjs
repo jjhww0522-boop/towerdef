@@ -129,12 +129,12 @@ test('portrait rotates the shared board while desktop keeps its slot topology', 
   mobile.update(lane(null));
   assert.equal(mobile.view.worldWidth, 600);
   assert.equal(mobile.view.worldHeight, 700);
-  assert.ok(mobile.view.position(6).y > mobile.view.position(0).y);
-  assert.equal(mobile.view.position(6).x, mobile.view.position(0).x);
+  assert.ok(mobile.view.position(4).y > mobile.view.position(0).y);
+  assert.equal(mobile.view.position(4).x, mobile.view.position(0).x);
   const desktop = renderer(false);
   desktop.update(lane(null));
   assert.equal(desktop.view.worldWidth, 1000);
-  assert.equal(desktop.view.position(10).x, desktop.view.position(0).x);
+  assert.equal(desktop.view.position(5).x, desktop.view.position(0).x);
 });
 test('articulated walk and attack poses share original vectors and reduced motion holds idle', () => {
   const r = renderer(true);
@@ -247,19 +247,23 @@ test('reduced motion retains confirmed targeting without moving effects or weapo
   r.view.draw(1430);
 });
 
-test('tall portrait and wide landscape canvases use their space and keep sprites selectable', () => {
-  const r = renderer(true);
-  r.bounds({ width: 390, height: 693 }); r.update(lane(null)); r.view.draw(1400);
-  assert.equal(r.view.worldHeight, Math.round(600 * 693 / 390));
-  assert.ok(r.view.position(9).y > 750);
-  const unit = r.view.units.get(1), x = unit.x * r.view.scale + r.view.ox, y = (unit.y - 49) * r.view.scale + r.view.oy;
-  r.listeners.click({ clientX: x, clientY: y });
-  assert.deepEqual(r.selections, [1]);
-  r.resize(false); r.bounds({ width: 667, height: 217 }); r.view.draw(1450);
-  assert.equal(r.view.worldHeight, Math.round(1000 * 217 / 667));
-  assert.ok(r.view.position(20).y < r.view.path(.6).y);
+test('tall portrait and wide landscape canvases use their space and keep every robot selectable', () => {
+  const r = renderer(true), snapshot = lane(null, { alive: false });
+  snapshot.units = getBattlefieldLayout(1).slots.map((_, slot) => ({ ...snapshot.units[0], id: slot + 1, slot }));
+  for (const [portrait, bounds] of [[true, { width: 390, height: 693 }], [false, { width: 667, height: 217 }]]) {
+    r.resize(portrait); r.bounds(bounds); r.update(snapshot); r.view.draw(1600);
+    assert.equal(r.view.worldHeight, Math.round((portrait ? 600 : 1000) * bounds.height / bounds.width));
+    const height = r.view.unitHeight(r.definitions.get('archer'));
+    for (const unit of r.view.units.values()) {
+      const x = unit.x * r.view.scale + r.view.ox, y = (unit.y - height * .47) * r.view.scale + r.view.oy;
+      assert.ok(x > 0 && x < bounds.width && y > 0 && y < bounds.height);
+      r.listeners.click({ clientX: x, clientY: y });
+      assert.equal(r.selections.at(-1), unit.unit.id, `slot ${unit.unit.slot} remains selectable in ${bounds.width}x${bounds.height}`);
+    }
+    if (portrait) assert.ok(r.view.position(4).y > 750);
+    else assert.ok(r.view.position(5).y < r.view.path(.6).y);
+  }
 });
-
 test('tapping empty battlefield reports a cleared selection without moving units', () => {
   const r = renderer(true);
   r.bounds({ width: 390, height: 693 }); r.update(lane(null)); r.view.draw(1400);
@@ -295,13 +299,13 @@ test('decoded unit and enemy poses are rasterized once and animated frames reuse
 test('a full high-tier formation draws rank markers without per-unit text rasterization', () => {
   for (const rarity of ['elite', 'hero', 'legend']) {
     const r = renderer();
-    r.definitions.get('archer').rarity = rarity;
+    r.definitions.get('archer').rarity = rarity; r.view.battlefieldId = 5;
     const snapshot = lane(null, { alive: false });
-    snapshot.units = Array.from({ length: 30 }, (_, index) => ({ ...snapshot.units[0], id: index + 1, slot: index }));
+    snapshot.units = Array.from({ length: getBattlefieldLayout(5).slots.length }, (_, index) => ({ ...snapshot.units[0], id: index + 1, slot: index }));
     r.update(snapshot); r.labels.length = 0;
     for (const unit of r.view.units.values()) r.view.soldier(unit, 1450, 16);
     assert.deepEqual(r.labels, []);
-    assert.equal(r.draws.length, 30, 'rank markers do not remove any robot sprites');
+    assert.equal(r.draws.length, getBattlefieldLayout(5).slots.length, 'rank markers do not remove any robot sprites');
   }
 });
 
@@ -406,14 +410,19 @@ test('all five maps project the authoritative path and slots in both orientation
 
 test('switching maps discards old slots and effects before adopting a smaller map', () => {
   const r = renderer(), first = lane(null);
-  first.units[0].slot = 29; r.update(first);
+  r.view.battlefieldId = 5;
+  first.units[0].slot = getBattlefieldLayout(5).slots.length - 1; r.update(first);
+  const attack = lane(2); attack.units[0].slot = first.units[0].slot;
+  r.update(attack, { at: 1600 });
+  assert.ok(r.view.effects.length > 0, 'the old map has an active attack effect');
   r.view.markArrival(1, 'combine');
-  r.view.battlefieldId = 4;
-  const next = lane(20); next.units[0].slot = 21;
-  r.update(next);
+  r.view.battlefieldId = 1;
+  const lastSlot = getBattlefieldLayout(1).slots.length - 1;
+  const next = lane(20); next.units[0].slot = lastSlot;
+  r.update(next, { at: 1800 });
   assert.equal(r.view.units.size, 1);
-  assert.equal(r.view.units.get(1).unit.slot, 21);
-  assert.equal(r.view.units.get(1).x, r.view.position(21).x);
+  assert.equal(r.view.units.get(1).unit.slot, lastSlot);
+  assert.equal(r.view.units.get(1).x, r.view.position(lastSlot).x);
   assert.equal(r.view.effects.length, 0);
   assert.equal(r.view.arrivals.size, 0);
   assert.ok(r.view.units.get(1).attackAt < 0, 'the next map is an initial snapshot');
@@ -460,9 +469,9 @@ test('placement preview marks only free slots and an empty-pad click never selec
   for (const occupied of [0, 2]) assert.ok(!highlighted.some(point => {
     const target = r.view.position(occupied); return point.x === target.x && point.y === target.y;
   }), 'a dispatched robot still reserves its slot');
-  const free = r.view.position(27);
+  const freeSlot = getBattlefieldLayout(2).slots.length - 1, free = r.view.position(freeSlot);
   r.listeners.click({ clientX: free.x * r.view.scale + r.view.ox, clientY: free.y * r.view.scale + r.view.oy });
-  assert.equal(r.selections.at(-1), null); assert.equal(r.selectedSlots.at(-1), 27);
+  assert.equal(r.selections.at(-1), null); assert.equal(r.selectedSlots.at(-1), freeSlot);
   assert.equal(snapshot.units.length, 2); assert.equal(snapshot.units[1].slot, 2);
   highlighted.length = 0; r.view.drawPlacementPreview(2400);
   assert.equal(highlighted.length, 0, 'the preview disappears without persistent clutter');
@@ -474,7 +483,7 @@ test('crowded open maps keep each robot selectable in short landscape viewports'
     const snapshot = lane(null, { alive: false });
     snapshot.units = getBattlefieldLayout(battlefieldId).slots.map((_, slot) => ({ ...snapshot.units[0], id: slot + 1, slot }));
     for (const rarity of ['basic', 'legend']) {
-      r.definitions.get('archer').rarity = rarity; r.update(snapshot); r.view.draw(2000);
+      r.definitions.get('archer').rarity = rarity; r.view.battlefieldId = 5; r.update(snapshot); r.view.draw(2000);
       const height = r.view.unitHeight(r.definitions.get('archer'));
       for (const view of r.view.units.values()) {
         r.listeners.click({ clientX: view.x * r.view.scale + r.view.ox, clientY: (view.y - height * .47) * r.view.scale + r.view.oy });

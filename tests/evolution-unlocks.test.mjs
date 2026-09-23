@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { recipeMaterials, evolutionOptions } from '../playtest/evolution-model.mjs';
 
 const content = JSON.parse(readFileSync('shared/content.json', 'utf8'));
-const recipe = content.recipes.find(candidate => candidate.unlockBattlefield > 0);
+const recipe = content.recipes.find(candidate => candidate.unlockBattlefield > 0 && candidate.unlockType !== 'clear');
 const materials = () => recipe.ingredients.map((definitionId, index) => ({ id: index + 1, definitionId, dispatched: false }));
 
 test('researched evolution unlocks only the purchased recipe and still consumes the selected instance', () => {
@@ -41,4 +41,14 @@ test('evolution paths read the current player unlocks without changing which bra
   assert.equal(evolutionOptions(content, lockedPlayer, 1).find(option => option.recipe.id === recipe.id).materials.ready, false,
     'one player research does not leak into another player preview');
   assert.equal(JSON.stringify({ lockedPlayer, researchedPlayer }), before);
+});
+
+test('clear rewards also require their exact recipe grant before materials become combinable', () => {
+  const clearRecipe = content.recipes.find(recipe => recipe.unlockType === 'clear');
+  const units = clearRecipe.ingredients.map((definitionId, index) => ({ id: index + 1, definitionId, dispatched: false }));
+  const player = { units, unlockedRecipes: [] };
+  assert.equal(recipeMaterials(clearRecipe, units, 1, player.unlockedRecipes).ready, false);
+  player.unlockedRecipes.push(clearRecipe.id);
+  assert.equal(recipeMaterials(clearRecipe, units, 1, player.unlockedRecipes).ready, true);
+  assert.equal(evolutionOptions(content, player, 1).find(option => option.recipe.id === clearRecipe.id).materials.ready, true);
 });

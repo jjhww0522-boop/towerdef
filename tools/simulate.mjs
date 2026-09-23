@@ -69,13 +69,13 @@ function policy(game, player, counts, strategy) {
     const tag = candidates[0];
     if (tag && player.gold >= rules.upgradeCosts[player.upgrades[tag]]) act(game, player, { type: 'upgrade', tag }, counts);
   }
-  if ((strategy === 'upgrade' || strategy === 'dispatch') && player.units.length >= rules.maxUnits && player.gold >= rules.summonCost) {
+  if ((strategy === 'upgrade' || strategy === 'dispatch') && player.units.length >= rules.maxUnits && player.gold >= rules.summonCost && game.tick >= (player.nextSummonTick || 0)) {
     const candidates = player.units.filter(unit => !unit.dispatched && definitions.get(unit.definitionId).rarity !== 'legend');
     candidates.sort((a, b) => dps(player, a, game.battlefieldId) - dps(player, b, game.battlefieldId)
       || player.units.filter(unit => unit.definitionId === b.definitionId).length - player.units.filter(unit => unit.definitionId === a.definitionId).length);
     if (candidates.length) act(game, player, { type: 'salvage', unitIds: [candidates[0].id] }, counts);
   }
-  while (player.gold >= rules.summonCost && player.units.length < rules.maxUnits) act(game, player, { type: 'summon' }, counts);
+  if (player.gold >= rules.summonCost && player.units.length < rules.maxUnits && game.tick >= (player.nextSummonTick || 0)) act(game, player, { type: 'summon' }, counts);
 
   if (strategy === 'dispatch' && game.story?.status === 'active' && player.units.length >= 5 && player.enemies.length < 40) {
     const available = rules.maxDispatch - player.units.filter(unit => unit.dispatched).length;
@@ -96,7 +96,10 @@ function tagValue(player, tag, rules) {
 }
 
 export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true, options = {}) {
-  const game = createGame({ playerIds: ids(seats), seed, practice: true, ...options });
+  const playerIds = ids(seats), battlefieldId = options.battlefieldId ?? 1;
+  const clearedRecipes = content.recipes.filter(recipe => recipe.unlockType === 'clear' && recipe.unlockBattlefield < battlefieldId).map(recipe => recipe.id);
+  const unlockedRecipesByPlayer = Object.fromEntries(playerIds.map(id => [id, [...clearedRecipes, ...(options.unlockedRecipesByPlayer?.[id] || [])]]));
+  const game = createGame({ playerIds, seed, practice: true, ...options, unlockedRecipesByPlayer });
   const rules = game.rules;
   const actions = { summon: 0, combine: 0, upgrade: 0, dispatch: 0, salvage: 0 };
   const tickMs = [], snapshotBytes = [], stories = [];
@@ -117,7 +120,7 @@ export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true
     defeated: game.players.filter(p => p.status === 'defeated').length,
     players: game.players.map(p => ({ id: p.id, status: p.status, units: p.units.length, gold: p.gold,
       hasLegend: p.units.some(u => definitions.get(u.definitionId).rarity === 'legend'),
-      hasLockedRecipeUnit: p.units.some(u => content.recipes.some(r => r.result === u.definitionId && r.unlockBattlefield > 0)),
+      hasLockedRecipeUnit: p.units.some(u => content.recipes.some(r => r.result === u.definitionId && r.unlockBattlefield > 0 && r.unlockType !== 'clear')),
       remainingBossHp: p.enemies.find(enemy => enemy.boss)?.hp ?? 0,
       result: p.result })),
     stories, successfulActions: actions, coreTickMs: measure ? summary(tickMs) : null, snapshotBytes: measure ? summary(snapshotBytes) : null };
@@ -131,7 +134,7 @@ function syntheticStress(seats) {
   }
   const tickMs = [], snapshotBytes = [];
   for (let i = 0; i < 100; i++) {
-    // Reset benchmark conditions outside the timed region, preserving 30 units/70 enemies.
+    // Reset benchmark conditions outside the timed region, preserving the configured unit/enemy caps.
     game.tick = 100; // Next tick has no wave boundary or new spawn.
     for (const player of game.players) {
       player.overcrowdedTicks = 0;
@@ -145,7 +148,7 @@ function syntheticStress(seats) {
   }
   return { kind: 'synthetic-full-cap-core-stress', seats, samples: 100, unitsPerSeat: rules.maxUnits,
     enemiesPerSeat: rules.overcrowdCount, allUnitsAttackEverySample: true,
-    resetConditions: 'Clock, overcrowd timer and attack cooldowns reset before each sample; enemies have synthetic HP.',
+    resetConditions: 'Clock, overcrowd timer and attack cooldowns reset before each sample; enemies have synthetic HP. Slots are the current introductory board.',
     coreTickMs: summary(tickMs), snapshotBytes: summary(snapshotBytes) };
 }
 

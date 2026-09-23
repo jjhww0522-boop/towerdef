@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, applyAction, tick, content } from '../dist/server/core/index.js';
+import { createGame, applyAction, tick } from '../dist/server/core/index.js';
 import { publicState } from '../dist/server/protocol.js';
 import { enemyPoint, unitPoint, distanceSquared, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
@@ -42,11 +42,12 @@ test('route cycling is player-local, fixed at spawn and independent of summon RN
   }
 });
 
-test('open route travel preserves the earlier arrival time and every entrance attacks the same facility', () => {
+test('each open route has a bounded travel window and every entrance attacks the same facility', () => {
   for (const id of [2, 3, 4, 5]) {
     const game = create(id), player = game.players[0], count = getBattlefieldLayout(id).routes.length;
     assert.equal(game.objective.arrivalProgress, 1);
-    assert.equal(Math.ceil(1 / game.rules.enemyProgressPerTick), Math.ceil(.85 / content.rules.enemyProgressPerTick));
+    const travelSeconds = Math.ceil(1 / game.rules.enemyProgressPerTick) / game.rules.ticksPerSecond;
+    assert.ok(travelSeconds >= 28 && travelSeconds <= 46);
     game.rules.spawnIntervalTicks = game.rules.minSpawnIntervalTicks = 99999;
     const enemies = Array.from({ length: count }, (_, routeIndex) => target(game, player, routeIndex, .999));
     tick(game);
@@ -61,12 +62,12 @@ test('open route travel preserves the earlier arrival time and every entrance at
 });
 
 test('primary targeting and hit telemetry use the fixed enemy route, including after death', () => {
-  const game = create(4), player = game.players[0], unit = robot(game, 'shu_guard', 12);
+  const game = create(4), player = game.players[0], unit = robot(game, 'shu_guard', 1);
   const left = target(game, player, 0, .3, 1), right = target(game, player, 1, .3, 1);
   tick(game);
   assert.equal(left.hp, 0); assert.equal(right.hp, 1);
   assert.deepEqual(unit.lastAttackHits.map(hit => [hit.targetId, hit.routeIndex]), [[left.id, 0]]);
-  unit.attackCooldownTicks = 0; unit.slot = 16;
+  unit.attackCooldownTicks = 0; unit.slot = 6;
   tick(game);
   assert.equal(right.hp, 0);
   assert.deepEqual(publicState(game).players[0].units[0].lastAttackHits.map(hit => [hit.targetId, hit.routeIndex]), [[right.id, 1]]);
@@ -92,7 +93,7 @@ test('arc can cross nearby entrances at the facility using world distance; blast
   }
 });
 
-test('each route has reachable defense positions while outer slots retain short-range placement risk', () => {
+test('every placement slot can attack at least one route even with the shortest fire range', () => {
   for (const id of [2, 3, 4, 5]) {
     const layout = getBattlefieldLayout(id);
     for (const [routeIndex] of layout.routes.entries()) {
@@ -101,7 +102,7 @@ test('each route has reachable defense positions while outer slots retain short-
     }
     for (const [slot, point] of layout.slots.entries()) {
       assert.deepEqual(unitPoint(slot, id), point);
-      assert.ok(layout.routes.some((route, routeIndex) => Array.from({ length: 121 }, (_, i) => enemyPoint(i / 120, id, routeIndex)).some(enemy => distanceSquared(point, enemy) <= 250 ** 2)), 'no slot is inactive for all ordinary elements');
+      assert.ok(layout.routes.some((route, routeIndex) => Array.from({ length: 121 }, (_, i) => enemyPoint(i / 120, id, routeIndex)).some(enemy => distanceSquared(point, enemy) <= 160 ** 2)), 'no random slot makes a fire robot entirely inactive');
     }
   }
 });

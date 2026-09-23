@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createGame, applyAction, tick, setConnection, content } from '../dist/server/core/index.js';
 import { publicState } from '../dist/server/protocol.js';
 import { scriptedMatch } from '../tools/simulate.mjs';
+import { enemyPoint, distanceSquared, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
 const create = (options = {}) => createGame({ playerIds: ['one', 'two'], seed: 19, practice: false, ...options });
 const act = (game, player, action) => applyAction(game, player.id, { seq: player.lastSeq + 1, ...action });
@@ -12,16 +13,18 @@ const give = (game, player, definitionId, investedGold = game.rules.summonCost) 
   player.units.push(unit); return unit;
 };
 const enemy = (game, hp = 1e12, boss = false) => ({ id: game.nextEntityId++, hp, maxHp: hp, progress: 0, boss });
-const invest = (game, player) => { for (let i = 0; i < 3; i++) assert.equal(act(game, player, { type: 'summon' }).ok, true); };
+const invest = (game, player) => { for (let i = 0; i < 3; i++) { while (game.tick < player.nextSummonTick) tick(game); assert.equal(act(game, player, { type: 'summon' }).ok, true); } };
 const overwhelm = (game, player) => {
   player.enemies = Array.from({ length: game.rules.overcrowdCount }, () => enemy(game));
   player.overcrowdedTicks = game.rules.overcrowdTicks - 1; tick(game);
 };
 
-test('three planets expose independent rules and objective-specific expedition deadlines', () => {
-  const games = [1, 2, 3].map(battlefieldId => create({ battlefieldId }));
-  assert.deepEqual(games.map(g => publicState(g).expedition.remainingTicks / g.rules.ticksPerSecond), [492, 1600, 1806]);
-  assert.deepEqual(games.map(g => g.stories.map(s => s.wave)), [[6, 12, 18], [16, 32, 48], [17, 34, 51]]);
+test('chapter stages progressively expand capacity and defense time with separate boss deadlines', () => {
+  const games = [1, 2, 3, 4, 5].map(battlefieldId => create({ battlefieldId }));
+  assert.deepEqual(games.map(g => g.rules.maxUnits), [10, 12, 14, 16, 20]);
+  assert.deepEqual(games.map(g => g.rules.waveTicks * g.rules.totalWaves / g.rules.ticksPerSecond), [180, 300, 420, 600, 900]);
+  assert.deepEqual(games.map(g => publicState(g).expedition.remainingTicks / g.rules.ticksPerSecond), [240, 300, 510, 690, 990]);
+  assert.deepEqual(games.map(g => g.stories.map(s => s.wave)), [[4, 7, 10], [4, 8, 12], [5, 11, 16], [6, 12, 18], [9, 18, 27]]);
   assert.ok(games[1].rules.enemyHpAcceleration > games[0].rules.enemyHpAcceleration);
   assert.ok(games[2].rules.bossHp > games[1].rules.bossHp);
   assert.throws(() => create({ battlefieldId: 99 }), /battlefield/);
@@ -55,7 +58,7 @@ test('mining transitions into evacuation at the selected planet deadline and sto
 
 test('deep mining increases enemy strength, arrival pressure and wave income without changing summon odds', () => {
   const early = create({ battlefieldId: 2 }), late = create({ battlefieldId: 2 });
-  early.tick = early.rules.waveTicks - 1; late.tick = late.rules.waveTicks * 47 - 1;
+  early.tick = early.rules.waveTicks - 1; late.tick = late.rules.waveTicks * (late.rules.totalWaves - 2) - 1;
   const earlyGold = early.players[0].gold, lateGold = late.players[0].gold;
   tick(early); tick(late);
   assert.ok(late.players[0].gold - lateGold > early.players[0].gold - earlyGold);
@@ -83,16 +86,18 @@ test('researched blueprint accepts exact ingredients but cannot bypass ownership
   assert.deepEqual(player.units.map(u => u.definitionId), [recipe.result]);
 });
 
-test('free high-tier route is always available and ultimate requires researched shared-material chain', () => {
+test('high-tier clear reward stays locked until earned and ultimate still needs researched materials', () => {
   const free = content.recipes.find(r => r.result === 'salvage_colossus');
   const ultimate = content.recipes.find(r => r.result === 'orbital_ark');
-  assert.equal(free.unlockBattlefield, 0);
+  assert.equal(free.unlockBattlefield, 4); assert.equal(free.unlockType, 'clear'); assert.equal(free.researchCost, 0);
   assert.equal(content.units.find(u => u.id === ultimate.result).tier, 'ultimate');
   assert.ok(ultimate.ingredients.every(id => content.recipes.some(r => r.result === id && r.unlockBattlefield > 0)));
   const game = create(), player = game.players[0];
   const units = free.ingredients.map(id => give(game, player, id));
+  assert.equal(act(game, player, { type: 'combine', recipeId: free.id, unitIds: units.map(u => u.id) }).error, 'RECIPE_LOCKED');
+  player.unlockedRecipes.push(free.id);
   assert.equal(act(game, player, { type: 'combine', recipeId: free.id, unitIds: units.map(u => u.id) }).ok, true);
-  assert.deepEqual(player.unlockedRecipes, []);
+  assert.deepEqual(player.unlockedRecipes, [free.id]);
   const research = create({ unlockedRecipesByPlayer: { one: [ultimate.id] } }), builder = research.players[0];
   const parts = ultimate.ingredients.map(id => give(research, builder, id, 240));
   assert.equal(act(research, builder, { type: 'combine', recipeId: ultimate.id, unitIds: parts.map(u => u.id) }).ok, true);
@@ -125,7 +130,7 @@ test('salvage refunds only invested cost fraction, is idempotent and rejects for
 test('partial research rewards require real combat and investment; leave, practice and idle cannot farm them', () => {
   const real = create(), player = real.players[0];
   invest(real, player); player.kills = 45;
-  real.tick = real.rules.waveTicks * 12;
+  real.tick = real.rules.waveTicks * Math.floor(real.rules.totalWaves / 2);
   overwhelm(real, player);
   assert.equal(player.result.cleared, false);
   assert.equal(player.result.researchCredits, 10);
@@ -137,7 +142,7 @@ test('partial research rewards require real combat and investment; leave, practi
   for (const mode of ['idle', 'leave', 'practice']) {
     const game = create({ practice: mode === 'practice' }), p = game.players[0];
     if (mode !== 'idle') invest(game, p);
-    p.kills = 80; game.tick = game.rules.waveTicks * 18;
+    p.kills = 80; game.tick = game.rules.waveTicks * Math.floor(game.rules.totalWaves * .75);
     if (mode === 'leave') act(game, p, { type: 'leave' }); else overwhelm(game, p);
     assert.equal(p.result.researchCredits, 0, mode);
   }
@@ -148,6 +153,8 @@ test('evacuation clear freezes a single result and grants its bonus only to the 
   invest(game, player); player.kills = 60;
   game.tick = game.rules.waveTicks * game.rules.totalWaves;
   player.enemies = [enemy(game, 1, true)];
+  const point = enemyPoint(0, game.battlefieldId);
+  Object.assign(player.units[0], { definitionId: 'wei_archer', slot: getBattlefieldLayout(game.battlefieldId).slots.findIndex(slot => distanceSquared(slot, point) < 500 ** 2) });
   tick(game);
   assert.equal(player.status, 'cleared');
   assert.equal(player.result.researchCredits, 120);
@@ -183,7 +190,7 @@ test('main expedition is clearable without researched recipes under seeded legal
   const clears = results.reduce((sum, result) => sum + result.cleared, 0);
   assert.ok(clears > 0);
   assert.ok(results.every(result => result.players.every(player => !player.hasLockedRecipeUnit)));
-  assert.ok(results.every(result => result.players.every(player => player.result.wave > 32)));
+  assert.ok(results.every(result => result.players.every(player => player.result.wave >= 8)));
   assert.ok(results.every(result => result.successfulActions.combine > 0 && result.successfulActions.upgrade > 0));
   const idle = scriptedMatch(4, 1, 'no-input', false, { battlefieldId: 2, practice: false });
   assert.equal(idle.cleared, 0);

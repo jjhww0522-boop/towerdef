@@ -36,7 +36,7 @@ test('validator rejects duplicate IDs, unknown tags, rarity and nonpositive stat
   invalid(c => { c.rules.frostSlowMultiplier = 0; }, /frostSlowMultiplier/i);
   invalid(c => { c.rules.frostSlowTicks = 0; }, /frostSlowTicks/i);
   invalid(c => { c.rules.bossSlowMultiplier = 0.1; }, /boss slow/i);
-  invalid(c => { c.rules.maxUnits = 31; }, /battlefield slots/i);
+  invalid(c => { c.rules.maxUnits = 11; }, /battlefield slots/i);
 });
 
 test('validator rejects dangling recipe references and malformed recipes', () => {
@@ -71,6 +71,7 @@ test('validator rejects malformed probabilities, missing summon pools and upgrad
   invalid(c => { c.rules.upgradeCosts[0] = -2; }, /upgradeCosts/i);
   invalid(c => { c.rules.waveTicks = 0; }, /waveTicks/i);
   invalid(c => { c.rules.maxDispatch = 99; }, /maxDispatch/i);
+  invalid(c => { c.rules.summonCooldownTicks = 0; }, /summonCooldownTicks/i);
 });
 
 test('validator catches impossible/duplicate story timing and invalid health', () => {
@@ -91,10 +92,10 @@ test('validator checks merged planet rules and every planet story schedule', () 
   invalid(c => { c.rules.salvageRefundRatio = 1; }, /salvageRefundRatio/i);
 });
 
-test('free high-tier recipes remain valid while researched recipes require a positive cost', () => {
+test('clear unlocks cost zero while researched recipes require a positive cost', () => {
   assert.deepEqual(validateContent(fixture()), []);
-  invalid(c => { c.recipes.find(r => r.unlockBattlefield > 0).researchCost = 0; }, /researchCost/i);
-  invalid(c => { c.recipes.find(r => r.result === 'salvage_colossus').researchCost = 1; }, /initial.*unlock cost/i);
+  invalid(c => { c.recipes.find(r => r.unlockBattlefield > 0 && r.unlockType !== 'clear').researchCost = 0; }, /researchCost/i);
+  invalid(c => { c.recipes.find(r => r.result === 'salvage_colossus').researchCost = 1; }, /clear.*researchCost/i);
   invalid(c => { c.units[0].tier = 'ultimate'; }, /invalid tier/i);
 });
 
@@ -114,4 +115,19 @@ test('chapter stages require a shared planet, all five identifiers and the real 
   invalid(c => { c.battlefields[2].chapterId = 2; }, /chapter 1/i);
   invalid(c => { c.battlefields[1].planetId = 'ice'; }, /scrap planet/i);
   invalid(c => { c.battlefields[3].rules.maxUnits = 30; }, /maxUnits.*map slots/i);
+});
+
+test('five initial recipes cover every basic material and stage clears progressively add choices', () => {
+  const data = fixture(), basic = data.units.filter(unit => unit.rarity === 'basic').map(unit => unit.id).sort();
+  const initial = data.recipes.filter(recipe => recipe.unlockBattlefield === 0);
+  assert.equal(initial.length, 5);
+  assert.deepEqual(initial.map(recipe => recipe.result).sort(), ['guan_ping', 'ma_liang', 'cao_ren', 'cheng_pu', 'cheng_yu'].sort());
+  assert.deepEqual([...new Set(initial.flatMap(recipe => recipe.ingredients))].sort(), basic);
+  assert.deepEqual(data.rules.summonWeights, [9300, 680, 20]);
+  assert.equal(data.rules.summonCooldownTicks, 7);
+  assert.deepEqual([1, 2, 3, 4].map(id => data.recipes.filter(recipe => recipe.unlockType === 'clear' && recipe.unlockBattlefield === id).length), [4, 3, 3, 1]);
+  for (const recipe of data.recipes.filter(recipe => recipe.unlockType === 'clear')) assert.equal(recipe.researchCost, 0);
+  const research = data.recipes.filter(recipe => recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear');
+  assert.deepEqual(research.map(recipe => recipe.unlockBattlefield), [3, 4, 5, 5]);
+  assert.deepEqual(research.map(recipe => recipe.researchCost), [60, 100, 160, 240]);
 });

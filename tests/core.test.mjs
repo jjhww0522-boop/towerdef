@@ -1,9 +1,13 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import { scriptedMatch } from '../tools/simulate.mjs';
 import assert from 'node:assert/strict';
 import { createGame, applyAction, tick, setConnection, content, getUnitAttack } from '../dist/server/core/index.js';
 
-const game = (count = 4) => createGame({ playerIds: Array.from({ length: count }, (_, i) => `p${i}`), seed: 123 });
+const game = (count = 4) => {
+  const state = createGame({ playerIds: Array.from({ length: count }, (_, i) => `p${i}`), seed: 123 });
+  state.rules.summonCooldownTicks = 0; // Domain fixtures; real timing is covered by summon-cooldown tests.
+  return state;
+};
 const step = (g, n) => { for (let i = 0; i < n; i++) tick(g); };
 const give = (g, p, definitionId, slot = p.units.length) => {
   const unit = { id: g.nextEntityId++, definitionId, slot, dispatched: false, attackCooldownTicks: 0 };
@@ -29,7 +33,8 @@ test('content has 29 valid units and 20 acyclic exact recipes including a free l
     assert.ok(result);
     assert.ok(r.ingredients.length >= 2 && r.ingredients.length <= 3);
     for (const id of r.ingredients) assert.ok(ranks[content.units.find(u => u.id === id)?.rarity] < (result.tier === 'ultimate' ? 4 : ranks[result.rarity]));
-    if (r.unlockBattlefield > 0) assert.equal(result.rarity, 'legend');
+    if (r.unlockBattlefield > 0 && r.unlockType !== 'clear') assert.equal(result.rarity, 'legend');
+    if (r.unlockType === 'clear') assert.equal(r.researchCost, 0);
   }
 });
 
@@ -96,7 +101,7 @@ test('combination atomically consumes only owned exact ingredients and reuses a 
   assert.equal(g.players[1].units.length, 1);
 });
 
-test('practice cannot craft locked legends even with exact materials', () => {
+test('practice cannot craft locked clear rewards even with exact materials', () => {
   const g = game(), p = g.players[0], r = content.recipes.find(r => r.unlockBattlefield > 0);
   const units = r.ingredients.map(id => give(g, p, id));
   assert.equal(applyAction(g, p.id, { seq: 1, type: 'combine', recipeId: r.id, unitIds: units.map(u => u.id) }).ok, false);
@@ -118,7 +123,7 @@ test('three tag bonuses add and upgrades stop at five', () => {
 test('a lane cannot attack another lane and overcrowding defeats only its owner after five seconds', () => {
   const g = game(), p = g.players[0], q = g.players[1];
   give(g, q, content.units.find(u => u.rarity === 'hero').id);
-  p.enemies = Array.from({ length: 70 }, () => enemy(g));
+  p.enemies = Array.from({ length: g.rules.overcrowdCount }, () => enemy(g));
   step(g, 49);
   assert.equal(p.status, 'active');
   assert.equal(p.enemies[0].hp, 999999);
@@ -131,11 +136,11 @@ test('a lane cannot attack another lane and overcrowding defeats only its owner 
 
 test('falling below overcrowd threshold resets its consecutive timer', () => {
   const g = game(), p = g.players[0];
-  p.enemies = Array.from({ length: 70 }, () => enemy(g));
+  p.enemies = Array.from({ length: g.rules.overcrowdCount }, () => enemy(g));
   step(g, 40);
   p.enemies = [];
   tick(g);
-  p.enemies = Array.from({ length: 70 }, () => enemy(g));
+  p.enemies = Array.from({ length: g.rules.overcrowdCount }, () => enemy(g));
   step(g, 49);
   assert.equal(p.status, 'active');
 });
@@ -187,7 +192,7 @@ test('defeated players cease contributing to story before the defeat tick attack
   openStory(g);
   const u = give(g, p, content.units[0].id);
   applyAction(g, p.id, { seq: 1, type: 'dispatch', unitIds: [u.id] });
-  p.enemies = Array.from({ length: 70 }, () => enemy(g));
+  p.enemies = Array.from({ length: g.rules.overcrowdCount }, () => enemy(g));
   p.overcrowdedTicks = 49;
   const hp = g.story.hp;
   tick(g);
@@ -203,7 +208,7 @@ test('dispatched units still occupy the summon cap and cannot be combined', () =
   const units = r.ingredients.map(id => give(g, p, id));
   applyAction(g, p.id, { seq: 1, type: 'dispatch', unitIds: [units[0].id] });
   assert.equal(applyAction(g, p.id, { seq: 2, type: 'combine', recipeId: r.id, unitIds: units.map(u => u.id) }).ok, false);
-  while (p.units.length < content.rules.maxUnits) give(g, p, content.units[0].id);
+  while (p.units.length < g.rules.maxUnits) give(g, p, content.units[0].id);
   assert.equal(applyAction(g, p.id, { seq: 3, type: 'summon' }).ok, false);
 });
 
@@ -228,11 +233,12 @@ test('disconnect keeps autonomous combat, reconnects within grace, and expires i
   assert.equal(p.connected, false);
 });
 
-test('24 waves lead to a boss with a 60 second deadline and independent clear', () => {
+test('the configured final wave leads to a boss with a 60 second deadline and independent clear', () => {
   const g = game(), p = g.players[0];
   g.tick = g.rules.waveTicks * g.rules.totalWaves - 1;
   tick(g);
-  assert.equal(g.wave, 24);
+  assert.equal(g.wave, g.rules.totalWaves);
+  assert.equal(g.rules.bossTicks / g.rules.ticksPerSecond, 60);
   assert.equal(p.enemies.filter(e => e.boss).length, 1);
   const strong = give(g, p, content.units.find(u => u.rarity === 'hero').id);
   p.enemies = p.enemies.filter(e => e.boss);
@@ -273,7 +279,8 @@ test('learning-stage wave schedule opens three fixed-health stories and its conf
     }
     if (g.story) {
       const openedAt = opened[opened.length - 1].tick;
-      assert.equal(g.story.status, t - openedAt < 449 ? 'active' : 'failed');
+      const duration = g.stories.find(story => story.wave === g.story.wave).durationTicks;
+      assert.equal(g.story.status, t - openedAt < duration - 1 ? 'active' : 'failed');
     }
   }
   assert.deepEqual(opened, g.stories.map(s => ({ tick: (s.wave - 1) * g.rules.waveTicks, wave: s.wave })));

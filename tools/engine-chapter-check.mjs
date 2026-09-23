@@ -24,6 +24,7 @@ async function fixture() {
     if (mapMode) {
       const game = room.game, player = game.players[0];
       player.gold = 1000;
+      game.rules.spawnIntervalTicks = game.rules.minSpawnIntervalTicks = 99999;
       player.enemies = [.08, .22, .4, .6, .78, .85].map((progress, index) => ({
         id: game.nextEntityId++, hp: 10000, maxHp: 10000, progress, boss: false,
         routeIndex: index % getBattlefieldLayout(game.battlefieldId).routes.length
@@ -35,8 +36,10 @@ async function fixture() {
     advance() { now += ENGINE_RECOVERY_MS; return now; }, maps() { mapMode = true; },
     async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); } };
 }
-async function openPage(base, size) {
+async function openPage(base, size, store) {
   const context = await browser.newContext({ viewport: size, isMobile: true, hasTouch: true });
+  const created = store.createProfile(); store.completeTutorial(created.profile.id);
+  await context.addInitScript(token => localStorage.setItem('td.profile', JSON.stringify({ token })), created.profileToken);
   const page = await context.newPage(); page.setDefaultTimeout(12000);
   page.on('pageerror', error => report.errors.push({ viewport: size, message: error.message }));
   await page.goto(base); await page.locator('#home-play:enabled').waitFor();
@@ -85,7 +88,7 @@ async function enter(page) {
   const body = await result.json(); await page.locator('#summon-btn:enabled').waitFor(); return body;
 }
 async function engineFlow(f, size) {
-  const { context, page } = await openPage(f.base, size);
+  const { context, page } = await openPage(f.base, size, f.store);
   try {
     const profile = await account(page, f.store), sessionRequests = [], purchases = [];
     page.on('request', request => {
@@ -189,7 +192,7 @@ async function observeRenderer(page) {
 }
 async function mapFlow(f, size) {
   f.maps();
-  const { context, page } = await openPage(f.base, size);
+  const { context, page } = await openPage(f.base, size, f.store);
   try {
     const profile = await account(page, f.store);
     for (const battlefieldId of [1, 2, 3, 4]) f.store.recordResult(profile.id, 'fixture-unlock-' + battlefieldId,
@@ -208,6 +211,7 @@ async function mapFlow(f, size) {
       const restingCanvas = await page.locator('#battlefield').boundingBox();
       const summonCount = size.width > size.height && stage.id === 2 ? room.game.rules.maxUnits : 5;
       for (let count = 1; count <= summonCount; count++) {
+        while (room.game.tick < player.nextSummonTick) core.tick(room.game);
         const action = page.waitForResponse(response => new URL(response.url()).pathname === '/action');
         await page.locator('#summon-btn:enabled').tap();
         const result = await action, packet = result.request().postDataJSON(), body = await result.json();

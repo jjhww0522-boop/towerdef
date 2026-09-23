@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { selectDestination } from './playtest-navigation.mjs';
 import { createDevServer } from './dev-server.mjs';
 import core from '../dist/server/core/index.js';
+import { createProgressionStore } from './progression.mjs';
 
 // Isolated authoritative combat fixtures shorten the setup. Browser rendering,
 // audio nodes, requests and combat rules are real; no user profiles are opened.
@@ -12,7 +13,8 @@ const rooms = [], errors = [], contexts = [];
 const report = { source: 'automated_combat_feel_check', actualParticipants: 0,
   fixtures: ['Manual server clock', 'Owned robots and clustered enemies', 'Final boss phase'], checks: [], artifacts: [] };
 const pass = (label, evidence = {}) => { report.checks.push({ label, ...evidence }); console.log('PASS ' + label); };
-const server = createDevServer({ automaticTicks: false, onRoomCreated: room => rooms.push(room) });
+const store = createProgressionStore();
+const server = createDevServer({ progressionStore: store, automaticTicks: false, onRoomCreated: room => rooms.push(room) });
 await mkdir('artifacts/combat-video', { recursive: true });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = 'http://127.0.0.1:' + server.address().port;
@@ -24,6 +26,8 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
     ...(captureVideo ? { recordVideo: { dir: 'artifacts/combat-video', size: { width: 390, height: 844 } } } : {}) });
   contexts.push(context);
+  const created = store.createProfile(); store.completeTutorial(created.profile.id);
+  await context.addInitScript(token => localStorage.setItem('td.profile', JSON.stringify({ token })), created.profileToken);
   await context.addInitScript(() => {
     window.audioObservation = { starts: 0, contexts: [] };
     const Original = window.AudioContext;
@@ -46,7 +50,13 @@ try {
   const patternUnits = ['bolt', 'blast', 'arc'].map(pattern => content.units.find(u => u.rarity === 'elite' && u.attackPattern === pattern));
   assert.ok(patternUnits.every(Boolean));
   player.gold = 2000;
-  while (player.units.length < 8) applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' });
+  function fillFormation(count) {
+    while (player.units.length < count) {
+      while (game.tick < player.nextSummonTick) tick(game);
+      assert.equal(applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' }).ok, true);
+    }
+  }
+  fillFormation(8);
   player.units.forEach((unit, i) => { unit.definitionId = patternUnits[i % 3].id; });
   player.enemies = Array.from({ length: 20 }, (_, i) => ({ id: game.nextEntityId++, progress: .02 + i * .043,
     hp: 6000, maxHp: 6000, boss: false }));
@@ -63,11 +73,12 @@ try {
   assert.ok(soundStarts > 0, 'user gesture enables real Web Audio nodes');
   pass('combat audio starts after a user gesture and duplicate snapshots do not replay it');
 
-  while (player.units.length < game.rules.maxUnits) applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' });
+  fillFormation(game.rules.maxUnits);
   player.units.forEach((unit, i) => { unit.definitionId = patternUnits[i % 3].id; });
-  player.enemies = Array.from({ length: 65 }, (_, i) => ({ id: game.nextEntityId++, progress: i / 65,
+  const enemyCount = game.rules.overcrowdCount - 5;
+  player.enemies = Array.from({ length: enemyCount }, (_, i) => ({ id: game.nextEntityId++, progress: i / enemyCount,
     hp: 6000, maxHp: 6000, boss: false }));
-  await page.waitForFunction(() => document.querySelectorAll('#roster [data-unit-id]').length === 30);
+  await page.waitForFunction(count => document.querySelectorAll('#roster [data-unit-id]').length === count, game.rules.maxUnits);
   await page.waitForTimeout(900);
   await page.evaluate(async () => {
     const { Battlefield } = await import('/battlefield.js'), original = Battlefield.prototype.draw;

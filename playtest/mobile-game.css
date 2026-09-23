@@ -194,3 +194,24 @@ body.reduce-motion .crew-robot .pose-idle{opacity:1}body.reduce-motion .crew-rob
 #engine-cells{display:flex;justify-content:center;gap:8px}#engine-cells>span{display:grid;place-items:center;width:48px;height:54px;border:1px solid #4b5f65;border-radius:10px;color:#677980;background:#17272e}#engine-cells>span.charged{background:#2d5045;border-color:#9bcc9b;color:#d4ecc3}#engine-cells .ui-icon{width:30px;height:30px}
 #engine-next{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin:16px 0 8px}.engine-help{font-size:15px;line-height:1.6;color:#bdccd0;margin:0 0 20px}.engine-refill{padding-top:16px;border-top:1px solid #485e67}.engine-refill h3{font:400 26px/1.2 var(--display-font);margin:0}.engine-refill p{font-size:15px;margin:8px 0 12px}.engine-refill .primary{width:100%;font-size:20px;min-height:50px}#engine-store-note{color:#b9c7cc;font-size:14px;line-height:1.5}.engine-rules{text-align:left;font-size:14px;color:#b9c7cc}.engine-rules summary{min-height:44px;display:flex;align-items:center}.engine-rules p{line-height:1.6}
 @media(max-width:380px){.home-top{gap:6px}.credit-balance{font-size:12px}.stage-heading{gap:6px}.stage-heading h1{font-size:24px}.stage-heading .secondary{min-width:48px;padding-inline:6px}.stage-heading .engine-button{padding-inline:6px;gap:4px}}
+
+/* Guided practice sits on the field without changing the battlefield size. */
+.training-entry{min-height:44px;padding:8px 12px;background:transparent;border:0;color:#e2d5ad;font-size:16px;text-decoration:underline;text-underline-offset:4px}
+.unlock-state{font-size:14px;color:#d5cc9f;text-align:center;max-width:66px}
+.field-summon::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:#735525;transform:scaleX(var(--summon-ready,1));transform-origin:left;transition:transform 100ms linear;pointer-events:none}
+.field-summon[data-cooling=true]{opacity:.8}
+.tutorial-guide{position:absolute;z-index:8;top:12px;left:12px;right:12px;max-width:520px;margin:0 auto;display:grid;grid-template-columns:48px minmax(0,1fr);gap:8px 10px;padding:12px;border:1px solid #a4afa1;border-left:4px solid #f5ce85;border-radius:12px;background:#192d37f5;box-shadow:0 4px 18px #06101950;color:#fff0d0}
+#tutorial-mascot{width:48px;height:68px;background-size:contain;background-repeat:no-repeat;background-position:center;align-self:center}
+.tutorial-copy{min-width:0}.tutorial-copy small{display:block;font-size:13px;color:#b6cdc5;margin-bottom:4px}.tutorial-copy strong{display:block;font:400 24px/1.15 var(--display-font);word-break:keep-all}.tutorial-copy p{font-size:16px;line-height:1.4;margin:6px 0 0;color:#d1dfd9;word-break:keep-all}
+#tutorial-next{grid-column:2;justify-self:start;min-height:44px;font-size:18px;padding:8px 18px}
+.tutorial-focus{outline:3px solid #ffe5a0!important;outline-offset:4px}
+#game[data-tutorial=true] .side-column,#game[data-tutorial=true] .arena-footer,#game[data-tutorial=true] #expedition-phase,#game[data-tutorial=true] .counters>div:first-child,#game[data-tutorial=true] #speed-label,#game[data-tutorial=true] #room-label,#game[data-tutorial=true] #recipes-tab,#game[data-tutorial=true] #upgrades-tab{display:none}
+#game[data-tutorial=true] .boss-hud{top:195px;left:12px;right:auto;width:calc(100% - 24px);max-width:320px}
+#game[data-tutorial=true] .combat-alert{display:none}
+body:has(#game[data-tutorial=true]:not([hidden])) #unit-inspection-dialog .unit-management{margin-bottom:12px}
+body:has(#game[data-tutorial=true]:not([hidden])) #sell-unit,body:has(#game[data-tutorial=true]:not([hidden])) #confirm-sale{outline:2px solid #f5ce85;outline-offset:2px}
+@media(max-height:500px){.tutorial-guide{top:8px;right:auto;width:43%;padding:8px;grid-template-columns:1fr;gap:4px}#tutorial-mascot,.tutorial-copy small{display:none}.tutorial-copy strong{font-size:22px}.tutorial-copy p{margin-top:4px}#tutorial-next{font-size:16px;grid-column:1}#game[data-tutorial=true] .boss-hud{top:30px;left:auto;right:12px;width:215px}#game[data-tutorial=true] .unit-dialog{left:auto;right:12px;width:49%;max-height:55dvh}#game[data-tutorial=true] .unit-dialog[open]{display:block}#game[data-tutorial=true] .unit-dialog .dialog-heading{display:flex}#game[data-tutorial=true] .unit-dialog #evolution-panel{height:auto}}
+@media(prefers-reduced-motion:reduce){.field-summon::after{transition:none}}body.reduce-motion .field-summon::after{transition:none}
+#tutorial-rule{grid-column:1/-1;font-size:14px;color:#b6cdc5;text-align:center}
+#game[data-tutorial=true] .arena-panel>.panel-heading{display:none}
+@media(max-height:500px){#tutorial-rule{font-size:13px}#game[data-tutorial=false] .unit-dialog[open]{grid-template-columns:150px minmax(0,1fr)}}
