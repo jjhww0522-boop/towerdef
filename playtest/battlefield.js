@@ -254,7 +254,7 @@ export class Battlefield {
   }
 
   portalSlot(id) { return { x: this.worldWidth * .934 + (id % 2 - .5) * 24, y: this.worldHeight * .50 + (id % 2 - .5) * 24 }; }
-  progress(view, now) { return view.from + (view.to - view.from) * clamp((now - view.at) / this.snapshotDelay); }
+  progress(view, now) { if (this.combatPaused) return view.to; return view.from + (view.to - view.from) * clamp((now - view.at) / this.snapshotDelay); }
 
   attack(unit, view, now, impacts = new Map()) {
     const definition = this.definitions.get(unit.definitionId);
@@ -694,7 +694,7 @@ export class Battlefield {
   enemyFrameIndex(enemy, now = 0) {
     if (!this.walkFrames.length) return enemy.boss ? 6 : (enemy.id % 3) * 4 + (enemy.id % 4 === 0 ? 2 : 0);
     const row = enemy.boss ? 2 : enemy.id % 3 === 0 ? 1 : 0;
-    const moving = !this.reduced && this.player.status === 'active' && !enemy.attackingFacility;
+    const moving = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility;
     return row * 4 + (moving ? Math.floor(now / 110 * Math.min(this.speed, 3) + enemy.id) % 4 : 0);
   }
   enemy(view, now) {
@@ -702,7 +702,7 @@ export class Battlefield {
     // Small visual offsets make the stationary crowd readable; combat still uses the shared path point.
     if (enemy.attackingFacility) { position.x += (enemy.id % 3 - 1) * 8; position.y += Math.floor(enemy.id % 9 / 3) * 5; }
     const size = enemy.boss ? 106 : 51 + enemy.id % 3 * 3;
-    const walking = !this.reduced && this.player.status === 'active' && !enemy.attackingFacility;
+    const walking = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility;
     const bounce = walking ? Math.abs(Math.sin(now * .009 * Math.min(this.speed, 3) + enemy.id)) * 2 : 0;
     const lean = walking ? Math.sin(now * .009 * Math.min(this.speed, 3) + enemy.id) * .035 : 0;
     this.ellipse(position.x, position.y + 2, enemy.boss ? 28 : 12, enemy.boss ? 9 : 4, '#10272275');

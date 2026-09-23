@@ -46,9 +46,11 @@ async function complete(request, room, session) {
   await action('tutorial_next');
   await action('summon');
   const anchorId = state.tutorial.anchorUnitId;
-  await action('tutorial_next', { unitIds: [anchorId] });
   step(room.game, room.game.rules.summonCooldownTicks);
   await action('summon');
+  step(room.game, 80);
+  assert.equal(room.game.tutorial.step, 'inspect');
+  await action('tutorial_next', { unitIds: [anchorId] });
   step(room.game, room.game.rules.summonCooldownTicks);
   await action('summon');
   assert.equal(state.tutorial.step, 'sell');
@@ -57,6 +59,8 @@ async function complete(request, room, session) {
   await action('summon');
   const material = state.players[0].units.find(unit => unit.definitionId === 'wu_guard');
   await action('combine', { recipeId: 'make_cheng_yu', unitIds: [anchorId, material.id] });
+  for (let index = 0; index < 600 && room.game.tutorial.step === 'counterattack'; index++) core.tick(room.game);
+  assert.equal(room.game.tutorial.step, 'boss_ready');
   await action('tutorial_next');
   assert.equal(state.tutorial.step, 'countdown');
   const maximumTicks = 80 + room.game.rules.bossTicks;

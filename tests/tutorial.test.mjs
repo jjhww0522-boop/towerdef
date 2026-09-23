@@ -12,11 +12,20 @@ function draw(game) {
   while (game.tick < player(game).nextSummonTick) tick(game);
   accepted(game, 'summon'); return player(game).units.at(-1);
 }
+function opening(game) {
+  accepted(game, 'tutorial_next'); const anchor = draw(game), support = draw(game);
+  for (let i = 0; i < 80; i++) tick(game);
+  assert.equal(game.tutorial.step, 'inspect');
+  return { anchor, support };
+}
+function finishCounterattack(game) {
+  for (let i = 0; i < 600 && game.tutorial.step === 'counterattack'; i++) tick(game);
+  assert.equal(game.tutorial.step, 'boss_ready');
+}
 function fill(game) {
-  accepted(game, 'tutorial_next'); const anchor = draw(game);
-  accepted(game, 'tutorial_next', { unitIds: [anchor.id] });
-  const support = draw(game), sale = draw(game);
-  return { anchor, support, sale };
+  const units = opening(game);
+  accepted(game, 'tutorial_next', { unitIds: [units.anchor.id] });
+  return { ...units, sale: draw(game) };
 }
 function materials(game) {
   const units = fill(game); accepted(game, 'salvage', { unitIds: [units.sale.id] });
@@ -25,11 +34,12 @@ function materials(game) {
 function ready(game) {
   const units = materials(game);
   accepted(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [units.anchor.id, units.coil.id] });
+  finishCounterattack(game);
   return { ...units, result: player(game).units.find(unit => unit.definitionId === 'cheng_yu') };
 }
 function actionState(game) {
   const p = player(game);
-  return structuredClone({ tutorial: game.tutorial, gold: p.gold, units: p.units, upgrades: p.upgrades,
+  return structuredClone({ tutorial: game.tutorial, gold: p.gold, units: p.units, enemies: p.enemies, upgrades: p.upgrades,
     investmentActions: p.investmentActions, rngState: game.rngState,
     placementRngState: game.placementRngState, nextEntityId: game.nextEntityId });
 }
@@ -44,7 +54,7 @@ test('tutorial creates isolated solo practice with three slots and no campaign u
   assert.equal(game.battlefieldId, 0); assert.equal(game.practice, true);
   assert.equal(game.rules.maxUnits, 3); assert.deepEqual(game.stories, []);
   assert.equal(player(game).facilityHp, null);
-  assert.deepEqual(game.tutorial, { step: 'intro', drawCount: 0, anchorUnitId: null, saleUnitId: null, bossAtTick: null });
+  assert.deepEqual(game.tutorial, { step: 'intro', drawCount: 0, anchorUnitId: null, saleUnitId: null, skirmishAtTick: null, bossAtTick: null });
   assert.deepEqual(publicState(game).tutorial, game.tutorial);
   assert.deepEqual(content.rules, originalRules);
   assert.throws(() => createGame({ playerIds: ['p', 'other'], seed: 1, tutorial: true }), /solo/);
@@ -56,6 +66,9 @@ test('tutorial advances only at its checkpoint and validates the inspected robot
   const game = create(); rejected(game, 'summon'); rejected(game, 'upgrade', { tag: 'wei' });
   accepted(game, 'tutorial_next'); assert.equal(game.tutorial.step, 'summon');
   rejected(game, 'tutorial_next'); const anchor = draw(game);
+  assert.equal(game.tutorial.step, 'summon'); draw(game);
+  assert.equal(game.tutorial.step, 'skirmish'); rejected(game, 'summon'); rejected(game, 'tutorial_next');
+  for (let i = 0; i < 80; i++) tick(game);
   assert.equal(game.tutorial.step, 'inspect'); rejected(game, 'summon'); rejected(game, 'tutorial_next');
   rejected(game, 'tutorial_next', { unitIds: [anchor.id + 100] });
   rejected(game, 'tutorial_next', { unitIds: [anchor.id, anchor.id] });
@@ -65,8 +78,7 @@ test('tutorial advances only at its checkpoint and validates the inspected robot
 });
 
 test('guided summons enforce cooldown without consuming resources or the next scripted draw', () => {
-  const game = create(); accepted(game, 'tutorial_next'); const anchor = draw(game);
-  accepted(game, 'tutorial_next', { unitIds: [anchor.id] });
+  const game = create(); accepted(game, 'tutorial_next'); draw(game);
   assert.equal(player(game).nextSummonTick - game.tick, game.rules.summonCooldownTicks);
   rejected(game, 'summon', {}, 'SUMMON_COOLDOWN');
   while (game.tick < player(game).nextSummonTick - 1) tick(game);
@@ -104,7 +116,8 @@ test('only the chosen recipe and anchor order complete the assembly lesson', () 
   assert.ok(result); assert.equal(result.slot, anchor.slot);
   assert.equal(result.investedGold, anchor.investedGold + coil.investedGold);
   assert.deepEqual(player(game).units.map(unit => unit.definitionId).sort(), ['cheng_yu', 'wei_guard']);
-  assert.equal(game.tutorial.step, 'boss_ready'); assert.equal(game.tutorial.bossAtTick, null);
+  assert.equal(game.tutorial.step, 'counterattack'); assert.equal(game.tutorial.bossAtTick, null);
+  assert.ok(player(game).enemies.length > 0); rejected(game, 'tutorial_next');
 });
 
 test('retransmitted summon, sale, combine and ready packets never repeat lesson effects', () => {
@@ -116,11 +129,13 @@ test('retransmitted summon, sale, combine and ready packets never repeat lesson 
     return packet;
   }
   repeat('summon'); const anchor = player(game).units[0];
-  accepted(game, 'tutorial_next', { unitIds: [anchor.id] }); draw(game); const sale = draw(game);
+  draw(game); for (let i = 0; i < 80; i++) tick(game);
+  accepted(game, 'tutorial_next', { unitIds: [anchor.id] }); const sale = draw(game);
   repeat('salvage', { unitIds: [sale.id] }); const coil = draw(game);
   const combined = repeat('combine', { recipeId: 'make_cheng_yu', unitIds: [anchor.id, coil.id] });
   assert.deepEqual(applyAction(game, 'p', { seq: combined.seq, type: 'tutorial_next' }), { ok: false, error: 'SEQUENCE_REUSED' });
   assert.equal(game.tutorial.bossAtTick, null);
+  finishCounterattack(game);
   repeat('tutorial_next'); assert.equal(game.tutorial.bossAtTick, game.tick + 80);
 });
 
@@ -128,18 +143,21 @@ test('every reading checkpoint stays safe beyond normal timers and the old spawn
   const checkpoints = [
     () => {}, game => accepted(game, 'tutorial_next'),
     game => { accepted(game, 'tutorial_next'); draw(game); },
-    game => { accepted(game, 'tutorial_next'); const unit = draw(game); accepted(game, 'tutorial_next', { unitIds: [unit.id] }); },
+    opening, game => { const { anchor } = opening(game); accepted(game, 'tutorial_next', { unitIds: [anchor.id] }); },
     fill, game => { const { sale } = fill(game); accepted(game, 'salvage', { unitIds: [sale.id] }); }, materials, ready,
   ];
   for (const setup of checkpoints) {
     const game = create(); setup(game); const step = game.tutorial.step, gold = player(game).gold;
+    const enemies = player(game).enemies.map(e => ({ id: e.id, hp: e.hp, progress: e.progress }));
+    const spawns = player(game).enemySpawnCount;
     // Move the test clock to boundary values instead of looping ten million ticks.
     for (const boundary of [80, 680, 10000000, 10000080]) {
-      game.tick = boundary - 1; tick(game); tick(game);
+      game.tick = Math.max(game.tick, boundary - 1); tick(game); tick(game);
       assert.equal(game.tutorial.step, step); assert.equal(game.status, 'playing');
       assert.equal(player(game).status, 'active'); assert.equal(player(game).result, null);
-      assert.equal(player(game).gold, gold); assert.equal(player(game).enemySpawnCount, 0);
-      assert.deepEqual(player(game).enemies, []); assert.equal(game.story, null);
+      assert.equal(player(game).gold, gold); assert.equal(player(game).enemySpawnCount, spawns);
+      assert.deepEqual(player(game).enemies.map(e => ({ id: e.id, hp: e.hp, progress: e.progress })), enemies); assert.equal(game.story, null);
+      assert.equal(publicState(game).combatPaused, true);
       assert.equal(expeditionProgress(game).miningProgress, 0); assert.equal(expeditionProgress(game).remainingTicks, 0);
       assert.equal(publicState(game).bossRemainingTicks, null);
     }
@@ -179,7 +197,7 @@ test('the guided roster clears by real attacks and grants no expedition credit r
   }
   assert.ok(lensHits > 1, 'the assembled robot repeatedly attacks the boss');
   assert.equal(game.status, 'finished'); assert.equal(game.tutorial.step, 'complete');
-  assert.equal(player(game).status, 'cleared'); assert.equal(player(game).kills, 1);
+  assert.equal(player(game).status, 'cleared'); assert.equal(player(game).kills, 4);
   assert.equal(player(game).result.researchCredits, 0); assert.equal(player(game).result.battlefieldId, 0);
   assert.ok(game.tick < deadline); assert.deepEqual(player(game).enemies, []);
   const complete = structuredClone(game); tick(game); assert.deepEqual(game, complete);
@@ -201,4 +219,44 @@ test('normal games retain random summons, normal limits and enemy timers without
   assert.deepEqual(act(game, 'tutorial_next'), { ok: false, error: 'UNKNOWN_ACTION' });
   while (game.tick < game.rules.spawnIntervalTicks) tick(game);
   assert.ok(player(game).enemySpawnCount > 0, 'the ordinary spawn timer remains active');
+});
+
+
+test('two starter robots fight a real wave before surviving enemies motivate assembly', () => {
+  const game = create(); accepted(game, 'tutorial_next'); draw(game);
+  for (let i = 0; i < 100; i++) tick(game);
+  assert.equal(player(game).enemies.length, 0, 'one robot alone does not start the lesson timer');
+  draw(game); const start = game.tick;
+  assert.equal(publicState(game).combatPaused, false);
+  for (let i = 0; i < 40; i++) tick(game);
+  assert.equal(player(game).enemySpawnCount, 2);
+  assert.ok(player(game).enemies.some(enemy => enemy.hp < enemy.maxHp && enemy.progress > 0));
+  assert.ok(player(game).units.some(unit => unit.lastAttackTick >= start));
+  for (let i = 0; i < 40; i++) tick(game);
+  assert.equal(game.tutorial.step, 'inspect'); assert.equal(player(game).enemySpawnCount, 3);
+  assert.ok(player(game).enemies.length >= 2, 'the initial force has not cleared the wave');
+  assert.equal(publicState(game).combatPaused, true);
+  const healthAndPosition = player(game).enemies.map(enemy => [enemy.id, enemy.hp, enemy.progress]);
+  const cooldowns = player(game).units.map(unit => unit.attackCooldownTicks);
+  const slowRemaining = player(game).enemies.map(enemy => Math.max(0, (enemy.slowUntilTick || 0) - game.tick));
+  for (let i = 0; i < 500; i++) tick(game);
+  assert.deepEqual(player(game).enemies.map(enemy => [enemy.id, enemy.hp, enemy.progress]), healthAndPosition);
+  assert.deepEqual(player(game).units.map(unit => unit.attackCooldownTicks), cooldowns);
+  assert.deepEqual(player(game).enemies.map(enemy => Math.max(0, (enemy.slowUntilTick || 0) - game.tick)), slowRemaining);
+});
+
+test('assembly resumes the same enemies with stronger real damage and unlocks the boss only after their deaths', () => {
+  const game = create(), { anchor, coil } = materials(game), p = player(game);
+  const oldEnemies = p.enemies.map(enemy => enemy.id), oldDamage = Math.max(...anchor.lastAttackHits.map(hit => hit.damage));
+  assert.ok(oldDamage > 0, 'record the starter robot’s actual attack before comparing');
+  accepted(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [anchor.id, coil.id] });
+  assert.deepEqual(p.enemies.map(enemy => enemy.id), oldEnemies);
+  assert.equal(publicState(game).combatPaused, false); rejected(game, 'tutorial_next');
+  const lens = p.units.find(unit => unit.definitionId === 'cheng_yu'); let greatestHit = 0;
+  for (let i = 0; i < 600 && game.tutorial.step === 'counterattack'; i++) {
+    tick(game); if (lens.lastAttackTick === game.tick) greatestHit = Math.max(greatestHit, ...lens.lastAttackHits.map(hit => hit.damage));
+  }
+  assert.ok(greatestHit > oldDamage * 2, 'the stronger attack is real, not an animation or scripted deletion');
+  assert.equal(game.tutorial.step, 'boss_ready'); assert.equal(p.kills, 3); assert.deepEqual(p.enemies, []);
+  assert.equal(game.status, 'playing'); assert.equal(p.result, null); assert.equal(game.tutorial.bossAtTick, null);
 });

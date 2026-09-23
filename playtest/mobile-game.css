@@ -95,7 +95,7 @@ dialog .dialog-heading h2{font-size:22px;letter-spacing:-.3px}.setting-row small
 .evolution-main>.evolve-button{align-self:start;min-width:62px;font-size:14px}.canvas-wrap>.unit-dialog .evolution-detail summary{font-size:13px;min-height:44px;text-decoration:none;color:#c7d7d4}
 .evolution-detail summary::after{content:"＋";margin-left:auto;color:#c3d6c9}.evolution-detail[open] summary::after{content:"−"}
 .evolution-detail p{font-size:14px;line-height:1.5}.evolution-detail small{font-size:12px}.evolution-detail button{font-size:13px}
-#sale-inspection strong{font-size:14px}#sale-inspection p{font-size:13px}#confirm-sale{font-size:14px}
+#sale-dialog strong{font-size:14px}#sale-dialog p{font-size:13px}#confirm-sale{font-size:14px}
 #upgrade-effect,#upgrade-applies{font-size:14px;line-height:1.5}#upgrade-title{font-size:16px}.upgrade-button small,.upgrade-button .level{font-size:13px}
 #research-list .research-card{padding-block:16px}.research-condition,.research-cost{font-size:14px;color:#c7d4cf;margin-block:6px}.research-cost{color:#eed09a}
 .command-toolbar .tabs button{font-size:12px}.field-summon strong{font-size:14px}.field-summon #summon-cost{font-size:12px}.field-summon .ui-icon{width:25px;height:25px}
@@ -149,7 +149,7 @@ body.reduce-motion .crew-robot .pose-idle{opacity:1}body.reduce-motion .crew-rob
 .canvas-wrap>.unit-dialog .dialog-heading{display:flex;gap:6px;min-height:54px;height:auto;padding:0;margin:0 0 4px}
 .canvas-wrap>.unit-dialog .dialog-heading>div{display:block;flex:1;min-width:0}.canvas-wrap>.unit-dialog .unit-detail-portrait{width:36px;height:44px;flex:none}
 .canvas-wrap>.unit-dialog h2{font-size:22px;line-height:1.2;white-space:normal}.canvas-wrap>.unit-dialog #unit-subtitle{font-size:14px;line-height:1.35;white-space:normal;overflow:visible;margin-top:3px}
-#unit-manage{font-size:14px;padding:3px;min-width:66px;flex:none;white-space:nowrap}.canvas-wrap>.unit-dialog .dialog-heading>.icon-button{min-width:44px;flex:none}
+#unit-manage{font-size:14px;padding:3px;min-width:44px;flex:none;white-space:nowrap}.canvas-wrap>.unit-dialog .dialog-heading>.icon-button{min-width:44px;flex:none}
 .canvas-wrap>.unit-dialog #evolution-panel{padding:0;flex:0 1 auto;max-height:none;overflow:auto;scroll-snap-type:x mandatory}
 .canvas-wrap>.unit-dialog .evolution-card{padding:5px 0 0;scroll-snap-align:start;scroll-snap-stop:always}
 .canvas-wrap>.unit-dialog .evolution-main{grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;align-items:center}
@@ -159,7 +159,7 @@ body.reduce-motion .crew-robot .pose-idle{opacity:1}body.reduce-motion .crew-rob
 .assembly-footer{display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:44px}.assembly-consumption{font-size:14px;color:#cbdbd6}.assembly-footer button{font-size:14px;min-width:44px;padding:4px}
 #unit-inspection-dialog{font-size:16px;max-width:500px}#unit-inspection-dialog .dialog-heading h2{font-size:28px}.unit-management{display:flex;gap:8px;margin:8px 0 16px}.unit-management button{font-size:16px;flex:1}
 #unit-inspection-content p{margin-block:12px}#unit-inspection-content small{font-size:14px;color:#b7c9c9}.inspection-role{font-weight:750;color:#f6d092}.assembly-inspection{border-top:1px solid #49616a;margin-top:16px;padding-top:16px}.assembly-inspection h3{font-size:22px}.assembly-inspection .material{font-size:16px}.assembly-inspection .materials{flex-wrap:wrap}.assembly-inspection button{font-size:16px}
-#sale-inspection{padding:14px;border:1px solid #bb9370;border-radius:8px;margin-bottom:16px}#sale-inspection strong,#sale-inspection p,#confirm-sale{font-size:16px}#confirm-sale{width:100%;margin-top:8px}
+#sale-dialog{width:min(400px,calc(100vw - 28px));padding:22px;text-align:center}#sale-title{font:400 28px/1.2 var(--display-font);margin:0 0 18px}#sale-unit-name{display:block;color:#ffd28e;font-size:22px!important}#sale-description{line-height:1.5;margin:12px 0 20px}.sale-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}.sale-actions button{min-height:48px}#sale-dialog strong,#sale-dialog p,#confirm-sale{font-size:16px}#confirm-sale{width:100%;margin-top:0}
 #upgrade-effect{font-size:24px;font-weight:800;line-height:1.2;color:#ffe0a5}#upgrade-title{font-size:18px}#upgrade-applies{font-size:15px;white-space:pre-line}#upgrade-buy{font-size:18px}.upgrade-button strong{font-size:17px}.research-condition,.research-cost{font-size:16px}#research-list h3{font-size:22px}.research-card>button{font-size:18px}.command-dialog .dialog-heading h2{font-size:22px}
 .crew-robot .pose-recovery{opacity:0}
 .home-scene .hero-robots .crew-robot img{animation-duration:19s}.crew-robot[data-device=lighter]{--check-delay:1s}.crew-robot[data-device=pointer]{--check-delay:11s}
@@ -215,3 +215,7 @@ body:has(#game[data-tutorial=true]:not([hidden])) #sell-unit,body:has(#game[data
 #tutorial-rule{grid-column:1/-1;font-size:14px;color:#b6cdc5;text-align:center}
 #game[data-tutorial=true] .arena-panel>.panel-heading{display:none}
 @media(max-height:500px){#tutorial-rule{font-size:13px}#game[data-tutorial=false] .unit-dialog[open]{grid-template-columns:150px minmax(0,1fr)}}
+
+/* Selling is a direct robot action; only the confirmation can spend the robot. */
+.canvas-wrap>.unit-dialog #sell-unit{min-width:44px;min-height:44px;padding:4px 8px;flex:none;font-size:16px;color:#ffd8bf;border-color:#9e765e;background:#443632}
+@media(max-height:500px){.canvas-wrap>.unit-dialog .dialog-heading #sell-unit{grid-column:1;grid-row:2;justify-self:start}.canvas-wrap>.unit-dialog .dialog-heading #unit-manage{grid-column:2;grid-row:2;justify-self:end}}

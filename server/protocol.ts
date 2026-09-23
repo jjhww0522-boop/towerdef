@@ -1,4 +1,4 @@
-import { GameState, expeditionProgress } from './core';
+import { GameState, expeditionProgress, tutorialCombatPaused } from './core';
 
 // Keep future random results and replay bookkeeping on the authoritative server.
 export function publicState(game: GameState): object {
@@ -10,6 +10,7 @@ export function publicState(game: GameState): object {
     status: game.status,
     practice: game.practice,
     tutorial: game.tutorial ? { ...game.tutorial } : null,
+    combatPaused: tutorialCombatPaused(game),
     battlefieldId: game.battlefieldId,
     objective: game.objective,
     rules: game.rules,

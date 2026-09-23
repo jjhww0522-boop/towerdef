@@ -72,7 +72,7 @@
           <div id="combat-alert" class="combat-alert" role="status" aria-atomic="true" hidden><strong id="combat-alert-title"></strong><span id="combat-alert-subtitle"></span></div>
           <div id="field-hint" class="field-hint">로봇을 뽑아 방어를 시작하세요.</div>
           <dialog id="unit-dialog" class="unit-dialog" aria-labelledby="unit-title" aria-describedby="unit-subtitle" aria-modal="false">
-            <div class="dialog-heading"><span id="unit-portrait" class="unit-detail-portrait" aria-hidden="true"></span><div><h2 id="unit-title"></h2><p id="unit-subtitle"></p></div><button id="unit-manage" class="text-button" aria-haspopup="dialog">관리·상세</button><button data-close="unit-dialog" class="icon-button" aria-label="로봇 상세 닫기">×</button></div>
+            <div class="dialog-heading"><span id="unit-portrait" class="unit-detail-portrait" aria-hidden="true"></span><div><h2 id="unit-title"></h2><p id="unit-subtitle"></p></div><button id="sell-unit" class="secondary" aria-haspopup="dialog" aria-expanded="false" aria-controls="sale-dialog">판매</button><button id="unit-manage" class="text-button" aria-haspopup="dialog">상세</button><button data-close="unit-dialog" class="icon-button" aria-label="로봇 상세 닫기">×</button></div>
             <div id="evolution-panel"></div>
           </dialog>
         </div>
@@ -81,7 +81,9 @@
     </div>
   </main>
 
-  <dialog id="unit-inspection-dialog" aria-labelledby="unit-inspection-title"><div class="dialog-heading"><h2 id="unit-inspection-title">로봇 상세</h2><button data-close="unit-inspection-dialog" class="icon-button" aria-label="관리·상세 닫기">×</button></div><div class="unit-management"><button id="queue-dispatch" class="secondary">파견 대기</button><button id="sell-unit" class="secondary" aria-expanded="false" aria-controls="sale-inspection">판매</button></div><section id="sale-inspection" hidden><div><strong>판매하면 사라져요</strong><p id="sale-description"></p></div><button id="confirm-sale" class="primary"></button></section><div id="unit-inspection-content"></div></dialog>
+  <dialog id="unit-inspection-dialog" aria-labelledby="unit-inspection-title"><div class="dialog-heading"><h2 id="unit-inspection-title">로봇 상세</h2><button data-close="unit-inspection-dialog" class="icon-button" aria-label="로봇 상세 닫기">×</button></div><div class="unit-management"><button id="queue-dispatch" class="secondary">파견 대기</button></div><div id="unit-inspection-content"></div></dialog>
+
+  <dialog id="sale-dialog" aria-labelledby="sale-title" aria-describedby="sale-description"><h2 id="sale-title">정말 판매할까요?</h2><strong id="sale-unit-name"></strong><p id="sale-description"></p><div class="sale-actions"><button data-close="sale-dialog" class="secondary" autofocus>취소</button><button id="confirm-sale" class="primary"></button></div></dialog>
 
   <dialog id="command-dialog" class="command-dialog" aria-labelledby="command-title">
     <div class="dialog-heading"><h2 id="command-title">로봇</h2><span id="command-wallet"></span><button data-close="command-dialog" class="icon-button" aria-label="관리 창 닫기">×</button></div>

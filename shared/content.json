@@ -1,5 +1,5 @@
 {
-  "version": "0.10.0-growing-expedition",
+  "version": "0.10.1-training-combat",
   "rules": {
     "ticksPerSecond": 10,
     "waveTicks": 150,

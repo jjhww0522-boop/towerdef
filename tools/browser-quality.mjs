@@ -231,10 +231,10 @@ try {
   await mobile.screenshot({ path: 'artifacts/evolution-mobile.jpg', type: 'jpeg', quality: 70, fullPage: false });
   pass('mobile selected-unit evolution panel is captured', { artifact: 'artifacts/evolution-mobile.jpg' });
   await touchTarget(mobile, '#unit-dialog [data-evolve-recipe]', 'evolution path');
+  await touchTarget(mobile, '#sell-unit', 'direct sale entry');
   await touchTarget(mobile, '#unit-manage', 'unit management entry');
   await openUnitInspection(mobile);
   await touchTarget(mobile, '#queue-dispatch', 'dispatch queue');
-  await touchTarget(mobile, '#sell-unit', 'sale preview entry');
   await closeUnitInspection(mobile);
   await mobile.locator('[data-close="unit-dialog"]').tap();
   await mobile.waitForFunction(() => !document.querySelector('#unit-dialog').open);

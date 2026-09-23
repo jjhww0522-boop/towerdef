@@ -276,12 +276,12 @@ function accept(next) {
   if (state && next.tick < state.tick) return;
   const previous = state; state = next; connected = true; acceptProfile(next.profile);
   if (state.tutorial && previous?.tutorial?.step !== state.tutorial.step) {
-    focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close();
+    focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close(); $('#sale-dialog').close();
   }
   const player = me(); if (!player) { active = false; notice('내 참가 정보를 찾을 수 없습니다. 새 연습으로 시작하세요.', 'error'); return; }
   selected = new Set([...selected].filter(unitId => player.units.some(u => u.id === unitId && !u.dispatched)));
   if (!player.units.some(u => u.id === focusedId && !u.dispatched) || player.status !== 'active') {
-    const consumedFocus = focusedId; focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close();
+    const consumedFocus = focusedId; focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close(); $('#sale-dialog').close();
     if (player.status === 'active' && pending?.type === 'combine' && pending.unitIds.includes(consumedFocus)) {
       const resultId = content.recipes.find(recipe => recipe.id === pending.recipeId)?.result;
       const oldIds = new Set(previous?.players.find(p => p.id === playerId)?.units.map(u => u.id) || []);
@@ -355,7 +355,7 @@ function assemblyStatus(recipe, stock) {
 function controlsAvailable() { return connected && !actionBusy && !pending && me()?.status === 'active'; }
 function dismissUnit() {
   if (!$('#unit-dialog').open && focusedId === null) return;
-  focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close(); render();
+  focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close(); $('#sale-dialog').close(); render();
 }
 function selectUnit(unitId, emptySlot = -1) {
   if (unitId === null) {
@@ -365,7 +365,7 @@ function selectUnit(unitId, emptySlot = -1) {
   }
   const unit = me()?.units.find(u => u.id === unitId); if (!unit || unit.dispatched || watched()?.id !== playerId) return;
   const changed = focusedId !== unitId;
-  if (changed) { saleId = null; inspectedRecipe = null; $('#unit-inspection-dialog').close(); }
+  if (changed) { saleId = null; inspectedRecipe = null; $('#unit-inspection-dialog').close(); $('#sale-dialog').close(); }
   focusedId = unitId; $('#command-dialog').close();
   if (!$('#unit-dialog').open) $('#unit-dialog').show();
   render();
@@ -374,7 +374,6 @@ function selectUnit(unitId, emptySlot = -1) {
 function renderEvolution() {
   const player = me(), unit = player.units.find(u => u.id === focusedId && !u.dispatched);
   const selling = !!unit && saleId === unit.id;
-  $('#sale-inspection').hidden = !selling;
   if (!unit) { html('#evolution-panel', ''); return; }
   const definition = definitions.get(unit.definitionId), choices = evolutionOptions(content, player, focusedId).filter(({ recipe }) => isUnlocked(recipe) && (!state.tutorial || recipe.id === 'make_cheng_yu'));
   text('#unit-title', definition.name);
@@ -387,13 +386,14 @@ function renderEvolution() {
   text('#queue-dispatch', selected.has(unit.id) ? '대기 해제' : '파견 대기');
   $('#queue-dispatch').setAttribute('aria-pressed', String(selected.has(unit.id)));
   $('#queue-dispatch').disabled = !controlsAvailable() || (!selected.has(unit.id) && selected.size + away >= rules().maxDispatch);
-  text('#sell-unit', selling ? '취소' : '판매');
+  text('#sell-unit', '판매');
   $('#sell-unit').setAttribute('aria-expanded', String(selling));
   $('#sell-unit').disabled = !controlsAvailable() || !!state.tutorial && (state.tutorial.step !== 'sell' || unit.id !== state.tutorial.saleUnitId);
   $('#queue-dispatch').hidden = !!state.tutorial;
   $('#confirm-sale').disabled = $('#sell-unit').disabled;
   if (selling) {
-    text('#sale-description', `뽑기 비용 ${Math.round(rules().salvageRefundRatio * 100)}% 회수`);
+    text('#sale-unit-name', definition.name);
+    text('#sale-description', '이 로봇은 사라지고 조립 재료로 쓸 수 없어요.');
     text('#confirm-sale', `판매 · +${unit.salvageGold || 0} 고철`);
     $('#confirm-sale').setAttribute('aria-label', `${definition.name} 1기 판매 · ${unit.salvageGold || 0} 고철 회수`);
   }
@@ -506,7 +506,7 @@ function render() {
   $('#next-wave').hidden = state.bossRemainingTicks != null;
   text('#next-wave', `다음 무리 ${Math.ceil((r.waveTicks - state.tick % r.waveTicks) / r.ticksPerSecond)}초`);
   $('#field-hint').hidden = !!state.tutorial || lane.units.length > 0 && lane.status === 'active'; text('#field-hint', lane.status !== 'active' ? `${statuses[lane.status]} · 동료 카드를 눌러 다른 전장을 확인하세요.` : '로봇을 뽑아 방어를 시작하세요.');
-  field.expedition = expedition; field.battlefieldId = state.battlefieldId; field.objective = state.objective;
+  field.combatPaused = state.combatPaused; field.expedition = expedition; field.battlefieldId = state.battlefieldId; field.objective = state.objective;
   field.update(lane, definitions, lane.id === playerId ? new Set(focusedId === null ? [] : [focusedId]) : new Set(), speed, settings.reduced);
   text('#team-count', `${state.players.length} / 4`); html('#team-list', state.players.map((p, index) => `<button class="team-card ${p.id === lane.id ? 'active' : ''}" data-watch="${escape(p.id)}" aria-label="${p.id === playerId ? '내' : '동료 ' + (index + 1)} 전장 관전"><span class="team-badge">${p.id === playerId ? '나' : index + 1}</span><div><strong>${p.id === playerId ? '내 전장' : '동료 ' + (index + 1)} · ${statuses[p.status]}</strong><small>로봇 ${p.units.length} · 적 ${p.enemies.length} · ${p.connected ? '접속' : '연결 끊김'}</small></div><span aria-hidden="true">›</span></button>`).join(''));
   const story = state.story, mission = missions().find(s => s.wave === story?.wave) || missions().find(s => s.wave > state.wave) || missions().at(-1) || { name: '', wave: 0, rewardGold: 0 };
@@ -549,18 +549,20 @@ function renderTutorial() {
   const picked = focusedId === (t.step === 'sell' ? t.saleUnitId : t.anchorUnitId);
   const copy = {
     intro: ['출발 준비', '지구의 자원이 바닥났어.', '다른 행성에서 자원을 구하자. 내가 도와줄게!', '같이 해보자'],
-    summon: ['1 · 뽑기', '첫 로봇을 깨워볼까?', '아래의 로봇 뽑기를 눌러봐.', ''],
-    inspect: ['2 · 조립', picked ? '코일봇 1기가 부족해.' : '렌즈봇을 눌러봐.', picked ? '이제 재료를 더 뽑아보자.' : '조립 방법을 살펴보자.', picked ? '재료 찾기' : '렌즈봇 선택'],
-    fill: ['3 · 자리 만들기', t.drawCount === 1 ? '재료를 더 뽑아보자.' : '한 번 더 뽑아봐.', '훈련장에는 로봇이 들어갈 자리가 3칸이야.', ''],
-    sell: ['3 · 판매', picked ? '관리·상세 → 판매' : '자리가 꽉 찼네!', picked ? '팔면 자리와 고철을 얻어.' : '지금 필요 없는 점화봇을 눌러서 팔아보자.', picked ? '' : '점화봇 선택'],
+    summon: ['1 · 뽑기', t.drawCount ? '한 기 더 뽑아보자.' : '첫 로봇을 깨워볼까?', t.drawCount ? '둘이 함께 적을 막아볼 거야.' : '아래의 로봇 뽑기를 눌러봐.', ''],
+    skirmish: ['2 · 첫 방어', '적이 몰려온다!', '로봇은 자동으로 공격해. 막아볼까?', ''],
+    inspect: ['2 · 조립', picked ? '코일봇 1기가 부족해.' : '화력이 부족해!', picked ? '이제 재료를 더 뽑아보자.' : '렌즈봇을 눌러 조립해보자.', picked ? '재료 찾기' : '렌즈봇 선택'],
+    fill: ['3 · 자리 만들기', '재료를 한 기 더 뽑아봐.', '훈련장에는 로봇이 들어갈 자리가 3칸이야.', ''],
+    sell: ['3 · 판매', picked ? '판매를 눌러봐.' : '자리가 꽉 찼네!', picked ? '팔면 자리와 고철을 얻어.' : '지금 필요 없는 점화봇을 눌러서 팔아보자.', picked ? '' : '점화봇 선택'],
     replacement: ['3 · 다시 뽑기', '빈자리 확보!', '로봇 뽑기를 눌러 코일봇을 받아봐.', ''],
     combine: ['4 · 조립 완성', picked ? '렌즈아이로 조립!' : '이제 재료가 모였어.', picked ? '재료 2기가 합쳐져. 선택한 로봇의 자리는 그대로야.' : '렌즈봇을 다시 눌러봐.', picked ? '' : '렌즈봇 선택'],
+    counterattack: ['4 · 반격', '이제 화력이 달라졌어!', '조립한 렌즈아이로 남은 적을 정리하자.', ''],
     boss_ready: ['5 · 보스', '보스에게는 집중 화력!', '렌즈아이는 멀리 있는 적 한 기를 공격해. 보스를 막아보자.', '보스전 시작'],
     countdown: ['5 · 보스', '보스 등장까지 ' + Math.max(0, Math.ceil((t.bossAtTick - state.tick) / rules().ticksPerSecond)) + '초', '시간이 되면 마지막 보스가 나타나. 공격은 자동이야.', ''],
     boss: ['5 · 보스', '폭주 압축기를 막아!', '위의 체력 막대를 봐. 제한 시간 안에 쓰러뜨리면 성공!', ''],
     complete: ['', '', '', '']
   }[t.step];
-  text('#tutorial-step', '안내 로봇 토비 · ' + copy[0]);
+  text('#tutorial-step', state.combatPaused && me().enemies.length ? '전투 잠시 멈춤 · ' + copy[0] : '안내 로봇 토비 · ' + copy[0]);
   text('#tutorial-title', copy[1]); text('#tutorial-description', copy[2]);
   text('#tutorial-next', copy[3]); $('#tutorial-next').hidden = !copy[3];
   $('#tutorial-next').disabled = !controlsAvailable();
@@ -568,7 +570,7 @@ function renderTutorial() {
   if (['summon', 'fill', 'replacement'].includes(t.step)) $('#summon-btn').classList.add('tutorial-focus');
   if (['inspect', 'combine', 'sell'].includes(t.step)) {
     field.tutorialTargetId = t.step === 'sell' ? t.saleUnitId : t.anchorUnitId;
-    if (t.step === 'sell' && picked) $('#unit-manage').classList.add('tutorial-focus');
+    if (t.step === 'sell' && picked) $('#sell-unit').classList.add('tutorial-focus');
   }
 }
 
@@ -762,7 +764,7 @@ document.addEventListener('click', event => {
     inspectedRecipe = button.dataset.evolutionDetail || null; saleId = null; renderEvolution();
     $('#unit-inspection-dialog').showModal(); $('#unit-inspection-dialog').scrollTop = 0;
   }
-  if (button.id === 'sell-unit' && focusedId !== null) { saleId = saleId === focusedId ? null : focusedId; renderEvolution(); }
+  if (button.id === 'sell-unit' && focusedId !== null) { saleId = focusedId; renderEvolution(); $('#sale-dialog').showModal(); }
   if (button.id === 'confirm-sale' && saleId !== null && saleId === focusedId) sendAction('salvage', { unitIds: [saleId] });
   if (button.dataset.combineRecipe) { const recipe = content.recipes.find(r => r.id === button.dataset.combineRecipe), m = materials(recipe); if (m.ready) { selectUnit(m.ids[0]); toast('조립할 위치의 재료 로봇을 선택하세요.'); } }
   if (button.dataset.battlefield) { selectedBattlefield = Number(button.dataset.battlefield); save(localStorage, 'td.battlefield', selectedBattlefield); $('#destination-details').open = false; renderLobby(); $('#planet-dialog').close(); }
@@ -778,6 +780,7 @@ document.addEventListener('keydown', event => {
     event.preventDefault(); dismissUnit();
   }
 });
+$('#sale-dialog').addEventListener('close', () => { saleId = null; render(); });
 $('#command-dialog').addEventListener('close', () => {
   for (const button of document.querySelectorAll('[data-tab]')) button.setAttribute('aria-expanded', 'false');
 });

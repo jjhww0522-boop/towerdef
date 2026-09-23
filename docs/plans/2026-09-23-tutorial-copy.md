@@ -1,5 +1,7 @@
 ﻿# 기동 훈련: 대사·배치와 검증 기록
 
+이 문서는 0.10.0 초기 흐름의 기록이다. 전투를 먼저 경험하고 바로 판매하는 최신 흐름은 [0.10.1 변경](2026-09-23-combat-tutorial-sale-design.md)을 따른다.
+
 날짜: 2026-09-23. 기준: 현재 `shared/content.json`, `playtest/app.js`의 `renderTutorial()`, 튜토리얼 core 계약. 이 문서는 실제 흐름과 후속 UI 검토 기준을 구분한다.
 
 ## 실제 흐름

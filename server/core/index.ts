@@ -30,8 +30,8 @@ export interface Player {
 }
 export interface Story { wave: number; hp: number; maxHp: number; remainingTicks: number; status: 'active' | 'success' | 'failed' }
 export interface Tutorial {
-  step: 'intro' | 'summon' | 'inspect' | 'fill' | 'sell' | 'replacement' | 'combine' | 'boss_ready' | 'countdown' | 'boss' | 'complete';
-  drawCount: number; anchorUnitId: number | null; saleUnitId: number | null; bossAtTick: number | null;
+  step: 'intro' | 'summon' | 'skirmish' | 'inspect' | 'fill' | 'sell' | 'replacement' | 'combine' | 'counterattack' | 'boss_ready' | 'countdown' | 'boss' | 'complete';
+  drawCount: number; anchorUnitId: number | null; saleUnitId: number | null; skirmishAtTick: number | null; bossAtTick: number | null;
 }
 export interface GameState {
   protocolVersion: string; contentVersion: string; tick: number; wave: number;
@@ -56,7 +56,7 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
   if (!battlefield) throw new Error('Unknown battlefield');
   const rules: Rules = { ...content.rules, ...battlefield.rules };
   if (options.tutorial) Object.assign(rules, { maxUnits: 3, startingGold: 100, waveTicks: 80,
-    totalWaves: 1,
+    totalWaves: 1, enemyBaseHp: 120,
     bossTicks: 600, bossHp: 720, waveGold: 0, waveGoldGrowth: 0 });
   const ids: string[] = [];
   const players = options.playerIds.map(id => {
@@ -73,10 +73,14 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
   });
   return { protocolVersion: '1', contentVersion: content.version, tick: 0, wave: 1,
     status: 'playing', practice: options.tutorial === true || options.practice !== false, players, story: null,
-    tutorial: options.tutorial ? { step: 'intro', drawCount: 0, anchorUnitId: null, saleUnitId: null, bossAtTick: null } : null,
+    tutorial: options.tutorial ? { step: 'intro', drawCount: 0, anchorUnitId: null, saleUnitId: null, skirmishAtTick: null, bossAtTick: null } : null,
     rngState: (options.seed >>> 0) || 0x6d2b79f5,
     placementRngState: ((options.seed ^ 0x9e3779b9) >>> 0) || 0x6d2b79f5, nextEntityId: 1, battlefieldId, rules,
     objective: { ...battlefield.objective }, stories: options.tutorial ? [] : battlefield.stories.map(story => ({ ...story })) };
+}
+
+export function tutorialCombatPaused(game: GameState): boolean {
+  return !!game.tutorial && ['skirmish', 'counterattack', 'boss'].indexOf(game.tutorial.step) < 0;
 }
 
 export function expeditionProgress(game: GameState) {
@@ -192,7 +196,8 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
       player.units.push(created);
       if (tutorial) {
         tutorial.drawCount++;
-        if (tutorial.drawCount === 1) { tutorial.anchorUnitId = created.id; tutorial.step = 'inspect'; }
+        if (tutorial.drawCount === 1) tutorial.anchorUnitId = created.id;
+        else if (tutorial.drawCount === 2) { tutorial.step = 'skirmish'; tutorial.skirmishAtTick = game.tick; }
         else if (tutorial.drawCount === 3) { tutorial.saleUnitId = created.id; tutorial.step = 'sell'; }
         else if (tutorial.drawCount === 4) tutorial.step = 'combine';
       }
@@ -213,7 +218,7 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
       const investedGold = units.reduce((sum, unit) => sum + (unit.investedGold || rules.summonCost), 0);
       player.units = player.units.filter(u => units.indexOf(u) < 0);
       player.units.push(newUnit(game, recipe.result, slot, investedGold));
-      if (tutorial) tutorial.step = 'boss_ready';
+      if (tutorial) tutorial.step = 'counterattack';
       return { ok: true };
     }
     case 'upgrade': {
@@ -341,6 +346,11 @@ export function tick(game: GameState): void {
     if (p.disconnectedAtTick !== null && game.tick - p.disconnectedAtTick > rules.disconnectGraceTicks) {
       retire(game, p, 'left'); return;
     }
+    if (game.tutorial?.step === 'skirmish') {
+      const elapsed = game.tick - game.tutorial.skirmishAtTick!;
+      if (elapsed <= 41 && (elapsed - 1) % 20 === 0) spawnEnemy(game, p, false);
+      if (elapsed >= 80) game.tutorial.step = 'inspect';
+    }
     const spawnInterval = Math.max(rules.minSpawnIntervalTicks, rules.spawnIntervalTicks - Math.floor((game.wave - 1) / rules.spawnRampEveryWaves));
     if (!game.tutorial && game.tick < bossStart && game.tick % spawnInterval === 0) spawnEnemy(game, p, false);
     if (game.tick === bossStart && game.objective.kind !== 'mining') spawnEnemy(game, p, true);
@@ -350,6 +360,11 @@ export function tick(game: GameState): void {
   });
   game.players.forEach(p => {
     if (p.status !== 'active') return;
+    if (tutorialCombatPaused(game)) {
+      // Keep timed slows and weapon cooldowns frozen while the player reads.
+      p.enemies.forEach(e => { if ((e.slowUntilTick || 0) >= game.tick - 1) e.slowUntilTick = (e.slowUntilTick || 0) + 1; });
+      return;
+    }
     p.enemies.forEach(e => {
       const slowed = (e.slowUntilTick || 0) >= game.tick;
       const speed = slowed ? (e.boss ? rules.bossSlowMultiplier : rules.frostSlowMultiplier) : 1;
@@ -405,6 +420,7 @@ export function tick(game: GameState): void {
       u.attackCooldownTicks = definition(u.definitionId).attackIntervalTicks;
     });
   });
+  if (game.tutorial?.step === 'counterattack' && game.players[0].status === 'active' && game.players[0].enemies.length === 0) game.tutorial.step = 'boss_ready';
   if (game.story && game.story.status === 'active') {
     game.story.remainingTicks--;
     if (game.story.hp <= 0) finishStory(game, true);
