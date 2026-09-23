@@ -104,7 +104,8 @@ test('facility objectives require a known goal, valid arrival point and positive
   invalid(c => { c.battlefields[1].objective.facilityHp = 0; }, /facility/i);
   invalid(c => { c.battlefields[1].objective.damage = -1; }, /facility/i);
   invalid(c => { c.battlefields[1].objective.attackIntervalTicks = 0; }, /facility/i);
-  invalid(c => { c.battlefields[1].objective.arrivalProgress = 1; }, /arrival/i);
+  invalid(c => { c.battlefields[1].objective.arrivalProgress = 1.01; }, /arrival/i);
+  invalid(c => { c.battlefields[3].objective.kind = 'overcrowd'; }, /closed loop/i);
 });
 
 test('chapter stages require a shared planet, all five identifiers and the real placement cap', () => {

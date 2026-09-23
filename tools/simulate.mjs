@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { createGame, applyAction, tick, content, getUnitAttack } from '../dist/server/core/index.js';
-import { unitPoint, enemyPoint, distanceSquared } from '../shared/battle-geometry.js';
+import { unitPoint, enemyPoint, distanceSquared, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
 const { rules } = content;
 const definitions = new Map(content.units.map(unit => [unit.id, unit]));
@@ -22,7 +22,7 @@ function chooseIngredients(player, recipe, battlefieldId) {
     available.splice(index, 1);
   }
   // A player can pick which consumed robot keeps its position. Prefer the
-  // ingredient slot where the result covers more of the enemy's looping route.
+  // ingredient slot where the result covers more of the enemy routes.
   const result = definitions.get(recipe.result);
   chosen.sort((a, b) => coverage(result, player.units.find(unit => unit.id === b).slot, battlefieldId) - coverage(result, player.units.find(unit => unit.id === a).slot, battlefieldId) || a - b);
   return chosen;
@@ -34,8 +34,15 @@ function coverage(definition, slot, battlefieldId) {
   if (!coverageCache.has(key)) {
     const point = unitPoint(slot, battlefieldId), radius = definition.attackRange ** 2;
     let hits = 0;
-    for (let sample = 0; sample < 120; sample++) if (distanceSquared(point, enemyPoint(sample / 120, battlefieldId)) <= radius) hits++;
-    coverageCache.set(key, hits / 120);
+    const routes = getBattlefieldLayout(battlefieldId).routes;
+    for (let routeIndex = 0; routeIndex < routes.length; routeIndex++) {
+      for (let sample = 0; sample < 120; sample++) if (distanceSquared(point, enemyPoint(sample / 120, battlefieldId, routeIndex)) <= radius) hits++;
+    }
+    const travelCoverage = hits / (120 * routes.length);
+    // Open-map enemies remain at the endpoint. Give travel and siege coverage
+    // equal weight instead of judging a defense slot only by pass-through time.
+    const siegeCoverage = routes.filter((route, routeIndex) => distanceSquared(point, enemyPoint(1, battlefieldId, routeIndex)) <= radius).length / routes.length;
+    coverageCache.set(key, routes[0].closed ? travelCoverage : (travelCoverage + siegeCoverage) / 2);
   }
   return coverageCache.get(key);
 }

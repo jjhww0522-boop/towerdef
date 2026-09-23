@@ -1,15 +1,14 @@
-import { unitSpriteUrl, enemySpriteUrl, applianceKind } from './casual-art.js';
-import { BOARD_WIDTH, BOARD_HEIGHT, unitPoint, enemyPoint, projectPoint, getBattlefieldLayout } from '../shared/battle-geometry.js';
+import { unitSpriteUrl, enemySpriteUrl, applianceKind, elementPalette } from './casual-art.js';
+import { unitPoint, enemyPoint, projectPoint, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
-const palette = { shu: '#75c9ac', wei: '#83bde7', wu: '#f2ad75' };
-const elementColors = { fire: '#ff9c54', wind: '#9eeab7', frost: '#86dcff', laser: '#f1a8ff', electric: '#a6eeff' };
+const elementColors = Object.fromEntries(['fire', 'wind', 'frost', 'laser', 'electric'].map(element => [element, elementPalette(element).accent]));
 const WORLD_W = 1000, WORLD_H = 440, MAX_EFFECTS = 120;
-const slot = (n, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => projectPoint(unitPoint(n, battlefieldId), roadFor(width, height), width === 600);
+const slot = (n, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => projectPoint(unitPoint(n, battlefieldId), roadFor(width, height), width === 600, battlefieldId);
 const roadFor = (width, height) => ({ left: width * .12, right: width * .84,
   top: height * (width === 600 ? .22 : .27), bottom: height * .80 });
-const path = (progress, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => {
-  const point = enemyPoint(progress, battlefieldId);
-  return { ...projectPoint(point, roadFor(width, height), width === 600), face: point.face };
+const path = (progress, width = WORLD_W, height = WORLD_H, battlefieldId = 1, routeIndex = 0) => {
+  const point = enemyPoint(progress, battlefieldId, routeIndex);
+  return { ...projectPoint(point, roadFor(width, height), width === 600, battlefieldId), face: point.face };
 };
 const clamp = value => Math.max(0, Math.min(1, value));
 const easeOut = value => 1 - Math.pow(1 - clamp(value), 3);
@@ -41,7 +40,11 @@ export class Battlefield {
         const d = Math.hypot((x - view.x) / (height * .43), (y - view.y + height * .47) / (height * .47));
         if (d < 1 && d < distance) { nearest = unitId; distance = d; }
       }
-      onSelect(nearest);
+      const emptySlot = nearest === null && this.player ? getBattlefieldLayout(this.battlefieldId).slots.findIndex((_, index) => {
+        const point = this.position(index);
+        return !this.player.units.some(unit => unit.slot === index) && Math.abs(x - point.x) <= 26 && Math.abs(y - point.y) <= 20;
+      }) : -1;
+      onSelect(nearest, emptySlot);
     });
     requestAnimationFrame(now => this.draw(now));
   }
@@ -57,7 +60,7 @@ export class Battlefield {
     if (changedMap) {
       // A new map may have fewer slots; discard the previous lane before projecting it.
       this.units.clear(); this.enemies.clear(); this.arrivals.clear(); this.drawOrder.length = 0;
-      this.player = null; this.lastSnapshotAt = 0;
+      this.player = null; this.lastSnapshotAt = 0; this.placementPreviewUntil = 0;
     }
     this.worldWidth = width; this.worldHeight = height; this.effects.length = 0;
     for (const view of this.units.values()) {
@@ -66,18 +69,32 @@ export class Battlefield {
     }
   }
   position(index) { return slot(index, this.worldWidth, this.worldHeight, this.battlefieldId); }
-  path(progress) { return path(progress, this.worldWidth, this.worldHeight, this.battlefieldId); }
+  path(progress, routeIndex = 0) { return path(progress, this.worldWidth, this.worldHeight, this.battlefieldId, routeIndex); }
+  previewPlacement() { this.placementPreviewUntil = performance.now() + 1100; }
+
+  drawPlacementPreview(now) {
+    if (now >= (this.placementPreviewUntil || 0) || !this.player) return;
+    const ctx = this.ctx, slots = getBattlefieldLayout(this.battlefieldId).slots;
+    for (let index = 0; index < slots.length; index++) {
+      if (this.player.units.some(unit => unit.slot === index)) continue;
+      const { x, y } = this.position(index);
+      this.rect(x - 24, y - 12, 48, 28, '#b3dc9d40', 5);
+      ctx.strokeStyle = '#e2f5c5'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.roundRect(x - 25, y - 13, 50, 30, 5); ctx.stroke();
+    }
+  }
 
   drawRange() {
     const context = this.ctx, road = roadFor(this.worldWidth, this.worldHeight), portrait = this.worldWidth === 600;
+    const layout = getBattlefieldLayout(this.battlefieldId), rotated = portrait && layout.rotateInPortrait;
     for (const id of this.selected) {
       const view = this.units.get(id);
       if (!view || view.unit.dispatched) continue;
       const definition = this.definitions.get(view.unit.definitionId), range = definition.attackRange;
       if (!range) continue;
       const center = this.position(view.unit.slot);
-      const rx = range * (road.right - road.left) / (portrait ? BOARD_HEIGHT : BOARD_WIDTH);
-      const ry = range * (road.bottom - road.top) / (portrait ? BOARD_WIDTH : BOARD_HEIGHT);
+      const rx = range * (road.right - road.left) / (rotated ? layout.height : layout.width);
+      const ry = range * (road.bottom - road.top) / (rotated ? layout.width : layout.height);
       const color = elementColors[definition.element] || '#ffe6a0';
       context.save(); context.beginPath();
       context.rect(road.left - 24, road.top - 24, road.right - road.left + 48, road.bottom - road.top + 48); context.clip();
@@ -161,7 +178,7 @@ export class Battlefield {
           dispatched: unit.dispatched, arrivalKind: resuming ? null : this.arrivals.get(unit.id) || 'summon' };
         this.units.set(unit.id, view);
         if (!resuming) {
-          const color = palette[definitions.get(unit.definitionId).faction];
+          const color = elementPalette(definitions.get(unit.definitionId).element).accent;
           const assembling = view.arrivalKind === 'combine';
           this.addEffect({ type: assembling ? 'assembly' : 'landing', x: home.x,
             y: assembling ? home.y - this.unitHeight(definition) * .45 : home.y,
@@ -190,20 +207,21 @@ export class Battlefield {
       const view = this.enemies.get(enemy.id);
       if (view) {
         if (!resuming && view.hp > enemy.hp && !impacts.has(enemy.id)) {
-          const position = this.path(enemy.progress), damage = Math.round(view.hp - enemy.hp);
+          const position = this.path(enemy.progress, enemy.routeIndex), damage = Math.round(view.hp - enemy.hp);
           view.hitAt = now + 230;
           this.addEffect({ type: 'damage', x: position.x, y: position.y - (enemy.boss ? 70 : 34),
             label: String(damage), color: enemy.boss ? '#ffe6a0' : '#fff5dc', born: now + 230, life: 650 });
         }
-        view.from = ((this.progress(view, now) % 1) + 1) % 1;
-        // Normalize each segment so every entrance crossing interpolates forward.
-        view.to = enemy.progress < view.from - .5 ? enemy.progress + 1 : enemy.progress;
+        const closed = getBattlefieldLayout(this.battlefieldId).routes[enemy.routeIndex || 0].closed;
+        view.from = closed ? ((this.progress(view, now) % 1) + 1) % 1 : clamp(this.progress(view, now));
+        // Only a closed route crosses the seam. An arrived enemy stays at its open endpoint.
+        view.to = closed && enemy.progress < view.from - .5 ? enemy.progress + 1 : enemy.progress;
         view.progress = enemy.progress; view.hp = enemy.hp; view.at = now; view.enemy = enemy;
       } else this.enemies.set(enemy.id, { from: enemy.progress, to: enemy.progress, progress: enemy.progress,
         at: now, hp: enemy.hp, hitAt: -10000, enemy });
     }
     for (const [enemyId, view] of this.enemies) if (!enemyIds.has(enemyId)) {
-      const position = this.path(this.progress(view, now));
+      const position = this.path(this.progress(view, now), view.enemy.routeIndex);
       if (!resuming) {
         const impact = impacts.get(enemyId), at = impact?.at ?? now + 230;
         this.addEffect({ type: 'death', x: impact?.position.x ?? position.x, y: impact ? impact.position.y + 18 : position.y, facing: position.face,
@@ -230,7 +248,7 @@ export class Battlefield {
     }
     if (destroyed) this.onCombat({ type: 'destroy', intensity: Math.min(1, .35 + destroyed * .1) });
     this.drawOrder.length = 0;
-    for (const view of this.enemies.values()) this.drawOrder.push({ enemy: view, depth: this.path(view.progress).y });
+    for (const view of this.enemies.values()) this.drawOrder.push({ enemy: view, depth: this.path(view.progress, view.enemy.routeIndex).y });
     for (const view of this.units.values()) this.drawOrder.push({ unit: view, depth: view.y });
     this.drawOrder.sort((a, b) => a.depth - b.depth);
   }
@@ -246,8 +264,8 @@ export class Battlefield {
       const isStory = typeof hit.targetId === 'string';
       const target = this.player.enemies.find(enemy => enemy.id === hit.targetId), previous = this.enemies.get(hit.targetId);
       const position = isStory ? { x: this.worldWidth * .949, y: this.worldHeight * .382 + 16 } :
-        Number.isFinite(hit.progress) ? this.path(hit.progress) : target ? this.path(target.progress) :
-        previous ? this.path(this.progress(previous, now)) : null;
+        Number.isFinite(hit.progress) ? this.path(hit.progress, hit.routeIndex) : target ? this.path(target.progress, target.routeIndex) :
+        previous ? this.path(this.progress(previous, now), previous.enemy.routeIndex) : null;
       return position ? { ...hit, position: { x: position.x, y: position.y - 18 } } : null;
     }).filter(Boolean);
     if (!targets.length) return;
@@ -257,7 +275,7 @@ export class Battlefield {
     view.targetX = position.x; view.targetY = position.y;
     view.hitPositions = targets.map(hit => hit.position);
     view.facing = position.x < view.x ? -1 : 1;
-    const color = elementColors[definition.element] || (pattern === 'blast' ? '#ffbd71' : pattern === 'arc' ? '#a6eeff' : palette[definition.faction]);
+    const color = elementPalette(definition.element).accent;
     const origin = this.weaponOrigin(definition, view.x, view.y, view.facing);
     const [prepare, travel] = attackTimings[definition.element] || defaultAttackTiming;
     this.addEffect({ type: 'muzzle', ...origin, color, element: definition.element, facing: view.facing, born: now + prepare, life: 105 });
@@ -279,7 +297,13 @@ export class Battlefield {
       intensity: definition.rarity === 'legend' ? 1 : definition.rarity === 'hero' ? .8 : .5 });
   }
 
-  unitHeight(definition) { return definition.rarity === 'legend' ? 94 : definition.rarity === 'hero' ? 86 : definition.rarity === 'elite' ? 78 : 70; }
+  unitHeight(definition) {
+    const height = definition.rarity === 'legend' ? 94 : definition.rarity === 'hero' ? 86 : definition.rarity === 'elite' ? 78 : 70;
+    if (this.worldWidth === 600 || getBattlefieldLayout(this.battlefieldId).rotateInPortrait) return height;
+    const road = roadFor(this.worldWidth, this.worldHeight);
+    // Open maps have more rows: keep landscape robots and their hit ellipses apart.
+    return height * Math.min(1, (road.bottom - road.top) / 460);
+  }
 
   weaponOrigin(definition, x, y, facing) {
     const height = this.unitHeight(definition), kind = applianceKind(definition);
@@ -328,7 +352,10 @@ export class Battlefield {
 
   facility(now) {
     const objective = this.objective, point = this.path(objective.arrivalProgress), portrait = this.worldWidth === 600;
-    const x = point.x - (portrait ? 37 : 25), y = point.y - (portrait ? 0 : 18), context = this.ctx;
+    const layout = getBattlefieldLayout(this.battlefieldId);
+    const anchor = layout.facility ? projectPoint(layout.facility, roadFor(this.worldWidth, this.worldHeight), portrait, this.battlefieldId) :
+      { x: point.x - (portrait ? 37 : 25), y: point.y - (portrait ? 0 : 18) };
+    const { x, y } = anchor, context = this.ctx;
     const hit = now - (this.facilityHitAt ?? -10000) < 220, health = clamp(this.player.facilityHp / objective.facilityHp);
     const color = health <= .3 ? '#ff9575' : '#a4e2c9';
     this.ellipse(x, y + 14, 27, 8, '#050c16aa');
@@ -342,7 +369,7 @@ export class Battlefield {
       this.rect(x - 5, y - 8, 10, 24, '#acc2c7', 2);
       for (let n = 0; n < 3; n++) this.rect(x - 7, y - 6 + n * 7, 14, 2, '#203946');
     }
-    const sideLabels = !portrait && this.worldHeight <= 600;
+    const sideLabels = !layout.facility && !portrait && this.worldHeight <= 600;
     const labelX = sideLabels ? x - 70 : x + (portrait ? 12 : 0);
     const healthX = sideLabels ? x - 96 : x - 26, healthY = sideLabels ? y - 6 : y + 21;
     this.rect(healthX, healthY, 52, 5, '#0a1721', 2); this.rect(healthX, healthY, 52 * health, 5, color, 2);
@@ -350,7 +377,7 @@ export class Battlefield {
     if (this.player.facilityAttackers) this.text(`공격 ${this.player.facilityAttackers}기`, labelX, y + (sideLabels ? 14 : 43), portrait ? 14 : 11, '#ffb496');
     if (hit) {
       context.strokeStyle = '#ffc194'; context.lineWidth = this.reduced ? 2 : 4;
-      context.beginPath(); context.moveTo(point.x, point.y - 12); context.lineTo(x, y - 5); context.stroke();
+      context.beginPath(); context.ellipse(x, y - 5, 29, 25, 0, 0, Math.PI * 2); context.stroke();
     }
   }
 
@@ -453,65 +480,41 @@ export class Battlefield {
     context.restore();
   }
 
-  drawLandmark(road) {
-    const anchors = { 2: { x: 140, y: 230 }, 3: { x: 674, y: 125 }, 4: { x: 544, y: 132 }, 5: { x: 360, y: 29 } };
-    const anchor = anchors[this.battlefieldId];
-    if (!anchor) return;
-    // Landmarks occupy the unavailable notch, never a summon slot or the enemy route.
-    const { x, y } = projectPoint(anchor, road, this.worldWidth === 600), context = this.ctx;
-    context.save(); context.translate(x, y);
-    if (this.worldWidth === 600) context.rotate(Math.PI / 2);
-    if (this.battlefieldId === 2) {
-      this.ellipse(0, 1, 29, 10, '#101a22');
-      for (let i = 0; i < 3; i++) {
-        this.rect(-22 + i * 17, -14, 11, 17, '#62726f', 2);
-        this.rect(-20 + i * 17, -13, 3, 16, '#abb2a366', 1);
-      }
-    } else if (this.battlefieldId === 3) {
-      this.rect(-24, -17, 48, 31, '#263b47', 5);
-      this.circle(0, -2, 13, '#8398a0'); this.circle(0, -2, 8, '#182e3b');
-      for (const side of [-1, 1]) this.rect(side * 29 - 3, -8, 6, 22, '#b5905c', 2);
-    } else if (this.battlefieldId === 4) {
-      for (let i = 0; i < 4; i++) {
-        this.rect(-36 + i * 19, -11 + i % 2 * 7, 23, 19, i % 2 ? '#56615b' : '#6b6960', 3);
-        this.rect(-32 + i * 19, -7 + i % 2 * 7, 11, 3, '#293b3f', 1);
-      }
-    } else {
-      this.rect(-18, -21, 36, 41, '#465b63', 6);
-      this.rect(-12, -17, 24, 7, '#adbdb8', 2);
-      this.circle(0, 3, 10, '#172f3c'); this.circle(0, 3, 5, '#90bdb9');
-      for (const side of [-1, 1]) this.rect(side * 24 - 4, -13, 8, 34, '#8b8169', 2);
-    }
-    context.restore();
-  }
-
   drawDeck() {
     const context = this.ctx, road = roadFor(this.worldWidth, this.worldHeight);
     const terrain = { sky: '#152336', halo: '#9aaebd', planet: '#698595', ridge: '#4d4e4b', soil: '#2e3438', rock: '#535851', track: '#444e53' };
     this.drawSky(terrain, road); this.drawSurface(terrain, road);
     const layout = getBattlefieldLayout(this.battlefieldId);
-    const route = layout.route.map(point => projectPoint(point, road, this.worldWidth === 600));
-    this.drawLandmark(road);
-    for (const [color, width] of [['#080f19', 53], [terrain.rock, 46], ['#1a2630', 41], [terrain.track, 29]]) {
-      context.strokeStyle = color; context.lineWidth = width; context.lineJoin = 'round';
-      context.beginPath(); context.moveTo(route[0].x, route[0].y);
-      for (const point of route.slice(1)) context.lineTo(point.x, point.y);
-      context.closePath(); context.stroke();
+    for (const route of layout.routes) {
+      const points = route.points.map(point => projectPoint(point, road, this.worldWidth === 600, this.battlefieldId));
+      for (const [color, width] of [['#080f19', 53], [terrain.rock, 46], ['#1a2630', 41], [terrain.track, 29]]) {
+        context.strokeStyle = color; context.lineWidth = width; context.lineJoin = 'round'; context.lineCap = 'round';
+        context.beginPath(); context.moveTo(points[0].x, points[0].y);
+        for (const point of points.slice(1)) context.lineTo(point.x, point.y);
+        if (route.closed) context.closePath();
+        context.stroke();
+      }
     }
-    for (const { x, y } of route) {
-      this.circle(x, y, 4, '#142331'); this.circle(x, y, 1.8, '#dcc794');
+    for (let routeIndex = 0; routeIndex < layout.routes.length; routeIndex++) {
+      for (const distance of [.16, .46, .76]) {
+        const point = this.path(distance, routeIndex), next = this.path(distance + .002, routeIndex);
+        context.save(); context.translate(point.x, point.y);
+        context.rotate(Math.atan2(next.y - point.y, next.x - point.x));
+        context.strokeStyle = '#b7ccc5'; context.lineWidth = 3;
+        context.beginPath(); context.moveTo(-6, -5); context.lineTo(1, 0); context.lineTo(-6, 5); context.stroke(); context.restore();
+      }
     }
-    for (const direction of [.09, .34, .60, .86]) {
-      const point = this.path(direction), next = this.path(direction + .002);
-      context.save(); context.translate(point.x, point.y);
-      context.rotate(Math.atan2(next.y - point.y, next.x - point.x));
-      context.strokeStyle = '#a0bfbd'; context.lineWidth = 3;
-      context.beginPath(); context.moveTo(-4, -5); context.lineTo(2, 0); context.lineTo(-4, 5); context.stroke(); context.restore();
-    }
-    context.strokeStyle = '#a3bac221'; context.lineWidth = 1;
     for (let index = 0; index < layout.slots.length; index++) {
-      const position = this.position(index);
-      context.beginPath(); context.ellipse(position.x, position.y + 2, 20, 7, 0, 0, Math.PI * 2); context.stroke();
+      const { x, y } = this.position(index);
+      this.rect(x - 24, y - 12, 48, 28, '#101f28', 5);
+      this.rect(x - 20, y - 9, 40, 20, '#365058', 3);
+      context.strokeStyle = '#a3c3ba'; context.lineWidth = 1.8;
+      for (const side of [-1, 1]) {
+        context.beginPath(); context.moveTo(x + side * 15, y - 13); context.lineTo(x + side * 25, y - 13);
+        context.lineTo(x + side * 25, y - 5); context.moveTo(x + side * 15, y + 16);
+        context.lineTo(x + side * 25, y + 16); context.lineTo(x + side * 25, y + 8); context.stroke();
+      }
+      this.rect(x - 7, y + 6, 14, 2, '#c8dbbd', 1);
     }
     const headingY = road.top - (this.worldWidth === 600 ? 55 : 45);
     this.rect(road.left + 23, headingY - 19, 152, 28, '#1c303c', 3);
@@ -530,9 +533,15 @@ export class Battlefield {
     context.beginPath(); context.moveTo(campX, campY - 46); context.lineTo(campX, campY - 36);
     context.moveTo(campX - 4, campY - 40); context.lineTo(campX, campY - 36); context.lineTo(campX + 4, campY - 40); context.stroke();
     this.text('스토리', campX, campY + 51, this.worldWidth === 600 ? 16 : 11, '#d9eee5');
-    const entrance = this.path(0);
-    this.rect(entrance.x - 21, entrance.y - 27, 42, 7, '#e2a75a', 2);
-    this.text('진입', entrance.x, entrance.y - 36, this.worldWidth === 600 ? 16 : 11, '#ffd09a');
+    for (let routeIndex = 0; routeIndex < layout.routes.length; routeIndex++) {
+      const entrance = this.path(0, routeIndex), toward = this.path(.01, routeIndex);
+      const angle = Math.atan2(toward.y - entrance.y, toward.x - entrance.x);
+      context.save(); context.translate(entrance.x, entrance.y); context.rotate(angle);
+      this.rect(-5, -25, 8, 50, '#de805c', 2);
+      context.strokeStyle = '#ffd49e'; context.lineWidth = 3;
+      context.beginPath(); context.moveTo(6, -7); context.lineTo(13, 0); context.lineTo(6, 7); context.stroke();
+      context.restore();
+    }
     const serviceY = road.bottom + 57;
     this.rect(road.left + 18, serviceY, 95, 12, '#29414b', 2);
     for (let i = 0; i < 5; i++) this.rect(road.left + 23 + i * 17, serviceY + 3, 10, 3, '#a5c4bd55', 1);
@@ -597,9 +606,10 @@ export class Battlefield {
     const context = this.ctx, home = unit.dispatched ? this.portalSlot(unit.id) : this.position(unit.slot);
     const blend = this.reduced ? 1 : 1 - Math.exp(-delta / 85);
     view.x += (home.x - view.x) * blend; view.y += (home.y - view.y) * blend;
-    const x = view.x, y = view.y, color = elementColors[definition.element] || palette[definition.faction];
+    const x = view.x, y = view.y, color = elementPalette(definition.element).accent;
     const hero = definition.rarity === 'hero' || definition.rarity === 'legend';
     const height = this.unitHeight(definition);
+    const trim = Math.min(1, height / 70);
     let stretchX = 1, stretchY = 1, offsetX = 0, offsetY = 0, rotation = 0;
     const age = now - view.attackAt;
     const [prepare, travel, recovery] = attackTimings[definition.element] || defaultAttackTiming;
@@ -629,14 +639,14 @@ export class Battlefield {
       }
     }
     if (hero) {
-      this.ellipse(x, y + 3, 25, 9, '#efd78435');
+      this.ellipse(x, y + 3, 25 * trim, 9 * trim, '#efd78435');
       context.strokeStyle = '#ffe4a277'; context.lineWidth = 1.5;
-      context.beginPath(); context.ellipse(x, y + 2, 24, 8, 0, 0, Math.PI * 2); context.stroke();
+      context.beginPath(); context.ellipse(x, y + 2, 24 * trim, 8 * trim, 0, 0, Math.PI * 2); context.stroke();
     }
-    this.ellipse(x, y + 2, hero ? 23 : 18, 6, '#102c2870');
+    this.ellipse(x, y + 2, (hero ? 23 : 18) * trim, 6 * trim, '#102c2870');
     if (this.selected.has(unit.id)) {
       context.strokeStyle = '#071820'; context.lineWidth = 7;
-      context.beginPath(); context.ellipse(x, y + 2, 25, 9, 0, 0, Math.PI * 2); context.stroke();
+      context.beginPath(); context.ellipse(x, y + 2, 25 * trim, 9 * trim, 0, 0, Math.PI * 2); context.stroke();
       context.strokeStyle = '#fff3a6'; context.lineWidth = 3; context.stroke();
       this.circle(x, y - height - 8, 3, '#ffe3a0');
     }
@@ -658,10 +668,10 @@ export class Battlefield {
       context.stroke(); context.restore();
     }
     // Labels are optional detail; the accessible DOM roster carries the full name.
-    if ((this.worldWidth !== 600 && this.scale > .55 && this.units.size <= 10) || this.selected.has(unit.id)) this.text(unit.dispatched ? '파견 중' : definition.name, x, y + 18, this.worldWidth === 600 ? 18 : 10, unit.dispatched ? '#ffedb9' : '#f5f7df');
+    if ((getBattlefieldLayout(this.battlefieldId).rotateInPortrait && this.worldWidth !== 600 && this.scale > .55 && this.units.size <= 10) || this.selected.has(unit.id)) this.text(unit.dispatched ? '파견 중' : definition.name, x, y + 18, this.worldWidth === 600 ? 18 : 10, unit.dispatched ? '#ffedb9' : '#f5f7df');
     if (hero || definition.rarity === 'elite') {
       // Tier marks are fixed geometry; dozens of robots need no per-frame font rasterization.
-      context.save(); context.translate(x + (hero ? 21 : 19), y - height + (hero ? 7 : 5));
+      context.save(); context.translate(x + (hero ? 21 : 19) * trim, y - height + (hero ? 7 : 5) * trim); context.scale(trim, trim);
       context.fillStyle = hero ? '#ffe7a0' : color; context.strokeStyle = '#17313d'; context.lineWidth = 1.5;
       context.beginPath(); context.moveTo(0, hero ? -6 : -4);
       if (hero) {
@@ -679,7 +689,7 @@ export class Battlefield {
     return row * 4 + (moving ? Math.floor(now / 110 * Math.min(this.speed, 3) + enemy.id) % 4 : 0);
   }
   enemy(view, now) {
-    const enemy = view.enemy, position = this.path(this.progress(view, now)), context = this.ctx;
+    const enemy = view.enemy, position = this.path(this.progress(view, now), view.enemy.routeIndex), context = this.ctx;
     // Small visual offsets make the stationary crowd readable; combat still uses the shared path point.
     if (enemy.attackingFacility) { position.x += (enemy.id % 3 - 1) * 8; position.y += Math.floor(enemy.id % 9 / 3) * 5; }
     const size = enemy.boss ? 106 : 51 + enemy.id % 3 * 3;
@@ -874,6 +884,7 @@ export class Battlefield {
         context.translate(this.ox, this.oy); context.scale(this.scale, this.scale);
         context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
         this.ground(now);
+        this.drawPlacementPreview(now);
         this.drawRange();
         for (const entry of this.drawOrder) {
           if (entry.enemy) this.enemy(entry.enemy, now); else this.soldier(entry.unit, now, delta);

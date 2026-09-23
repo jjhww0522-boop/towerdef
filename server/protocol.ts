@@ -35,7 +35,7 @@ export function publicState(game: GameState): object {
           };
         }),
         enemies: player.enemies.map(function (enemy) {
-          return { id: enemy.id, hp: enemy.hp, maxHp: enemy.maxHp, progress: enemy.progress, boss: enemy.boss,
+          return { id: enemy.id, hp: enemy.hp, maxHp: enemy.maxHp, progress: enemy.progress, routeIndex: enemy.routeIndex || 0, boss: enemy.boss,
             slowed: (enemy.slowUntilTick || 0) > game.tick,
             attackingFacility: player.facilityHp !== null && enemy.progress >= game.objective.arrivalProgress };
         })

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { SLOT_COUNT, BOARD_WIDTH, BOARD_HEIGHT, getBattlefieldLayout } from '../shared/battle-geometry.js';
+import { SLOT_COUNT, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
 /** Return descriptive validation errors; an empty array means valid. Never mutate input. */
 function validateDefinition(content, validateStages = true) {
@@ -145,12 +145,15 @@ function validateDefinition(content, validateStages = true) {
       const layout = getBattlefieldLayout(stage.id);
       if (layout.slots.length !== (stage.rules?.maxUnits ?? rules.maxUnits)) errors.push(label + 'maxUnits must match map slots');
       if (new Set(layout.slots.map(point => point.x + ':' + point.y)).size !== layout.slots.length) errors.push(label + 'duplicate map slots');
-      if ([...layout.route, ...layout.slots].some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.x > BOARD_WIDTH || point.y < 0 || point.y > BOARD_HEIGHT)) errors.push(label + 'map point outside combat bounds');
+      if ([...layout.routes.flatMap(route => route.points), ...layout.slots, ...(layout.facility ? [layout.facility] : [])].some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.x > layout.width || point.y < 0 || point.y > layout.height)) errors.push(label + 'map point outside combat bounds');
       const objective = stage.objective;
       if (!object(objective) || !['overcrowd', 'mining', 'engine'].includes(objective.kind) || !text(objective.label)) errors.push(label + 'valid objective required');
-      else if (objective.kind !== 'overcrowd') {
+      else if (objective.kind === 'overcrowd') {
+        if (layout.facility || layout.routes.some(route => !route.closed)) errors.push(label + 'overcrowd requires a closed loop without a facility');
+      } else {
         if (!integer(objective.facilityHp) || !positive(objective.damage) || !integer(objective.attackIntervalTicks)) errors.push(label + 'facility health, damage and attack interval must be positive');
-        if (!positive(objective.arrivalProgress) || objective.arrivalProgress >= 1) errors.push(label + 'facility arrival must be within the path');
+        if (objective.arrivalProgress !== 1) errors.push(label + 'facility arrival must be at the open path endpoint');
+        if (!layout.facility || layout.routes.some(route => route.closed)) errors.push(label + 'facility requires open routes and a facility position');
       }
       if (!object(stage.rules)) { errors.push(label + 'rules overrides required'); continue; }
       for (const key of Object.keys(stage.rules)) if (!(key in content.rules)) errors.push(label + 'unknown rule ' + key);

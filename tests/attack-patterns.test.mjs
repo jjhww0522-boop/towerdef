@@ -27,7 +27,7 @@ test('default bolt damages only the oldest enemy and publishes its real position
   tick(game);
   assert.equal(oldest.hp, oldest.maxHp - getUnitAttack(player, unit));
   assert.equal(next.hp, next.maxHp);
-  assert.deepEqual(unit.lastAttackHits, [{ targetId: oldest.id, progress: oldest.progress, damage: getUnitAttack(player, unit), boss: false }]);
+  assert.deepEqual(unit.lastAttackHits, [{ targetId: oldest.id, progress: oldest.progress, routeIndex: 0, damage: getUnitAttack(player, unit), boss: false }]);
   assert.deepEqual(publicState(game).players[0].units[0].lastAttackHits, unit.lastAttackHits);
 });
 
@@ -86,7 +86,7 @@ test('multi-target kills clamp damage, award once per victim and retain position
   assert.equal(player.kills, 3);
   assert.equal(player.gold, gold + game.rules.killGold * 3);
   assert.ok(victims.every(enemy => enemy.hp === 0));
-  assert.deepEqual(unit.lastAttackHits, victims.map(enemy => ({ targetId: enemy.id, progress: enemy.progress, damage: 1, boss: false })));
+  assert.deepEqual(unit.lastAttackHits, victims.map(enemy => ({ targetId: enemy.id, progress: enemy.progress, routeIndex: 0, damage: 1, boss: false })));
   const hits = structuredClone(unit.lastAttackHits), stamp = unit.lastAttackTick;
   tick(game);
   assert.deepEqual(unit.lastAttackHits, hits);
@@ -109,7 +109,7 @@ test('a boss killed by splash clears only its owner after all simultaneous kills
   assert.equal(player.result.kills, 3);
   assert.equal(game.players[1].status, 'active');
   assert.equal(peer.hp, 1);
-  assert.deepEqual(unit.lastAttackHits.find(hit => hit.targetId === boss.id), { targetId: boss.id, progress: boss.progress, damage: 1, boss: true });
+  assert.deepEqual(unit.lastAttackHits.find(hit => hit.targetId === boss.id), { targetId: boss.id, progress: boss.progress, routeIndex: 0, damage: 1, boss: true });
 });
 
 test('story uses the same primary multiplier, isolates home enemies, and input replays emit no hits', () => {

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, applyAction, tick, content } from '../dist/server/core/index.js';
 import { publicState } from '../dist/server/protocol.js';
-import { BOARD_WIDTH, BOARD_HEIGHT, getBattlefieldLayout, unitPoint, enemyPoint, distanceSquared } from '../shared/battle-geometry.js';
+import { getBattlefieldLayout, unitPoint, enemyPoint, distanceSquared, projectPoint } from '../shared/battle-geometry.js';
 
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
 const create = battlefieldId => createGame({ playerIds: ['owner', 'peer'], seed: 19, battlefieldId });
@@ -29,36 +29,55 @@ test('stage one preserves every original slot and rectangle position, including 
   }
 });
 
-test('chapter one has five distinct closed layouts with legal slots inside each route', () => {
+test('chapter one has distinct loop, vertical, horizontal, opposing and cross routes with legal slots', () => {
   assert.deepEqual(content.battlefields.map(stage => stage.id), [1, 2, 3, 4, 5]);
   assert.ok(content.battlefields.every(stage => stage.chapterId === 1 && stage.planetId === 'scrap'));
   const layouts = content.battlefields.map(stage => getBattlefieldLayout(stage.id));
   assert.deepEqual(layouts.map(layout => layout.slots.length), [30, 28, 26, 22, 24]);
-  assert.equal(new Set(layouts.map(layout => JSON.stringify(layout.route))).size, 5);
+  assert.deepEqual(layouts.map(layout => layout.routes.length), [1, 1, 1, 2, 4]);
+  assert.equal(new Set(layouts.map(layout => JSON.stringify(layout.routes))).size, 5);
   assert.equal(new Set(layouts.map(layout => JSON.stringify(layout.slots))).size, 5);
-  for (const layout of layouts) {
-    let walked = 0;
-    for (let i = 0; i < layout.route.length; i++) {
-      const from = layout.route[i], to = layout.route[(i + 1) % layout.route.length];
-      const length = Math.abs(to.x - from.x) + Math.abs(to.y - from.y);
-      assert.ok(length > 0 && (from.x === to.x || from.y === to.y));
-      const midpoint = enemyPoint((walked + length / 2) / layout.length, layouts.indexOf(layout) + 1);
-      close(midpoint.x, (from.x + to.x) / 2); close(midpoint.y, (from.y + to.y) / 2);
-      walked += length;
-    }
-    close(walked, layout.length);
-    for (const point of layout.slots) {
-      assert.ok(point.x > 0 && point.x < BOARD_WIDTH && point.y > 0 && point.y < BOARD_HEIGHT);
-      let inside = false;
-      for (let i = 0, j = layout.route.length - 1; i < layout.route.length; j = i++) {
-        const a = layout.route[i], b = layout.route[j];
-        if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  for (const [index, layout] of layouts.entries()) {
+    assert.equal(layout.rotateInPortrait, index === 0);
+    for (const [routeIndex, route] of layout.routes.entries()) {
+      assert.equal(route.closed, index === 0);
+      let walked = 0;
+      for (let i = 0; i < route.points.length - (route.closed ? 0 : 1); i++) {
+        const from = route.points[i], to = route.points[(i + 1) % route.points.length];
+        const length = Math.hypot(to.x - from.x, to.y - from.y);
+        assert.ok(length > 0 && (from.x === to.x || from.y === to.y));
+        const midpoint = enemyPoint((walked + length / 2) / route.length, index + 1, routeIndex);
+        close(midpoint.x, (from.x + to.x) / 2); close(midpoint.y, (from.y + to.y) / 2);
+        walked += length;
       }
-      assert.equal(inside, true, 'summon slot must be inside its walkable loop');
+      close(walked, route.length);
+      if (!route.closed) {
+        for (const progress of [-2, 0, 1, 2]) {
+          const point = enemyPoint(progress, index + 1, routeIndex), endpoint = route.points[progress <= 0 ? 0 : route.points.length - 1];
+          close(point.x, endpoint.x); close(point.y, endpoint.y);
+        }
+        const stop = route.points.at(-1), distance = Math.sqrt(distanceSquared(stop, layout.facility));
+        assert.ok(distance >= 65 && distance <= 90, 'attackers stop in front of the facility, not on its body');
+      }
+    }
+    for (const point of layout.slots) {
+      assert.ok(point.x >= 0 && point.x <= layout.width && point.y >= 0 && point.y <= layout.height);
+      if (layout.facility) assert.ok(distanceSquared(point, layout.facility) >= 90 ** 2, 'facility body stays clear of summon slots');
     }
   }
+  assert.deepEqual(layouts[1].routes[0].points, [{ x: 360, y: 0 }, { x: 360, y: 630 }]);
+  assert.deepEqual(layouts[2].routes[0].points, [{ x: 0, y: 360 }, { x: 630, y: 360 }]);
+  assert.deepEqual(layouts[4].routes.map(route => route.points[0]), [{ x: 0, y: 360 }, { x: 720, y: 360 }, { x: 360, y: 0 }, { x: 360, y: 720 }]);
 });
 
+test('open routes retain their ingress direction after rotation; stage one keeps its legacy rotation', () => {
+  const road = { left: 10, right: 210, top: 30, bottom: 430 };
+  for (const id of [2, 3, 4, 5]) for (const point of getBattlefieldLayout(id).routes.flatMap(route => route.points)) {
+    assert.deepEqual(projectPoint(point, road, true, id), projectPoint(point, road, false, id));
+  }
+  assert.deepEqual(projectPoint({ x: 0, y: 0 }, road, true), { x: 210, y: 30 });
+  assert.deepEqual(projectPoint({ x: 0, y: 0 }, road, false), { x: 10, y: 30 });
+});
 test('each map fills its actual slots and combines at the chosen anchor without changing summon rules', () => {
   for (const stage of content.battlefields) {
     const game = create(stage.id), player = game.players[0], max = game.rules.maxUnits;
@@ -103,20 +122,20 @@ test('server range checks use the selected map rather than the default rectangle
   }
 });
 
-test('new stages spawn bosses at ten and fifteen minutes and keep distinct defeat objectives', () => {
+test('new stages spawn a single boss at ten and fifteen minutes and defend their shared facility', () => {
   for (const [id, seconds] of [[4, 600], [5, 900]]) {
     const game = create(id), player = game.players[0];
     const deadline = game.rules.waveTicks * game.rules.totalWaves;
     assert.equal(deadline / game.rules.ticksPerSecond, seconds);
-    assert.equal(game.objective.kind, id === 4 ? 'overcrowd' : 'engine');
-    assert.equal(player.facilityHp, id === 4 ? null : game.objective.facilityHp);
+    assert.equal(game.objective.kind, 'engine');
+    assert.equal(player.facilityHp, game.objective.facilityHp);
     game.tick = deadline - 1; tick(game);
     const state = publicState(game);
     assert.equal(state.battlefieldId, id);
     assert.equal(state.bossRemainingTicks, game.rules.bossTicks);
     assert.equal(player.status, 'active');
     const boss = player.enemies.find(enemy => enemy.boss);
-    assert.ok(boss); boss.hp = 1;
+    assert.ok(boss); assert.equal(player.enemies.filter(enemy => enemy.boss).length, 1); boss.hp = 1;
     applyAction(game, player.id, { seq: 1, type: 'summon' });
     Object.assign(player.units[0], { definitionId: 'wei_archer', slot: 0 });
     tick(game); assert.equal(player.status, 'cleared');

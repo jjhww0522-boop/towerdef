@@ -1,18 +1,18 @@
 import contentData from '../../shared/content.json';
-import { unitPoint, enemyPoint, distanceSquared } from '../../shared/battle-geometry';
+import { unitPoint, enemyPoint, distanceSquared, getBattlefieldLayout } from '../../shared/battle-geometry';
 
 export const content = contentData;
 export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave';
 export interface Action { seq: number; type: ActionType; recipeId?: string; tag?: string; unitIds?: number[] }
 export interface ActionResult { ok: boolean; error?: string }
-export interface AttackHit { targetId: number | string; progress?: number; damage: number; boss?: boolean }
+export interface AttackHit { targetId: number | string; progress?: number; routeIndex?: number; damage: number; boss?: boolean }
 export interface Unit {
   id: number; definitionId: string; slot: number; dispatched: boolean; attackCooldownTicks: number;
   lastAttackTick: number | null; lastTargetId: number | string | null;
   lastAttackHits: AttackHit[];
   investedGold: number;
 }
-export interface Enemy { id: number; hp: number; maxHp: number; progress: number; boss: boolean; slowUntilTick?: number; siegeCooldownTicks?: number }
+export interface Enemy { id: number; hp: number; maxHp: number; progress: number; routeIndex?: number; boss: boolean; slowUntilTick?: number; siegeCooldownTicks?: number }
 export type Rules = typeof content.rules;
 export interface ExpeditionResult {
   battlefieldId: number; status: 'defeated' | 'cleared' | 'left'; cleared: boolean; researchCredits: number;
@@ -21,7 +21,7 @@ export interface ExpeditionResult {
 }
 export interface Player {
   id: string; gold: number; status: 'active' | 'defeated' | 'cleared' | 'left';
-  connected: boolean; lastSeq: number; units: Unit[]; enemies: Enemy[];
+  connected: boolean; lastSeq: number; units: Unit[]; enemies: Enemy[]; enemySpawnCount: number;
   defeatReason: 'overcrowded' | 'boss_timeout' | 'facility_destroyed' | null;
   facilityHp: number | null; lastFacilityHitTick: number | null;
   upgrades: { [tag: string]: number }; disconnectedAtTick: number | null;
@@ -59,7 +59,7 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
     const requestedUnlocks = options.unlockedRecipesByPlayer && options.unlockedRecipesByPlayer[id] || [];
     const unlockedRecipes = content.recipes.filter(recipe => recipe.unlockBattlefield > 0 && Array.isArray(requestedUnlocks) && requestedUnlocks.indexOf(recipe.id) >= 0).map(recipe => recipe.id);
     return { id, gold: rules.startingGold, status: 'active' as 'active', connected: true, lastSeq: 0,
-      units: [], enemies: [], upgrades, disconnectedAtTick: null, overcrowdedTicks: 0, defeatReason: null,
+      units: [], enemies: [], enemySpawnCount: 0, upgrades, disconnectedAtTick: null, overcrowdedTicks: 0, defeatReason: null,
       facilityHp: battlefield.objective.kind === 'overcrowd' ? null : battlefield.objective.facilityHp, lastFacilityHitTick: null,
       lastActionKey: '', lastActionResult: { ok: false }, unlockedRecipes, kills: 0, investmentActions: 0, result: null };
   });
@@ -232,7 +232,9 @@ export function setConnection(game: GameState, playerId: string, connected: bool
 function spawnEnemy(game: GameState, player: Player, boss: boolean): void {
   const rules = game.rules, depth = game.wave - 1;
   const hp = boss ? rules.bossHp : Math.round(rules.enemyBaseHp + depth * rules.enemyHpPerWave + depth * depth * rules.enemyHpAcceleration);
-  player.enemies.push({ id: game.nextEntityId++, hp, maxHp: hp, progress: 0, boss });
+  // Player-local cycling does not consume summon RNG or multiply the spawn count.
+  const routeIndex = player.enemySpawnCount++ % getBattlefieldLayout(game.battlefieldId).routes.length;
+  player.enemies.push({ id: game.nextEntityId++, hp, maxHp: hp, progress: 0, routeIndex, boss });
 }
 
 function finishStory(game: GameState, success: boolean): void {
@@ -245,19 +247,22 @@ function finishStory(game: GameState, success: boolean): void {
   });
 }
 
-function attackTargets(enemies: Enemy[], primary: Enemy, pattern: string): { enemy: Enemy; multiplier: number }[] {
+function attackTargets(enemies: Enemy[], primary: Enemy, pattern: string, battlefieldId: number): { enemy: Enemy; multiplier: number }[] {
   const targets = [{ enemy: primary, multiplier: pattern === 'blast' ? 0.8 : 1 }];
   if (pattern !== 'blast' && pattern !== 'arc') return targets;
   for (let hop = 0; hop < 2; hop++) {
     const origin = pattern === 'blast' ? primary : targets[targets.length - 1].enemy;
     const radius = pattern === 'blast' ? 0.06 : 0.1;
+    const closed = getBattlefieldLayout(battlefieldId).routes[0].closed;
+    // Preserve the legacy loop's splash reach in world units on open routes.
+    const worldRadius = radius * getBattlefieldLayout(1).routes[0].length;
     let closest: Enemy | undefined, closestDistance = Infinity;
     enemies.forEach(enemy => {
       if (targets.some(target => target.enemy.id === enemy.id)) return;
-      // Progress is a loop: enemies across 0/1 can still be neighbors.
+      // Open routes may share progress while being at opposite entrances.
       const gap = Math.abs(origin.progress - enemy.progress);
-      const distance = Math.min(gap, 1 - gap);
-      if (distance <= radius && (distance < closestDistance || (distance === closestDistance && closest && enemy.id < closest.id))) {
+      const distance = closed ? Math.min(gap, 1 - gap) : distanceSquared(enemyPoint(origin.progress, battlefieldId, origin.routeIndex), enemyPoint(enemy.progress, battlefieldId, enemy.routeIndex));
+      if (distance <= (closed ? radius : worldRadius * worldRadius) && (distance < closestDistance || (distance === closestDistance && closest && enemy.id < closest.id))) {
         closest = enemy;
         closestDistance = distance;
       }
@@ -331,15 +336,15 @@ export function tick(game: GameState): void {
         if (!p.enemies.length) return;
         // Keep stable oldest-first targeting, restricted to this robot's range.
         const position = unitPoint(u.slot, game.battlefieldId), rangeSquared = d.attackRange * d.attackRange;
-        const primary = p.enemies.filter(enemy => distanceSquared(position, enemyPoint(enemy.progress, game.battlefieldId)) <= rangeSquared)[0];
+        const primary = p.enemies.filter(enemy => distanceSquared(position, enemyPoint(enemy.progress, game.battlefieldId, enemy.routeIndex)) <= rangeSquared)[0];
         if (!primary) return;
         u.lastTargetId = primary.id;
-        const targets = attackTargets(p.enemies, primary, pattern);
+        const targets = attackTargets(p.enemies, primary, pattern, game.battlefieldId);
         targets.forEach(target => {
           const enemy = target.enemy, applied = Math.min(enemy.hp, damage * target.multiplier);
           enemy.hp = Math.max(0, enemy.hp - applied);
           if (d.element === 'frost' && enemy.hp > 0) enemy.slowUntilTick = game.tick + rules.frostSlowTicks;
-          u.lastAttackHits.push({ targetId: enemy.id, progress: enemy.progress, damage: applied, boss: enemy.boss });
+          u.lastAttackHits.push({ targetId: enemy.id, progress: enemy.progress, routeIndex: enemy.routeIndex || 0, damage: applied, boss: enemy.boss });
         });
         const killed = targets.filter(target => target.enemy.hp === 0);
         p.enemies = p.enemies.filter(enemy => enemy.hp > 0);

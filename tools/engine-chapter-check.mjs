@@ -24,8 +24,9 @@ async function fixture() {
     if (mapMode) {
       const game = room.game, player = game.players[0];
       player.gold = 1000;
-      player.enemies = [.08, .22, .4, .6, .78, .85].map(progress => ({
-        id: game.nextEntityId++, hp: 10000, maxHp: 10000, progress, boss: false
+      player.enemies = [.08, .22, .4, .6, .78, .85].map((progress, index) => ({
+        id: game.nextEntityId++, hp: 10000, maxHp: 10000, progress, boss: false,
+        routeIndex: index % getBattlefieldLayout(game.battlefieldId).routes.length
       }));
     }
   } });
@@ -205,7 +206,8 @@ async function mapFlow(f, size) {
       assert.equal(f.rooms.length, beforeRooms + 1); assert.equal(response.state.battlefieldId, stage.id);
       assert.equal(response.state.rules.maxUnits, getBattlefieldLayout(stage.id).slots.length);
       const restingCanvas = await page.locator('#battlefield').boundingBox();
-      for (let count = 1; count <= 5; count++) {
+      const summonCount = size.width > size.height && stage.id === 2 ? room.game.rules.maxUnits : 5;
+      for (let count = 1; count <= summonCount; count++) {
         const action = page.waitForResponse(response => new URL(response.url()).pathname === '/action');
         await page.locator('#summon-btn:enabled').tap();
         const result = await action, packet = result.request().postDataJSON(), body = await result.json();
@@ -213,9 +215,9 @@ async function mapFlow(f, size) {
         assert.equal(player.units.length, count);
         await page.waitForFunction(count => window.chapterField?.units.size === count && JSON.parse(sessionStorage.getItem('td.pending')) === null, count);
       }
-      assert.equal(new Set(player.units.map(unit => unit.slot)).size, 5);
+      assert.equal(new Set(player.units.map(unit => unit.slot)).size, summonCount);
       assert.ok(player.units.every(unit => unit.slot >= 0 && unit.slot < room.game.rules.maxUnits));
-      assert.equal(player.gold, 1000 - room.game.rules.summonCost * 5);
+      assert.equal(player.gold, 1000 - room.game.rules.summonCost * summonCount);
       assert.deepEqual(await page.locator('#battlefield').boundingBox(), restingCanvas, 'summoning never resizes the canvas');
       await page.locator('#army-tab').tap(); await page.locator('[data-unit-id]').first().tap();
       await page.locator('#unit-dialog[open]').waitFor();
@@ -232,11 +234,12 @@ async function mapFlow(f, size) {
           left: bounds.left + f.ox + part.left * f.scale, right: bounds.left + f.ox + part.right * f.scale,
           top: bounds.top + f.oy + part.top * f.scale, bottom: bounds.top + f.oy + part.bottom * f.scale
         }));
-        return { battlefieldId: f.battlefieldId, slots: f.observedSlots, canvas: box(f.canvas), controls, facilityParts,
+        return { battlefieldId: f.battlefieldId, slots: f.observedSlots, enemies: [...f.enemies.values()].map(v => ({ routeIndex: v.enemy.routeIndex, progress: v.progress, ...f.path(v.progress, v.enemy.routeIndex) })), canvas: box(f.canvas), controls, facilityParts,
           units: [...f.units.values()].map(v => ({ id: v.unit.id, slot: v.unit.slot, x: v.x, y: v.y,
             target: f.position(v.unit.slot) })) };
       });
       assert.equal(geometry.battlefieldId, stage.id);
+      assert.equal(new Set(geometry.enemies.map(enemy => enemy.routeIndex)).size, getBattlefieldLayout(stage.id).routes.length, 'all entrances contain observed enemies');
       assert.deepEqual(geometry.slots, Array.from({ length: room.game.rules.maxUnits }, (_, i) => i));
       assert.ok(geometry.controls.every(button => button.width >= 44 && button.height >= 44));
       assert.ok(Math.abs(geometry.canvas.bottom - size.height) <= 1 && geometry.canvas.height >= size.height * .8);

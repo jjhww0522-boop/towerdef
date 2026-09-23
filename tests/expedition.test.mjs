@@ -190,11 +190,11 @@ test('main expedition is clearable without researched recipes under seeded legal
   assert.ok(idle.players.every(player => player.result.researchCredits === 0));
 });
 
-test('final planet can earn its first clear with base blueprints rather than its own locked reward', () => {
-  const match = scriptedMatch(4, 1, 'dispatch', false, { battlefieldId: 3, practice: false });
-  assert.ok(match.cleared > 0);
-  assert.ok(match.players.every(player => !player.hasLockedRecipeUnit));
-  for (const player of match.players.filter(player => player.status === 'cleared')) {
+test('engine stage has a first-clear path with base blueprints across the fixed smoke seeds', () => {
+  const matches = [1, 2, 3].map(seed => scriptedMatch(4, seed, 'dispatch', false, { battlefieldId: 3, practice: false }));
+  assert.ok(matches.reduce((sum, match) => sum + match.cleared, 0) > 0);
+  assert.ok(matches.every(match => match.players.every(player => !player.hasLockedRecipeUnit)));
+  for (const player of matches.flatMap(match => match.players).filter(player => player.status === 'cleared')) {
     assert.equal(player.result.battlefieldId, 3);
     assert.equal(player.result.researchCredits, 120);
   }

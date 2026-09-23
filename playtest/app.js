@@ -1,5 +1,5 @@
 import { Battlefield } from './battlefield.js';
-import { unitSpriteUrl } from './casual-art.js';
+import { unitSpriteUrl, elementPalette } from './casual-art.js';
 import { mountHomeCrew } from './home-crew.js';
 import { recipeMaterials, evolutionOptions, theoreticalDps } from './evolution-model.mjs';
 
@@ -346,8 +346,12 @@ function dismissUnit() {
   if (!$('#unit-dialog').open && focusedId === null) return;
   focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close(); render();
 }
-function selectUnit(unitId) {
-  if (unitId === null) { dismissUnit(); return; }
+function selectUnit(unitId, emptySlot = -1) {
+  if (unitId === null) {
+    dismissUnit();
+    if (emptySlot >= 0 && watched()?.id === playerId) toast('빈 자리에 랜덤으로 소환돼요.');
+    return;
+  }
   const unit = me()?.units.find(u => u.id === unitId); if (!unit || unit.dispatched || watched()?.id !== playerId) return;
   const changed = focusedId !== unitId;
   if (changed) { saleId = null; inspectedRecipe = null; $('#unit-inspection-dialog').close(); }
@@ -366,6 +370,7 @@ function renderEvolution() {
   $('#unit-title').title = definition.name;
   text('#unit-subtitle', ({ fire: '화염 · 근거리', wind: '바람 · 범위 공격', frost: '냉동 · 감속', laser: '레이저 · 원거리', electric: '전격 · 연쇄 공격' })[definition.element] || attackRole(definition));
   $('#unit-subtitle').title = attackDescription(definition);
+  $('#unit-subtitle').style.color = elementPalette(definition.element).accent;
   $('#unit-portrait').setAttribute('style', portraitStyle(definition).replaceAll('&quot;', '"'));
   const away = player.units.filter(u => u.dispatched).length;
   text('#queue-dispatch', selected.has(unit.id) ? '대기 해제' : '파견 대기');
@@ -637,6 +642,7 @@ $('#upgrade-buy').addEventListener('click', () => { if (upgradeTag) sendAction('
 $('#upgrade-back').addEventListener('click', () => { upgradeTag = null; renderUpgrade(); });
 $('#join-form').addEventListener('submit', event => { event.preventDefault(); joinRoom($('#room-input').value.trim()); });
 $('#resume-btn').hidden = !session; $('#resume-btn').addEventListener('click', () => joinRoom(session.roomId, true));
+$('#summon-btn').addEventListener('pointerdown', () => { if (watched()?.id === playerId) field.previewPlacement(); });
 $('#summon-btn').addEventListener('click', () => sendAction('summon'));
 $('#codex-toggle').addEventListener('click', () => { const panel = $('#codex-content'); panel.hidden = !panel.hidden; $('#codex-toggle').setAttribute('aria-expanded', String(!panel.hidden)); });
 $('#queue-dispatch').addEventListener('click', () => {

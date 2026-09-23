@@ -41,7 +41,7 @@ test('killing an attacker stops its damage; allies and dispatched robots cannot 
   const game = create(), [owner, peer] = game.players;
   for (const player of [owner, peer]) {
     applyAction(game, player.id, { seq: 1, type: 'summon' });
-    Object.assign(player.units[0], { definitionId: 'shu_guard', slot: 20 });
+    Object.assign(player.units[0], { definitionId: 'shu_guard', slot: 25 });
   }
   const enemy = attacker(game, owner, { hp: 1 });
   owner.units[0].dispatched = true;

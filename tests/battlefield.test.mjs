@@ -20,7 +20,7 @@ const lane = (stamp, { id = 'p', progress = 0, hp = 20, alive = true, target = 2
 });
 function renderer(portrait = false, pattern = 'bolt', rasterize = false) {
   let clock = 1000, bounds = null;
-  const draws = [], labels = [], rasterizations = [], combat = [], selections = [], listeners = {}, canvasContext = new Proxy({}, { get: (object, key) => object[key] ?? (() => {}), set: (object, key, value) => (object[key] = value, true) });
+  const draws = [], labels = [], rasterizations = [], combat = [], selections = [], selectedSlots = [], listeners = {}, canvasContext = new Proxy({}, { get: (object, key) => object[key] ?? (() => {}), set: (object, key, value) => (object[key] = value, true) });
   canvasContext.drawImage = frame => draws.push(frame);
   canvasContext.strokeText = label => labels.push(label);
   canvasContext.createLinearGradient = canvasContext.createRadialGradient = () => ({ addColorStop() {} });
@@ -42,10 +42,10 @@ function renderer(portrait = false, pattern = 'bolt', rasterize = false) {
   });
   vm.runInContext(source, context);
   const view = new context.Battlefield({ getContext: () => canvasContext, addEventListener(type, listener) { listeners[type] = listener; }, closest: () => null,
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: portrait ? 390 : 1000, height: portrait ? 455 : 440, ...bounds }) }, id => selections.push(id), event => combat.push(event));
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: portrait ? 390 : 1000, height: portrait ? 455 : 440, ...bounds }) }, (id, slot) => { selections.push(id); selectedSlots.push(slot); }, event => combat.push(event));
   const activeDefinitions = new Map([['archer', { ...definitions.get('archer'), attackPattern: pattern }]]);
   return {
-    view, draws, labels, definitions: activeDefinitions, rasterizations, combat, selections, listeners, resize(value) { portrait = value; },
+    view, draws, labels, definitions: activeDefinitions, rasterizations, combat, selections, selectedSlots, listeners, resize(value) { portrait = value; },
     bounds(value) { bounds = value; },
     update(snapshot, { at = clock + 200, reduced = false } = {}) {
       clock = at;
@@ -390,11 +390,11 @@ test('all five maps project the authoritative path and slots in both orientation
     const w = r.view.worldWidth, h = r.view.worldHeight;
     const road = { left: w * .12, right: w * .84, top: h * (portrait ? .22 : .27), bottom: h * .8 };
     for (let index = 0; index < layout.slots.length; index++) {
-      const expected = projectPoint(unitPoint(index, battlefieldId), road, portrait), actual = r.view.position(index);
+      const expected = projectPoint(unitPoint(index, battlefieldId), road, portrait, battlefieldId), actual = r.view.position(index);
       assert.ok(Math.abs(actual.x - expected.x) < 1e-8 && Math.abs(actual.y - expected.y) < 1e-8);
     }
-    for (const progress of [0, .12, .37, .61, .85, .999]) {
-      const expected = projectPoint(enemyPoint(progress, battlefieldId), road, portrait), actual = r.view.path(progress);
+    for (let routeIndex = 0; routeIndex < layout.routes.length; routeIndex++) for (const progress of [0, .12, .37, .61, .85, .999, 1, 1.1]) {
+      const expected = projectPoint(enemyPoint(progress, battlefieldId, routeIndex), road, portrait, battlefieldId), actual = r.view.path(progress, routeIndex);
       assert.ok(Math.abs(actual.x - expected.x) < 1e-8 && Math.abs(actual.y - expected.y) < 1e-8);
     }
     const slotsDrawn = [], position = r.view.position.bind(r.view);
@@ -417,4 +417,69 @@ test('switching maps discards old slots and effects before adopting a smaller ma
   assert.equal(r.view.effects.length, 0);
   assert.equal(r.view.arrivals.size, 0);
   assert.ok(r.view.units.get(1).attackAt < 0, 'the next map is an initial snapshot');
+});
+
+test('enemies on each open route stay at their arrival point across snapshots', () => {
+  for (const battlefieldId of [2, 3, 4, 5]) for (let routeIndex = 0; routeIndex < getBattlefieldLayout(battlefieldId).routes.length; routeIndex++) {
+    const r = renderer(true); r.view.battlefieldId = battlefieldId;
+    const snapshot = progress => { const state = lane(null, { progress }); state.enemies[0].routeIndex = routeIndex; return state; };
+    r.update(snapshot(.98), { at: 1000 });
+    r.update(snapshot(1), { at: 1200 });
+    r.update(snapshot(1), { at: 1400 });
+    const view = r.view.enemies.get(2);
+    assert.equal(view.from, 1); assert.equal(view.to, 1);
+    const actual = r.view.path(r.view.progress(view, 2000), routeIndex), arrival = r.view.path(1, routeIndex);
+    assert.equal(actual.x, arrival.x); assert.equal(actual.y, arrival.y);
+    assert.notDeepEqual(actual, r.view.path(0, routeIndex), 'arrival never wraps to the entrance');
+  }
+});
+
+test('hit telemetry keeps impact and death effects on the target route after the enemy is removed', () => {
+  const r = renderer(); r.view.battlefieldId = 5;
+  r.update(lane(null, { alive: false }));
+  const snapshot = lane(2, { alive: false });
+  snapshot.units[0].lastAttackHits = [{ targetId: 50, damage: 20, progress: .62, routeIndex: 3, boss: false }];
+  r.update(snapshot, { at: 1600 });
+  const target = r.view.path(.62, 3), wrongRoute = r.view.path(.62, 0);
+  const impact = r.view.effects.find(effect => effect.type === 'impact');
+  const death = r.view.effects.find(effect => effect.type === 'death');
+  assert.equal(impact.x, target.x); assert.equal(impact.y, target.y - 18);
+  assert.equal(death.x, target.x); assert.equal(death.y, target.y);
+  assert.notEqual(impact.x, wrongRoute.x);
+});
+
+test('placement preview marks only free slots and an empty-pad click never selects a unit', () => {
+  const r = renderer(); r.view.battlefieldId = 2;
+  const snapshot = lane(null, { alive: false });
+  snapshot.units.push({ ...snapshot.units[0], id: 3, slot: 2, dispatched: true });
+  r.update(snapshot);
+  const highlighted = [];
+  r.view.rect = (x, y) => highlighted.push({ x: x + 24, y: y + 12 });
+  r.view.previewPlacement(); r.view.drawPlacementPreview(1250);
+  assert.equal(highlighted.length, getBattlefieldLayout(2).slots.length - 2);
+  for (const occupied of [0, 2]) assert.ok(!highlighted.some(point => {
+    const target = r.view.position(occupied); return point.x === target.x && point.y === target.y;
+  }), 'a dispatched robot still reserves its slot');
+  const free = r.view.position(27);
+  r.listeners.click({ clientX: free.x * r.view.scale + r.view.ox, clientY: free.y * r.view.scale + r.view.oy });
+  assert.equal(r.selections.at(-1), null); assert.equal(r.selectedSlots.at(-1), 27);
+  assert.equal(snapshot.units.length, 2); assert.equal(snapshot.units[1].slot, 2);
+  highlighted.length = 0; r.view.drawPlacementPreview(2400);
+  assert.equal(highlighted.length, 0, 'the preview disappears without persistent clutter');
+});
+
+test('crowded open maps keep each robot selectable in short landscape viewports', () => {
+  for (const size of [{ width: 667, height: 331 }, { width: 844, height: 346 }]) for (const battlefieldId of [2, 3, 4, 5]) {
+    const r = renderer(); r.bounds(size); r.view.battlefieldId = battlefieldId;
+    const snapshot = lane(null, { alive: false });
+    snapshot.units = getBattlefieldLayout(battlefieldId).slots.map((_, slot) => ({ ...snapshot.units[0], id: slot + 1, slot }));
+    for (const rarity of ['basic', 'legend']) {
+      r.definitions.get('archer').rarity = rarity; r.update(snapshot); r.view.draw(2000);
+      const height = r.view.unitHeight(r.definitions.get('archer'));
+      for (const view of r.view.units.values()) {
+        r.listeners.click({ clientX: view.x * r.view.scale + r.view.ox, clientY: (view.y - height * .47) * r.view.scale + r.view.oy });
+        assert.equal(r.selections.at(-1), view.unit.id, `map ${battlefieldId} slot ${view.unit.slot} ${rarity} remains selectable`);
+      }
+    }
+  }
 });

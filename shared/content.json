@@ -1,5 +1,5 @@
 {
-  "version": "0.8.0-chapter-one",
+  "version": "0.9.0-open-routes",
   "rules": {
     "ticksPerSecond": 10,
     "waveTicks": 250,
@@ -51,9 +51,9 @@
       "id": 2,
       "chapterId": 1, "planetId": "scrap",
       "name": "채굴장",
-      "objective": {"kind":"mining","label":"채굴기","facilityHp":24000,"arrivalProgress":0.85,"damage":4,"attackIntervalTicks":10},
-      "description": "채굴기를 두드리는 적을 제거하고 마지막 광맥까지 지켜내세요.",
-      "rules": {"maxUnits":28,"waveTicks":250,"totalWaves":64,"bossTicks":900,"bossHp":450000,"enemyHpPerWave":40,"enemyHpAcceleration":0.6,"spawnIntervalTicks":12,"spawnRampEveryWaves":16,"minSpawnIntervalTicks":8,"waveGold":50,"waveGoldGrowth":2},
+      "objective": {"kind":"mining","label":"채굴기","facilityHp":24000,"arrivalProgress":1,"damage":4,"attackIntervalTicks":10},
+      "description": "위에서 내려오는 적을 막고 아래쪽 채굴기를 마지막 광맥까지 지켜내세요.",
+      "rules": {"maxUnits":28,"enemyProgressPerTick":0.0035294117647058825,"waveTicks":250,"totalWaves":64,"bossTicks":900,"bossHp":450000,"enemyHpPerWave":40,"enemyHpAcceleration":0.6,"spawnIntervalTicks":12,"spawnRampEveryWaves":16,"minSpawnIntervalTicks":8,"waveGold":50,"waveGoldGrowth":2},
       "stories": [
         {"wave":16,"name":"조난 신호 구조","hp":15000,"durationTicks":450,"rewardGold":150},
         {"wave":32,"name":"중앙 전력 복구","hp":45000,"durationTicks":450,"rewardGold":250},
@@ -64,9 +64,9 @@
       "id": 3,
       "chapterId": 1, "planetId": "scrap",
       "name": "엔진 기지",
-      "objective": {"kind":"engine","label":"우주선 엔진","facilityHp":24000,"arrivalProgress":0.85,"damage":5,"attackIntervalTicks":10},
-      "description": "적의 포위에서 엔진을 지키고 탈출을 가로막는 보스를 쓰러뜨리세요.",
-      "rules": {"maxUnits":26,"waveTicks":260,"totalWaves":66,"bossTicks":900,"bossHp":500000,"enemyHpPerWave":55,"enemyHpAcceleration":1.1,"spawnIntervalTicks":12,"spawnRampEveryWaves":13,"minSpawnIntervalTicks":8,"waveGold":60,"waveGoldGrowth":2},
+      "objective": {"kind":"engine","label":"우주선 엔진","facilityHp":24000,"arrivalProgress":1,"damage":5,"attackIntervalTicks":10},
+      "description": "왼쪽에서 밀려오는 적을 막고 오른쪽 엔진을 지켜 보스를 쓰러뜨리세요.",
+      "rules": {"maxUnits":26,"enemyProgressPerTick":0.0035294117647058825,"waveTicks":260,"totalWaves":66,"bossTicks":900,"bossHp":500000,"enemyHpPerWave":55,"enemyHpAcceleration":1.1,"spawnIntervalTicks":12,"spawnRampEveryWaves":13,"minSpawnIntervalTicks":8,"waveGold":60,"waveGoldGrowth":2},
       "stories": [
         {"wave":17,"name":"조난 신호 구조","hp":20000,"durationTicks":450,"rewardGold":200},
         {"wave":34,"name":"중앙 전력 복구","hp":70000,"durationTicks":450,"rewardGold":300},
@@ -77,9 +77,9 @@
       "id": 4,
       "chapterId": 1, "planetId": "scrap",
       "name": "좁은 협곡",
-      "objective": {"kind":"overcrowd","label":"방어선 유지","facilityHp":0,"arrivalProgress":0.85,"damage":0,"attackIntervalTicks":10},
-      "description": "굽은 협곡의 22개 배치 자리를 활용해 적이 쌓이지 않게 막고 10분 뒤 보스를 처치하세요.",
-      "rules": {"maxUnits":22,"waveTicks":250,"totalWaves":24,"bossTicks":900,"bossHp":200000,"enemyHpPerWave":40,"enemyHpAcceleration":0.6,"spawnIntervalTicks":12,"spawnRampEveryWaves":16,"minSpawnIntervalTicks":8,"waveGold":50,"waveGoldGrowth":2},
+      "objective": {"kind":"engine","label":"중앙 엔진","facilityHp":24000,"arrivalProgress":1,"damage":4,"attackIntervalTicks":10},
+      "description": "양쪽에서 몰려오는 적을 막고 중앙 엔진을 지켜 10분 뒤 보스를 처치하세요.",
+      "rules": {"maxUnits":22,"enemyProgressPerTick":0.0035294117647058825,"waveTicks":250,"totalWaves":24,"bossTicks":900,"bossHp":200000,"enemyHpPerWave":40,"enemyHpAcceleration":0.6,"spawnIntervalTicks":12,"spawnRampEveryWaves":16,"minSpawnIntervalTicks":8,"waveGold":50,"waveGoldGrowth":2},
       "stories": [
         {"wave":6,"name":"조난 신호 구조","hp":15000,"durationTicks":450,"rewardGold":150},
         {"wave":12,"name":"중앙 전력 복구","hp":45000,"durationTicks":450,"rewardGold":250},
@@ -90,9 +90,9 @@
       "id": 5,
       "chapterId": 1, "planetId": "scrap",
       "name": "탈출항",
-      "objective": {"kind":"engine","label":"탈출선 엔진","facilityHp":24000,"arrivalProgress":0.85,"damage":5,"attackIntervalTicks":10},
-      "description": "탈출항의 엔진을 15분 동안 지키고 마지막 보스를 쓰러뜨려 고물 행성을 떠나세요.",
-      "rules": {"maxUnits":24,"waveTicks":250,"totalWaves":36,"bossTicks":900,"bossHp":300000,"enemyHpPerWave":55,"enemyHpAcceleration":1.1,"spawnIntervalTicks":12,"spawnRampEveryWaves":13,"minSpawnIntervalTicks":8,"waveGold":60,"waveGoldGrowth":2},
+      "objective": {"kind":"engine","label":"탈출선 엔진","facilityHp":24000,"arrivalProgress":1,"damage":5,"attackIntervalTicks":10},
+      "description": "네 입구에서 오는 적을 막으며 중앙 엔진을 15분 동안 지키고 마지막 보스를 쓰러뜨리세요.",
+      "rules": {"maxUnits":24,"enemyProgressPerTick":0.0035294117647058825,"waveTicks":250,"totalWaves":36,"bossTicks":900,"bossHp":300000,"enemyHpPerWave":55,"enemyHpAcceleration":1.1,"spawnIntervalTicks":12,"spawnRampEveryWaves":13,"minSpawnIntervalTicks":8,"waveGold":60,"waveGoldGrowth":2},
       "stories": [
         {"wave":9,"name":"조난 신호 구조","hp":20000,"durationTicks":450,"rewardGold":200},
         {"wave":18,"name":"중앙 전력 복구","hp":70000,"durationTicks":450,"rewardGold":300},

@@ -1,9 +1,15 @@
 // Original scrap robots: the battlefield and roster use the same vector artwork.
-const colors = {
-  shu: { main: '#75c9ac', dark: '#33776b', light: '#dbf5ce', glow: '#f5e493' },
-  wei: { main: '#83bde7', dark: '#446c95', light: '#dcf0ff', glow: '#bdf5ef' },
-  wu: { main: '#f2ad75', dark: '#ab654e', light: '#ffebbd', glow: '#fff0a3' }
-};
+// Element color is shared by bodies, weapons, portraits, the hangar and combat UI.
+const robotElements = Object.freeze({
+  fire: Object.freeze({ main: '#ad5148', dark: '#5d3437', light: '#db7350', glow: '#ffb565', accent: '#ff9255' }),
+  frost: Object.freeze({ main: '#397d9f', dark: '#244857', light: '#69b5cf', glow: '#8ce9ef', accent: '#72dbea' }),
+  wind: Object.freeze({ main: '#468f78', dark: '#2a554c', light: '#76b49a', glow: '#a0efd0', accent: '#86ddb7' }),
+  laser: Object.freeze({ main: '#78549a', dark: '#423557', light: '#a580c7', glow: '#dab1ff', accent: '#c399f2' }),
+  electric: Object.freeze({ main: '#9b8239', dark: '#574b2c', light: '#ccb458', glow: '#ffe479', accent: '#f9d666' })
+});
+const neutralRobot = Object.freeze({ main: '#72848d', dark: '#3d4e58', light: '#a8b5ba', glow: '#e2e9dd', accent: '#b7c8ce' });
+const metal = { main: '#a8b5ba', light: '#d6ddd7', dark: '#596971' };
+export function elementPalette(element) { return Object.hasOwn(robotElements, element) ? robotElements[element] : neutralRobot; }
 const outline = '#19313e';
 const cache = new Map();
 const svgPath = (d, fill = 'none', extra = '') => `<path d="${d}" fill="${fill}" ${extra}/>`;
@@ -17,39 +23,39 @@ export function applianceKind(definition) {
   return definition.id === 'wu_archer' ? 'lighter' : definition.id === 'shu_archer' ? 'dryer' : definition.id === 'wei_archer' ? 'pointer' : null;
 }
 
-function applianceSvg(kind, pose) {
+function applianceSvg(kind, pose, palette) {
   const ready = pose === 'windup', firing = pose === 'strike', recovering = pose === 'recovery';
   let shapes = ellipse(47, 88, 26, 3, '#06141c44', 'stroke="none"');
   if (kind === 'lighter') {
     shapes += svgPath('M37 70 L35 81 M59 70 L63 81', 'none', 'stroke="#596765" stroke-width="6"');
     shapes += rect(26, 80, 15, 7, 3, '#d5d1bb') + rect(59, 80, 15, 7, 3, '#d5d1bb');
-    shapes += rect(29, 32, 39, 41, 7, '#e99a5e');
+    shapes += rect(29, 32, 39, 41, 7, palette.main);
     shapes += svgPath('M32 39 L32 62 Q32 68 39 68', 'none', 'stroke="#ffd6a2" stroke-width="3"');
     shapes += rect(36, 23, 28, 13, 3, '#d5d1bb');
     for (const x of [42, 49, 56]) shapes += circle(x, 29, 1.6, '#48585b', 'stroke="none"');
     shapes += `<g transform="rotate(${firing || recovering ? -105 : ready ? -25 : 0} 30 35)">`;
-    shapes += rect(29, 18, 39, 18, 4, '#ce704c') + svgPath('M33 22 L62 22', 'none', 'stroke="#f3b27b" stroke-width="2"') + '</g>';
+    shapes += rect(29, 18, 39, 18, 4, palette.dark) + svgPath('M33 22 L62 22', 'none', 'stroke="#f3b27b" stroke-width="2"') + '</g>';
     shapes += circle(30, 35, 3, '#d5d1bb');
     shapes += circle(60, 24, 5, '#7a8581') + svgPath(`M57 ${ready ? 20 : 23} L63 ${ready ? 26 : 23}`, 'none', 'stroke="#e8dfc8" stroke-width="1.5"');
     shapes += ellipse(42, 49, 3, firing ? 2.6 : 4, '#203a40', 'stroke="none"') + ellipse(55, 49, 3, 4, '#203a40', 'stroke="none"');
     shapes += svgPath('M43 58 Q48 61 53 58', 'none', 'stroke="#7e4b3c" stroke-width="1.8"');
-    shapes += rect(49, 64, 13, 4, 1, '#e8d5a6', 'stroke-width="1"');
+    shapes += rect(49, 64, 13, 4, 1, palette.glow, 'stroke-width="1"');
     if (firing) {
-      shapes += svgPath('M54 22 Q48 14 56 7 Q54 14 61 12 Q68 21 59 25 Z', '#ffb65a', 'stroke="#a65d3e" stroke-width="1.5"');
+      shapes += svgPath('M54 22 Q48 14 56 7 Q54 14 61 12 Q68 21 59 25 Z', palette.glow, 'stroke="#a65d3e" stroke-width="1.5"');
       shapes += svgPath('M57 22 Q53 18 58 15 Q63 21 59 23 Z', '#fff0b0', 'stroke="none"');
     }
   } else if (kind === 'dryer') {
     const brace = firing ? 4 : 0;
     shapes += svgPath(`M35 71 L${27 - brace} 81 M51 69 L${59 + brace} 81`, 'none', 'stroke="#49695f" stroke-width="5"');
     shapes += rect(17 - brace, 80, 18, 7, 3, '#cee1b9') + rect(56 + brace, 80, 18, 7, 3, '#cee1b9');
-    shapes += svgPath('M38 49 L54 48 L50 73 Q47 78 35 74 Z', '#6ea58a');
-    shapes += rect(39, 57, 6, 10, 2, ready || firing ? '#e9bd71' : '#3c635a', 'stroke-width="1.4"');
+    shapes += svgPath('M38 49 L54 48 L50 73 Q47 78 35 74 Z', palette.dark);
+    shapes += rect(39, 57, 6, 10, 2, ready || firing ? palette.glow : palette.dark, 'stroke-width="1.4"');
     shapes += svgPath('M38 74 Q43 87 31 87 L22 85', 'none', 'stroke="#384e4d" stroke-width="2.5"');
-    shapes += svgPath('M32 20 Q17 19 17 36 Q17 53 35 53 L68 49 L76 43 L76 30 L66 23 Z', '#91bd9d');
+    shapes += svgPath('M32 20 Q17 19 17 36 Q17 53 35 53 L68 49 L76 43 L76 30 L66 23 Z', palette.main);
     shapes += svgPath('M32 24 Q51 22 63 27', 'none', 'stroke="#deebca" stroke-width="3"');
     shapes += svgPath('M68 27 L85 31 L85 44 L68 47 Z', '#d0ddc3');
     shapes += ellipse(84, 37.5, 4, 7, '#395952');
-    shapes += circle(29, 36, 11, '#456b60') + circle(29, 36, 8, '#c1d5b1', 'stroke="none"');
+    shapes += circle(29, 36, 11, palette.dark) + circle(29, 36, 8, palette.glow, 'stroke="none"');
     shapes += `<g transform="rotate(${firing ? 100 : ready ? 42 : 0} 29 36)">`;
     for (const angle of [0, 120, 240]) shapes += `<path d="M29 35 Q20 28 24 32 L29 36 Z" fill="#5e8f7c" stroke="#5e8f7c" stroke-width="3" transform="rotate(${angle} 29 36)"/>`;
     shapes += '</g>' + circle(29, 36, 2, '#e4e7cc', 'stroke="none"');
@@ -60,12 +66,12 @@ function applianceSvg(kind, pose) {
     shapes += svgPath('M39 58 L31 78 M60 58 L69 78', 'none', 'stroke="#66768c" stroke-width="5"');
     shapes += rect(20, 77, 19, 8, 3, '#d2d8df') + rect(64, 77, 18, 8, 3, '#d2d8df');
     shapes += `<g transform="rotate(${ready ? -3 : firing ? -1 : 0} 47 46)">`;
-    shapes += rect(13, 32, 64, 26, 12, '#8da8c4');
-    shapes += ellipse(16, 45, 5, 11, '#64758a') + svgPath('M23 36 L62 36', 'none', 'stroke="#dce4e7" stroke-width="3"');
+    shapes += rect(13, 32, 64, 26, 12, palette.main);
+    shapes += ellipse(16, 45, 5, 11, palette.dark) + svgPath('M23 36 L62 36', 'none', 'stroke="#dce4e7" stroke-width="3"');
     shapes += rect(64, 32, 17, 26, 5, '#d1d9dc');
-    shapes += ellipse(80, 45, 8, 12, '#657789') + ellipse(82, 45, 4.5, 8, '#343f59');
-    shapes += ellipse(83, 45, firing ? 3 : ready ? 2 : 1.5, firing ? 6 : 3, firing ? '#f4d8ff' : '#b087b2', 'stroke="none"');
-    shapes += rect(44, 26, 13, 6, 3, ready ? '#b8acb1' : '#cd7980', 'stroke-width="1.6"');
+    shapes += ellipse(80, 45, 8, 12, '#657789') + ellipse(82, 45, 4.5, 8, palette.dark);
+    shapes += ellipse(83, 45, firing ? 3 : ready ? 2 : 1.5, firing ? 6 : 3, firing ? palette.glow : palette.accent, 'stroke="none"');
+    shapes += rect(44, 26, 13, 6, 3, ready ? palette.glow : palette.light, 'stroke-width="1.6"');
     shapes += ellipse(35, 44, 2.5, 3.5, '#203a40', 'stroke="none"') + ellipse(47, 44, 2.5, ready ? 2 : 3.5, '#203a40', 'stroke="none"');
     shapes += svgPath('M35 51 L43 51', 'none', 'stroke="#57718b" stroke-width="1.5"');
     shapes += svgPath('M20 34 L22 24 Q26 19 33 23', 'none', 'stroke="#89949e" stroke-width="2.5"');
@@ -76,8 +82,8 @@ function applianceSvg(kind, pose) {
 
 function robotSvg(definition, pose) {
   const appliance = applianceKind(definition);
-  if (appliance) return applianceSvg(appliance, pose);
-  const palette = colors[definition.faction] || colors.shu;
+  const palette = elementPalette(definition.element);
+  if (appliance) return applianceSvg(appliance, pose, palette);
   const tier = { basic: 0, elite: 1, hero: 2, legend: 3 }[definition.rarity] || 0;
   const tracked = definition.troop === 'cavalry';
   const turret = definition.troop === 'archer';
@@ -91,7 +97,7 @@ function robotSvg(definition, pose) {
   // Higher tiers visibly assemble extra machinery around the original chassis.
   if (tier >= 2) {
     shapes += rect(20, 31, 55, 37, 9, palette.dark);
-    shapes += rect(9, 23, 17, 34, 5, palette.light) + rect(70, 23, 17, 34, 5, palette.light);
+    shapes += rect(9, 23, 17, 34, 5, metal.main) + rect(70, 23, 17, 34, 5, metal.main);
     shapes += rect(11, 47, 13, 11, 3, palette.dark) + rect(72, 47, 13, 11, 3, palette.dark);
     shapes += svgPath('M16 33 L21 33 M16 39 L21 39 M75 33 L80 33 M75 39 L80 39', 'none', 'stroke-width="2"');
     shapes += svgPath('M18 57 L18 65 M78 57 L78 65', 'none', `stroke="${palette.glow}" stroke-width="5"`);
@@ -100,8 +106,8 @@ function robotSvg(definition, pose) {
     shapes += svgPath('M22 27 L3 12 L4 42 L21 53 Z M73 27 L93 12 L92 42 L74 53 Z', palette.dark);
     shapes += svgPath('M8 21 L19 29 L18 42 L9 36 Z M87 21 L77 29 L78 42 L87 36 Z', palette.main);
     shapes += svgPath('M10 25 L10 34 M15 29 L15 38 M82 28 L82 38 M87 24 L87 34', 'none', `stroke="${palette.glow}" stroke-width="2"`);
-    shapes += svgPath('M13 59 L7 70 L11 79 L23 74 M82 59 L89 70 L84 79 L73 74', palette.light);
-    shapes += svgPath('M38 19 L38 10 L57 10 L57 19', palette.light);
+    shapes += svgPath('M13 59 L7 70 L11 79 L23 74 M82 59 L89 70 L84 79 L73 74', metal.main);
+    shapes += svgPath('M38 19 L38 10 L57 10 L57 19', metal.main);
     shapes += svgPath('M32 17 L30 7 L39 12 L48 4 L56 12 L66 7 L63 18 Z', palette.dark);
     shapes += circle(47.5, 12, 4, palette.glow);
   }
@@ -112,14 +118,13 @@ function robotSvg(definition, pose) {
     shapes += svgPath('M23 72 L71 72 M23 86 L71 86', 'none', 'stroke="#eef4e2" stroke-width="1.5"');
   } else if (turret) {
     shapes += svgPath('M36 68 L28 80 L19 80 L19 86 L38 86 L43 73 M57 68 L65 80 L75 80 L75 86 L55 86 L50 73', palette.dark);
-    shapes += rect(36, 65, 24, 12, 5, palette.light);
+    shapes += rect(36, 65, 24, 12, 5, metal.main);
   } else {
     shapes += svgPath('M34 68 L32 81 M58 68 L61 81', 'none', `stroke="${palette.dark}" stroke-width="9"`);
-    shapes += rect(22, 79, 19, 9, 4, palette.light) + rect(53, 79, 19, 9, 4, palette.light);
+    shapes += rect(22, 79, 19, 9, 4, metal.main) + rect(53, 79, 19, 9, 4, metal.main);
   }
 
-  // Mint robots use cans and cylinders; blue robots use panels and optics;
-  // orange robots use salvaged appliances, coils and battery housings.
+  // Preserve each chassis silhouette while its color follows the attack element.
   if (definition.faction === 'shu') {
     if (tracked) {
       shapes += svgPath('M25 67 L25 47 Q25 24 47 24 Q69 24 69 47 L69 67 Z', palette.main);
@@ -127,7 +132,7 @@ function robotSvg(definition, pose) {
       shapes += svgPath('M31 29 L31 21 L48 21', 'none', `stroke="${palette.dark}" stroke-width="5"`);
     } else {
       shapes += rect(27, 25, 42, 46, 10, palette.main);
-      shapes += ellipse(48, 26, 21, 6, palette.light);
+      shapes += ellipse(48, 26, 21, 6, metal.main);
       shapes += ellipse(48, 25, 6, 2.5, palette.dark, 'stroke-width="1.4"');
       shapes += svgPath('M28 62 Q47 70 68 62', 'none', `stroke="${palette.dark}" stroke-width="2"`);
     }
@@ -138,13 +143,13 @@ function robotSvg(definition, pose) {
       shapes += rect(29, 59, 39, 13, 5, palette.dark);
     } else {
       shapes += rect(23, tracked ? 33 : 25, 49, tracked ? 39 : 46, 8, palette.main);
-      shapes += rect(29, tracked ? 26 : 20, 37, 8, 3, palette.light);
+      shapes += rect(29, tracked ? 26 : 20, 37, 8, 3, metal.main);
       shapes += svgPath('M61 61 L66 61 M61 65 L66 65', 'none', 'stroke-width="1.5"');
     }
   } else {
     if (turret) {
       shapes += svgPath('M31 35 L31 24 L60 24 L60 35 M31 35 Q20 43 27 65 Q46 77 67 64 L67 42 L82 36 L78 49 L68 53', palette.main);
-      shapes += ellipse(46, 25, 16, 4, palette.light);
+      shapes += ellipse(46, 25, 16, 4, metal.main);
       shapes += svgPath('M28 38 Q14 35 15 48 Q15 60 27 58', 'none', `stroke="${palette.dark}" stroke-width="5"`);
     } else if (tracked) {
       shapes += rect(28, 30, 41, 42, 7, palette.main);
@@ -176,14 +181,14 @@ function robotSvg(definition, pose) {
   } else if (pattern === 'blast') {
     shapes += rect(62, 43, 25, 20, 5, palette.dark);
     shapes += rect(68, 43, 12, 20, 3, palette.main);
-    shapes += rect(82, 42, 10, 22, 3, palette.light);
+    shapes += rect(82, 42, 10, 22, 3, metal.main);
     shapes += ellipse(89, 53, 4, 7, '#263847');
-    shapes += ellipse(90, 53, 2, windup ? 5 : 3, windup || strike ? '#ffdc8e' : '#916c43', 'stroke="none"');
+    shapes += ellipse(90, 53, 2, windup ? 5 : 3, windup || strike ? palette.glow : palette.accent, 'stroke="none"');
     shapes += svgPath('M65 47 L65 58 M74 46 L74 60', 'none', 'stroke="#f8edc9" stroke-width="1.5"');
   } else {
     shapes += rect(63, 46, 25, 12, 4, palette.dark);
     shapes += rect(70, 46, 13, 9, 2, palette.main);
-    shapes += rect(83, 45, 9, 15, 3, palette.light);
+    shapes += rect(83, 45, 9, 15, 3, metal.main);
     shapes += ellipse(89, 52.5, 2.5, 4, windup || strike ? palette.glow : palette.dark);
     shapes += svgPath('M67 49 L79 49', 'none', 'stroke="#ffffff" stroke-opacity=".7" stroke-width="1.3"');
   }
@@ -217,7 +222,7 @@ function robotSvg(definition, pose) {
   }
 
   if (tier >= 1) {
-    shapes += rect(19, 39, 8, 16, 3, palette.light);
+    shapes += rect(19, 39, 8, 16, 3, metal.main);
     shapes += svgPath('M20 32 L20 22 L25 18 M19 23 L14 19', 'none', `stroke="${palette.dark}" stroke-width="3"`);
     shapes += rect(57, 20, 11, 7, 2, palette.glow);
   }
@@ -230,8 +235,8 @@ function robotSvg(definition, pose) {
     shapes += circle(11, 13, 3, palette.glow) + circle(84, 13, 3, palette.glow);
     shapes += svgPath('M34 77 L47 84 L61 77', 'none', `stroke="${palette.glow}" stroke-width="3"`);
   }
-  const defs = `<defs><linearGradient id="body" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="${palette.light}"/><stop offset=".38" stop-color="${palette.main}"/><stop offset="1" stop-color="${palette.dark}"/></linearGradient><linearGradient id="metal" x2=".5" y2="1"><stop stop-color="#fff9df"/><stop offset=".45" stop-color="${palette.light}"/><stop offset="1" stop-color="${palette.main}"/></linearGradient></defs>`;
-  return svg(shapes.replaceAll(`fill="${palette.main}"`, 'fill="url(#body)"').replaceAll(`fill="${palette.light}"`, 'fill="url(#metal)"'), defs);
+  const defs = `<defs><linearGradient id="body" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="${palette.light}"/><stop offset=".38" stop-color="${palette.main}"/><stop offset="1" stop-color="${palette.dark}"/></linearGradient><linearGradient id="metal" x2=".5" y2="1"><stop stop-color="${metal.light}"/><stop offset=".45" stop-color="${metal.main}"/><stop offset="1" stop-color="${metal.dark}"/></linearGradient></defs>`;
+  return svg(shapes.replaceAll(`fill="${palette.main}"`, 'fill="url(#body)"').replaceAll(`fill="${metal.main}"`, 'fill="url(#metal)"'), defs);
 }
 
 function scrapDroneSvg(kind, pose) {
@@ -272,7 +277,7 @@ function scrapDroneSvg(kind, pose) {
 }
 
 export function unitSpriteUrl(definition, pose = 'idle') {
-  const key = [applianceKind(definition) || 'robot', definition.faction, definition.troop, definition.trait, definition.rarity, definition.attackPattern || 'bolt', pose].join(':');
+  const key = [applianceKind(definition) || 'robot', definition.element || 'neutral', definition.faction, definition.troop, definition.trait, definition.rarity, definition.attackPattern || 'bolt', pose].join(':');
   if (!cache.has(key)) cache.set(key, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(robotSvg(definition, pose)));
   return cache.get(key);
 }
