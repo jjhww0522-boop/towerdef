@@ -89,6 +89,7 @@ try {
     peer.on('pageerror', error => errors.push(error.message));
     await peer.goto(base);
     await selectDestination(peer);
+    await peer.locator('#planet-picker').click();
     await peer.locator('#join-open').click();
     await peer.fill('#room-input', roomId);
     await peer.locator('#join-form button[type="submit"]').click();

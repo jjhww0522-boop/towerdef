@@ -40,7 +40,7 @@ Object.assign(errors, {
 let playerId = read(sessionStorage, 'td.player', null) || id('p-'); save(sessionStorage, 'td.player', playerId);
 let settings = read(localStorage, 'td.settings', { reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, sound: true, guide: true });
 let metrics = read(sessionStorage, 'td.metrics', null), pinned = read(localStorage, 'td.goal', null);
-let focusedId = null, saleId = null;
+let focusedId = null, saleId = null, inspectedRecipe = null;
 let profile = null, profileToken = read(localStorage, 'td.profile', null)?.token || null;
 let selectedBattlefield = read(localStorage, 'td.battlefield', 1), researching = false, upgradeTag = null, blueprintId = null;
 let selected = new Set(), watchedId = playerId, connected = false, actionBusy = false, joining = false, pollBusy = false, active = false, currentTab = 'army';
@@ -78,8 +78,9 @@ function combatAlert(title, subtitle = '', tone = 'wave', priority = 1) {
   clearTimeout(alertTimer); alertPriority = priority;
   text('#combat-alert-title', title); text('#combat-alert-subtitle', subtitle);
   $('#combat-alert').dataset.tone = tone; $('#combat-alert').hidden = false;
-  if (!settings.reduced) $('#combat-alert').animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 220, easing: 'ease-out' });
-  alertTimer = setTimeout(() => { $('#combat-alert').hidden = true; alertPriority = 0; }, priority > 1 ? 2800 : 1700);
+  for (const animation of $('#combat-alert').getAnimations()) animation.cancel();
+  if (!settings.reduced) $('#combat-alert').animate([{ opacity: 0, transform: 'translateY(-5px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 180, easing: 'ease-out' });
+  alertTimer = setTimeout(() => { $('#combat-alert').hidden = true; alertPriority = 0; }, priority > 1 ? 1800 : 900);
 }
 function setPending(value) { pending = value; save(sessionStorage, 'td.pending', pending); $('#retry-action').hidden = !pending; }
 function persistMetrics() { save(sessionStorage, 'td.metrics', metrics); }
@@ -107,23 +108,27 @@ function acceptProfile(next) {
 
 function renderLobby() {
   if (!content || !profile) return;
-  if (!profile.unlockedBattlefields.includes(selectedBattlefield)) selectedBattlefield = 1;
+  if (!content.battlefields.some(planet => planet.id === selectedBattlefield)) selectedBattlefield = 1;
   html('#planet-list', content.battlefields.map(planet => {
-    const available = profile.unlockedBattlefields.includes(planet.id), r = { ...content.rules, ...planet.rules };
-    const minutes = Math.ceil(expeditionTicks(planet, r) / r.ticksPerSecond / 60);
-    return `<button class="planet-card" data-battlefield="${planet.id}" aria-pressed="${planet.id === selectedBattlefield}" ${available ? '' : 'disabled'}><span class="planet-orb planet-${planet.id}" aria-hidden="true"></span><span><strong>${escape(planet.name)}</strong><small>${available ? (planet.id === 1 ? '첫 원정 · ' : '장기 원정 · ') + '약 ' + minutes + '분' : '이전 행성 클리어'}</small></span><span class="planet-marker">${profile.clearedBattlefields.includes(planet.id) ? '✓' : available ? '↗' : '잠김'}</span></button>`;
+    const available = profile.unlockedBattlefields.includes(planet.id);
+    return `<button class="planet-card" data-battlefield="${planet.id}" aria-pressed="${planet.id === selectedBattlefield}"><span class="planet-orb planet-${planet.id}" aria-hidden="true"></span><span><strong>${escape(planet.name)}</strong><small>${profile.clearedBattlefields.includes(planet.id) ? '클리어' : available ? '원정 가능' : '이전 행성 클리어 후 개방'}</small></span><span class="planet-marker" aria-hidden="true">${available ? '›' : '잠김'}</span></button>`;
   }).join(''));
   const planet = content.battlefields.find(p => p.id === selectedBattlefield), r = { ...content.rules, ...planet.rules };
+  const index = content.battlefields.indexOf(planet), available = profile.unlockedBattlefields.includes(planet.id);
+  $('#destination-orb').className = `planet-orb planet-${planet.id}`;
+  text('#planet-index', `${String(index + 1).padStart(2, '0')} / ${String(content.battlefields.length).padStart(2, '0')}`);
+  text('#destination-lock', available ? '' : '이전 행성 클리어 후 개방');
+  $('#planet-prev').disabled = index === 0; $('#planet-next').disabled = index === content.battlefields.length - 1;
   const speed = Number($('#speed-select').value);
   text('#run-mode-label', speed === 1 ? '일반 · 보상 저장' : `${speed}배속 연습 · 보상 없음`);
   text('#research-credits', profile.researchCredits.toLocaleString());
   const goal = objectiveCopy(planet, r);
   text('#destination-name', planet.name); text('#destination-type', goal.type); text('#destination-description', planet.description);
   text('#destination-win', goal.win); text('#destination-loss', goal.loss);
-  text('#expedition-duration', `최대 ${durationText(expeditionTicks(planet, r))}${speed > 1 ? ' · 배속 연습 / 보상 없음' : ' · 원정 보상 저장'}`);
+  text('#expedition-duration', `최대 ${durationText(expeditionTicks(planet, r))}`);
   text('#home-play', '행성 선택'); $('#home-play').disabled = joining;
-  text('#quick-start', speed === 1 ? '출발' : '연습 출발 · 보상 없음');
-  $('#quick-start').disabled = joining;
+  text('#quick-start', !available ? '아직 갈 수 없는 행성' : speed === 1 ? '출발' : '연습 출발');
+  $('#quick-start').disabled = joining || !available;
   $('#join-form button').disabled = joining;
   $('#research-btn').disabled = false;
 }
@@ -213,7 +218,7 @@ function accept(next) {
   const player = me(); if (!player) { active = false; notice('내 참가 정보를 찾을 수 없습니다. 새 연습으로 시작하세요.', 'error'); return; }
   selected = new Set([...selected].filter(unitId => player.units.some(u => u.id === unitId && !u.dispatched)));
   if (!player.units.some(u => u.id === focusedId && !u.dispatched) || player.status !== 'active') {
-    const consumedFocus = focusedId; focusedId = null; saleId = null; $('#unit-dialog').close();
+    const consumedFocus = focusedId; focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close();
     if (player.status === 'active' && pending?.type === 'combine' && pending.unitIds.includes(consumedFocus)) {
       const resultId = content.recipes.find(recipe => recipe.id === pending.recipeId)?.result;
       const oldIds = new Set(previous?.players.find(p => p.id === playerId)?.units.map(u => u.id) || []);
@@ -227,10 +232,10 @@ function accept(next) {
   if (previous) {
     const oldPlayer = previous.players.find(p => p.id === playerId), oldLane = previous.players.find(p => p.id === watchedId);
     if (state.wave > previous.wave && state.expedition?.phase === 'mining') {
-      combatAlert(`WAVE ${String(state.wave).padStart(2, '0')}`, '다음 무리가 접근합니다'); sound('wave');
+      combatAlert(`${state.wave} 웨이브`, '', 'wave');
     }
     const oldIds = new Set(oldPlayer?.units.map(u => u.id) || []);
-    const arrival = player.units.find(u => !oldIds.has(u.id) && ['elite', 'hero', 'legend'].includes(definitions.get(u.definitionId).rarity));
+    const arrival = player.units.find(u => !oldIds.has(u.id) && ['hero', 'legend'].includes(definitions.get(u.definitionId).rarity));
     if (arrival) {
       const definition = definitions.get(arrival.definitionId);
       combatAlert(`${rarityName(definition)} 기동 · ${definition.name}`, attackName(definition), 'success', 2);
@@ -261,7 +266,13 @@ async function sendAction(type, extra = {}, retry = false) {
   const packet = retry ? pending : { seq: me().lastSeq + 1, type, ...extra }; if (!packet) return false;
   setPending(packet); actionBusy = true; render();
   try {
-    const response = await api('/action', packet); acceptProfile(response.profile); accept(response.state); setPending(null);
+    const response = await api('/action', packet);
+    if (response.ok && ['summon', 'combine'].includes(packet.type) && watchedId === playerId) {
+      const oldIds = new Set(me().units.map(unit => unit.id));
+      const arrival = response.state.players.find(player => player.id === playerId)?.units.find(unit => !oldIds.has(unit.id));
+      if (arrival) field.markArrival(arrival.id, packet.type);
+    }
+    acceptProfile(response.profile); accept(response.state); setPending(null);
     if (response.ok) {
       if (metrics && Object.hasOwn(metrics.actionCounts, packet.type)) { metrics.actionCounts[packet.type]++; mark(packet.type); persistMetrics(); }
       const messages = { summon: '로봇 뽑기 완료!', combine: `${name(content.recipes.find(r => r.id === packet.recipeId)?.result)} 조립 완료!`, upgrade: `${names[packet.tag]} 강화 완료`, dispatch: '스토리에 파견했어요. 내 방어가 줄어들어요.', salvage: '판매 완료 · 고철을 회수했어요.', leave: '전장에서 나왔습니다.' };
@@ -276,32 +287,32 @@ function materials(recipe, focus = null) { return recipeMaterials(recipe, me()?.
 function materialHTML(recipe) { return materials(recipe).entries.map(e => `<span class="material ${e.have >= e.need ? 'enough' : ''}">${escape(name(e.key))} <b>${e.have}/${e.need}</b></span>`).join(''); }
 function assemblyStatus(recipe, stock) {
   const missing = stock.entries.filter(entry => entry.have < entry.need).map(entry => `${name(entry.key)} ${entry.need - entry.have}기`);
-  return [isUnlocked(recipe) ? '' : '설계도 연구 필요', missing.length ? missing.join(' · ') + ' 필요' : isUnlocked(recipe) ? '재료 준비 완료' : ''].filter(Boolean).join(' · ');
+  return [isUnlocked(recipe) ? '' : '설계도 연구 필요', missing.length ? missing.join(' · ') + ' 부족' : isUnlocked(recipe) ? '조립 가능' : ''].filter(Boolean).join(' · ');
 }
 function controlsAvailable() { return connected && !actionBusy && !pending && me()?.status === 'active'; }
 function dismissUnit() {
   if (!$('#unit-dialog').open && focusedId === null) return;
-  focusedId = null; saleId = null; $('#unit-dialog').close(); render();
+  focusedId = null; saleId = null; $('#unit-dialog').close(); $('#unit-inspection-dialog').close(); render();
 }
 function selectUnit(unitId) {
   if (unitId === null) { dismissUnit(); return; }
   const unit = me()?.units.find(u => u.id === unitId); if (!unit || unit.dispatched || watched()?.id !== playerId) return;
   const changed = focusedId !== unitId;
-  if (changed) saleId = null;
-  focusedId = unitId; $('#command-dialog').close(); render();
-  if (changed) { $('#evolution-panel').scrollTop = 0; $('#evolution-panel').scrollLeft = 0; }
+  if (changed) { saleId = null; inspectedRecipe = null; $('#unit-inspection-dialog').close(); }
+  focusedId = unitId; $('#command-dialog').close();
   if (!$('#unit-dialog').open) $('#unit-dialog').show();
+  render();
+  if (changed) { $('#evolution-panel').scrollTop = 0; $('#evolution-panel').scrollLeft = 0; }
 }
 function renderEvolution() {
   const player = me(), unit = player.units.find(u => u.id === focusedId && !u.dispatched);
   const selling = !!unit && saleId === unit.id;
-  $('#evolution-panel').hidden = selling; $('#sale-inspection').hidden = !selling;
+  $('#sale-inspection').hidden = !selling;
   if (!unit) { html('#evolution-panel', ''); return; }
-  $('#unit-dialog').dataset.placement = field.position(unit.slot).y > field.worldHeight * .55 ? 'top' : 'bottom';
   const definition = definitions.get(unit.definitionId), choices = evolutionOptions(content, player, focusedId);
   text('#unit-title', definition.name);
   $('#unit-title').title = definition.name;
-  text('#unit-subtitle', `${attackRole(definition)} · 사거리 ${rangeName(definition)}`);
+  text('#unit-subtitle', ({ fire: '화염 · 근거리', wind: '바람 · 범위 공격', frost: '냉동 · 감속', laser: '레이저 · 원거리', electric: '전격 · 연쇄 공격' })[definition.element] || attackRole(definition));
   $('#unit-subtitle').title = attackDescription(definition);
   $('#unit-portrait').setAttribute('style', portraitStyle(definition).replaceAll('&quot;', '"'));
   const away = player.units.filter(u => u.dispatched).length;
@@ -316,30 +327,46 @@ function renderEvolution() {
     text('#sale-description', `뽑기 비용 ${Math.round(rules().salvageRefundRatio * 100)}% 회수`);
     text('#confirm-sale', `판매 · +${unit.salvageGold || 0} 고철`);
     $('#confirm-sale').setAttribute('aria-label', `${definition.name} 1기 판매 · ${unit.salvageGold || 0} 고철 회수`);
-    return;
   }
-  const options = choices.length ? choices.map(({ recipe, materials: m }) => {
-    const result = definitions.get(recipe.result), consumed = m.ids.map(id => player.units.find(u => u.id === id));
-    const before = consumed.reduce((sum, u) => sum + theoreticalDps(definitions.get(u.definitionId), player, rules()), 0);
-    const after = theoreticalDps(result, player, rules());
-    const alternatives = content.recipes.filter(other => other.id !== recipe.id && other.ingredients.some(id => recipe.ingredients.includes(id)));
-    const complete = m.ids.length === recipe.ingredients.length;
+  renderUnitInspection(player, unit, definition);
+  const options = choices.length ? choices.map(({ recipe, materials: m }, index) => {
+    const result = definitions.get(recipe.result);
     return `<article class="evolution-card ${m.ready ? 'ready' : ''}" data-evolution-result="${result.id}">
-      <div class="evolution-main"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(result)}" aria-hidden="true"></span><h3>${escape(result.name)}<small>${attackRole(result)} · 사거리 ${rangeName(result)}</small></h3></div></div>
+      <div class="evolution-main"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(result)}" aria-hidden="true"></span><h3>${escape(result.name)}</h3></div></div>
       <button class="primary evolve-button" data-evolve-recipe="${recipe.id}" aria-label="${escape(result.name)} ${m.ready ? '조립' : escape(assemblyStatus(recipe, m))}" ${!controlsAvailable() || !m.ready ? 'disabled' : ''}>조립</button>
       <p class="assembly-status">${escape(assemblyStatus(recipe, m))}</p></div>
-      <div class="materials" aria-label="소모할 재료와 보유 수">${materialHTML(recipe)}</div>
-      <details class="evolution-detail"><summary>${recipe.ingredients.length}기 → 1기 · 이 자리에서 조립</summary>
-      <p class="consumption">${complete ? '소모: ' + consumed.map(u => escape(name(u.definitionId)) + (u.id === focusedId ? ' (선택)' : '')).join(' + ') : '표시된 로봇이 모두 있어야 조립할 수 있어요.'}</p>
-      <p>선택 로봇: ${rarityName(definition)} · ${attackDescription(definition)} ${names[definition.faction]} / ${names[definition.troop]} / ${names[definition.trait]}</p>
-      <p class="evolution-change">결과: ${rarityName(result)} · ${names[result.faction]} / ${names[result.troop]} / ${names[result.trait]} 강화 적용</p>
-      <p>${complete ? '소모 로봇 합 ' + before.toFixed(1) + ' → ' : '결과 로봇 '}${after.toFixed(1)} /초 · 현재 강화 반영</p><small>주 대상 이론치 · 범위·연쇄·초과 피해 제외</small>
-      <p>${attackName(result)} · 사거리 ${rangeName(result)} · ${attackDescription(result)}</p>
-      ${alternatives.length ? '<p>다른 사용처: ' + alternatives.map(r => escape(name(r.result))).join(', ') + '</p>' : ''}
-      <button class="text-button" data-plan-recipe="${recipe.id}">전체 조립 경로</button><button class="pin-button" data-pin="${recipe.id}" aria-label="${escape(result.name)} 목표 지정" aria-pressed="${pinned === recipe.id}">${pinned === recipe.id ? '★ 목표 해제' : '☆ 목표 지정'}</button></details>
+      <div class="assembly-footer"><span class="assembly-consumption">${recipe.ingredients.length}기 소모 · 이 자리 조립</span><button class="text-button" data-evolution-detail="${recipe.id}">상세</button>${choices.length > 1 ? `<button class="text-button" data-evolution-next="${(index + 1) % choices.length}" aria-label="다음 조립 보기 · 현재 ${index + 1}/${choices.length}">${index + 1}/${choices.length} ›</button>` : ''}</div>
     </article>`;
-  }).join('') : `<p class="empty-roster">최종 조립 완성</p><details class="evolution-detail"><summary>공격·강화 대상 보기</summary><p>${rarityName(definition)} · ${attackDescription(definition)}</p><p>${names[definition.faction]} / ${names[definition.troop]} / ${names[definition.trait]} 강화 적용</p><p>주 대상 ${theoreticalDps(definition, player, rules()).toFixed(1)} /초 · 현재 강화 반영</p><small>범위·연쇄·초과 피해 제외</small></details>`;
+  }).join('') : '<p class="empty-roster">최종 조립 완성</p>';
   html('#evolution-panel', options);
+  if ($('#unit-dialog').open) {
+    const dialog = $('#unit-dialog'), area = $('.canvas-wrap').getBoundingClientRect(), canvas = field.canvas.getBoundingClientRect();
+    const position = field.position(unit.slot), robotHeight = field.unitHeight(definition) * field.scale;
+    const center = canvas.top - area.top + field.oy + position.y * field.scale - robotHeight * .47;
+    const top = Math.max(...['.canvas-wrap>.side-column', '.arena-panel>.panel-heading', '#boss-hud', '#threat-label']
+      .map(selector => $(selector)).filter(element => element.getClientRects().length > 0)
+      .map(element => element.getBoundingClientRect().bottom - area.top)) + 6;
+    const bottom = Math.min($('.command-panel').getBoundingClientRect().top, $('#summon-btn').getBoundingClientRect().top) - area.top - 10;
+    const height = dialog.getBoundingClientRect().height, lower = Math.max(top, bottom - height);
+    const overlap = y => Math.max(0, Math.min(y + height, center + robotHeight / 2) - Math.max(y, center - robotHeight / 2));
+    const above = overlap(top) < overlap(lower) || (overlap(top) === overlap(lower) && center > (top + bottom) / 2);
+    dialog.dataset.placement = above ? 'top' : 'bottom';
+    dialog.style.top = `${above ? top : lower}px`; dialog.style.bottom = 'auto';
+  }
+}
+function renderUnitInspection(player, unit, definition) {
+  text('#unit-inspection-title', definition.name);
+  const recipe = content.recipes.find(recipe => recipe.id === inspectedRecipe && recipe.ingredients.includes(unit.definitionId));
+  let detail = `<p class="inspection-role">${attackRole(definition)} · 사거리 ${rangeName(definition)}</p><p>${attackDescription(definition)}</p><p>${rarityName(definition)} · ${names[definition.faction]} / ${names[definition.troop]} / ${names[definition.trait]} 강화 적용</p><p>주 대상 ${theoreticalDps(definition, player, rules()).toFixed(1)} /초</p>`;
+  if (recipe) {
+    const result = definitions.get(recipe.result), m = materials(recipe, focusedId);
+    const consumed = m.ids.map(id => player.units.find(unit => unit.id === id));
+    const complete = m.ids.length === recipe.ingredients.length;
+    const before = consumed.reduce((sum, unit) => sum + theoreticalDps(definitions.get(unit.definitionId), player, rules()), 0);
+    const alternatives = content.recipes.filter(other => other.id !== recipe.id && other.ingredients.some(id => recipe.ingredients.includes(id)));
+    detail += `<section class="assembly-inspection"><h3>${escape(result.name)} 조립</h3><p class="assembly-status">${escape(assemblyStatus(recipe, m))}</p><div class="materials" aria-label="소모할 재료와 보유 수">${materialHTML(recipe)}</div><p class="consumption">${complete ? '소모: ' + consumed.map(unit => escape(name(unit.definitionId)) + (unit.id === focusedId ? ' (선택)' : '')).join(' + ') : '표시된 재료가 모두 필요해요.'}</p><p>${recipe.ingredients.length}기 → 1기 · 선택한 자리 유지</p><p>${rarityName(result)} · ${names[result.faction]} / ${names[result.troop]} / ${names[result.trait]} 강화 적용</p><p>${complete ? before.toFixed(1) + ' → ' : ''}${theoreticalDps(result, player, rules()).toFixed(1)} /초</p><p>${attackRole(result)} · 사거리 ${rangeName(result)}<br>${attackDescription(result)}</p>${alternatives.length ? '<p>다른 사용처: ' + alternatives.map(recipe => escape(name(recipe.result))).join(', ') + '</p>' : ''}<button class="secondary" data-plan-recipe="${recipe.id}">전체 조립 경로</button><button class="text-button" data-pin="${recipe.id}" aria-pressed="${pinned === recipe.id}">${pinned === recipe.id ? '목표 해제' : '이번 판 목표 지정'}</button></section>`;
+  }
+  html('#unit-inspection-content', detail + '<small>피해량은 현재 강화가 반영된 주 대상 이론치예요. 범위·연쇄·초과 피해는 제외해요.</small>');
 }
 function switchTab(value) {
   currentTab = value; upgradeTag = null;
@@ -353,12 +380,13 @@ function switchTab(value) {
 
 function renderUpgrade() {
   $('#upgrade-list').hidden = !!upgradeTag; $('#upgrade-inspection').hidden = !upgradeTag;
+  if (currentTab === 'upgrades') text('#command-title', upgradeTag ? `${names[upgradeTag]} 강화` : '로봇 강화');
   if (!upgradeTag) return;
   const player = me(), r = rules(), level = player.upgrades[upgradeTag], max = level >= r.maxUpgradeLevel;
   const affected = player.units.filter(u => { const d = definitions.get(u.definitionId); return [d.faction, d.troop, d.trait].includes(upgradeTag); }).length;
   text('#upgrade-title', `${names[upgradeTag]} · Lv.${level}${max ? ' 최대' : ' → ' + (level + 1)}`);
-  text('#upgrade-effect', `${names[upgradeTag]} 공격력 +${Math.round(r.upgradeBonus * 100)}% 추가 · 새 로봇도 적용`);
-  text('#upgrade-applies', `보유 ${affected}기 · 이번 원정만 유지 · 다른 분류 강화와 합산`);
+  text('#upgrade-effect', `공격력 +${Math.round(r.upgradeBonus * 100)}%`);
+  text('#upgrade-applies', `이번 원정 · ${affected}기 + 새 로봇\n다른 분류 강화와 합산`);
   text('#upgrade-buy', max ? '강화 완료' : `${r.upgradeCosts[level]} 고철 · 강화`);
   $('#upgrade-buy').disabled = !controlsAvailable() || max || player.gold < r.upgradeCosts[level];
 }
@@ -385,16 +413,21 @@ function render() {
   text('#lane-title', lane.id === playerId ? '내 구역' : '동료 구역'); text('#lane-status', statuses[lane.status]);
   text('#enemy-count', facility ? `${state.objective.label} ${Math.ceil(lane.facilityHp / state.objective.facilityHp * 100)}% · 공격 ${lane.facilityAttackers}기` : `적 ${lane.enemies.length} / ${r.overcrowdCount}`);
   $('#threat-meter').value = facility ? lane.facilityHp / state.objective.facilityHp * 100 : Math.min(100, lane.enemies.length / r.overcrowdCount * 100);
-  text('#threat-label', lane.overcrowdedTicks > 0 ? `과밀 · ${((r.overcrowdTicks - lane.overcrowdedTicks) / r.ticksPerSecond).toFixed(1)}초` : lane.enemies.length >= r.overcrowdCount * .7 ? '적 밀집' : '방어선');
+  const overcrowded = !facility && lane.overcrowdedTicks > 0 && lane.status === 'active';
+  const facilityDanger = facility && lane.facilityHp <= state.objective.facilityHp * .3 && lane.status === 'active';
+  $('#threat-label').hidden = !overcrowded && !facilityDanger;
+  text('#threat-label', overcrowded ? `과밀 · ${(Math.max(0, r.overcrowdTicks - lane.overcrowdedTicks) / r.ticksPerSecond).toFixed(1)}초` : facilityDanger ? `${state.objective.label} 위험` : '방어선');
   const boss = lane.enemies.find(enemy => enemy.boss);
   $('#boss-hud').hidden = !boss;
   if (boss) {
     text('#boss-label', '폭주 압축기'); $('#boss-health').value = Math.max(0, boss.hp / boss.maxHp * 100);
     text('#boss-hp', `${Math.ceil(boss.hp).toLocaleString()} / ${boss.maxHp.toLocaleString()}`);
     $('#boss-health').setAttribute('aria-valuetext', `체력 ${Math.ceil(boss.hp)} / ${boss.maxHp}`);
+    text('#boss-deadline', state.bossRemainingTicks != null ? `제한 ${(Math.max(0, state.bossRemainingTicks) / r.ticksPerSecond).toFixed(1)}초` : '');
   }
   text('#battle-rule', lane.overcrowdedTicks > 0 ? `과밀! ${(Math.max(0, r.overcrowdTicks - lane.overcrowdedTicks) / r.ticksPerSecond).toFixed(1)}초` : `${planet?.name || '원정'}${state.practice ? ' · 연습' : ''}`);
-  text('#next-wave', state.bossRemainingTicks != null ? `보스 제한 ${(state.bossRemainingTicks / r.ticksPerSecond).toFixed(1)}초` : `다음 웨이브 ${Math.ceil((r.waveTicks - state.tick % r.waveTicks) / r.ticksPerSecond)}초`);
+  $('#next-wave').hidden = state.bossRemainingTicks != null;
+  text('#next-wave', `다음 무리 ${Math.ceil((r.waveTicks - state.tick % r.waveTicks) / r.ticksPerSecond)}초`);
   $('#field-hint').hidden = lane.units.length > 0 && lane.status === 'active'; text('#field-hint', lane.status !== 'active' ? `${statuses[lane.status]} · 동료 카드를 눌러 다른 전장을 확인하세요.` : '로봇을 뽑아 방어를 시작하세요.');
   field.expedition = expedition; field.battlefieldId = state.battlefieldId; field.objective = state.objective;
   field.update(lane, definitions, lane.id === playerId ? new Set(focusedId === null ? [] : [focusedId]) : new Set(), speed, settings.reduced);
@@ -533,7 +566,13 @@ function openFeedback() { $('#result-dialog').close(); text('#feedback-count', `
 $('#quick-start').addEventListener('click', newGame);
 $('#home-play').addEventListener('click', () => { renderLobby(); showLobbyScreen('stages'); });
 $('#stage-back').addEventListener('click', () => showLobbyScreen('home'));
-for (const selector of ['#join-open', '#home-join']) $(selector).addEventListener('click', () => { text('#join-notice', ''); $('#join-dialog').showModal(); });
+$('#planet-picker').addEventListener('click', () => $('#planet-dialog').showModal());
+for (const [selector, step] of [['#planet-prev', -1], ['#planet-next', 1]]) $(selector).addEventListener('click', () => {
+  const index = content.battlefields.findIndex(planet => planet.id === selectedBattlefield);
+  const next = content.battlefields[index + step];
+  if (next) { selectedBattlefield = next.id; save(localStorage, 'td.battlefield', selectedBattlefield); $('#destination-details').open = false; renderLobby(); }
+});
+for (const selector of ['#join-open', '#home-join']) $(selector).addEventListener('click', () => { $('#planet-dialog').close(); text('#join-notice', ''); $('#join-dialog').showModal(); });
 $('#speed-select').addEventListener('change', renderLobby);
 $('#research-btn').addEventListener('click', () => { renderResearch(); $('#research-dialog').showModal(); });
 $('#blueprint-pin').addEventListener('click', () => {
@@ -573,17 +612,25 @@ $('#reduced-motion').addEventListener('change', event => { settings.reduced = ev
 $('#sound-enabled').addEventListener('change', async event => { settings.sound = event.target.checked; if (settings.sound) { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); await audioContext.resume(); } catch { settings.sound = false; toast('이 브라우저에서는 효과음을 사용할 수 없습니다.'); } } applySettings(); sound('summon'); });
 document.addEventListener('click', event => {
   const unitDialog = $('#unit-dialog');
-  if (unitDialog.open && !unitDialog.contains(event.target) && event.target !== $('#battlefield')) dismissUnit();
+  if (unitDialog.open && !unitDialog.contains(event.target) && !event.target.closest('dialog:modal') && event.target !== $('#battlefield')) dismissUnit();
   const button = event.target.closest('button'); if (!button || button.disabled) return;
   if (button.dataset.tab) switchTab(button.dataset.tab);
   if (button.dataset.unitId) { if (watchedId !== playerId) watchedId = playerId; selectUnit(Number(button.dataset.unitId)); }
   if (button.dataset.watch) { watchedId = button.dataset.watch; $('#co-op-dialog').close(); render(); }
   if (button.dataset.evolveRecipe && focusedId !== null) { const recipe = content.recipes.find(r => r.id === button.dataset.evolveRecipe), m = materials(recipe, focusedId); if (m.ready) sendAction('combine', { recipeId: recipe.id, unitIds: m.ids }); }
   if (button.dataset.upgradeTag) { upgradeTag = button.dataset.upgradeTag; renderUpgrade(); }
+  if (button.dataset.evolutionNext !== undefined) {
+    const card = $('#evolution-panel').children[Number(button.dataset.evolutionNext)];
+    if (card) $('#evolution-panel').scrollTo({ left: card.offsetLeft - $('#evolution-panel').firstElementChild.offsetLeft, behavior: settings.reduced ? 'instant' : 'smooth' });
+  }
+  if ((button.id === 'unit-manage' || button.dataset.evolutionDetail) && focusedId !== null) {
+    inspectedRecipe = button.dataset.evolutionDetail || null; saleId = null; renderEvolution();
+    $('#unit-inspection-dialog').showModal(); $('#unit-inspection-dialog').scrollTop = 0;
+  }
   if (button.id === 'sell-unit' && focusedId !== null) { saleId = saleId === focusedId ? null : focusedId; renderEvolution(); }
   if (button.id === 'confirm-sale' && saleId !== null && saleId === focusedId) sendAction('salvage', { unitIds: [saleId] });
   if (button.dataset.combineRecipe) { const recipe = content.recipes.find(r => r.id === button.dataset.combineRecipe), m = materials(recipe); if (m.ready) { selectUnit(m.ids[0]); toast('조립할 위치의 재료 로봇을 선택하세요.'); } }
-  if (button.dataset.battlefield) { selectedBattlefield = Number(button.dataset.battlefield); save(localStorage, 'td.battlefield', selectedBattlefield); renderLobby(); }
+  if (button.dataset.battlefield) { selectedBattlefield = Number(button.dataset.battlefield); save(localStorage, 'td.battlefield', selectedBattlefield); $('#destination-details').open = false; renderLobby(); $('#planet-dialog').close(); }
   if (button.dataset.researchRecipe) researchRecipe(button.dataset.researchRecipe);
   if (button.dataset.planRecipe) openBlueprint(button.dataset.planRecipe);
   if (button.dataset.pin) { pinned = pinned === button.dataset.pin ? null : button.dataset.pin; save(localStorage, 'td.goal', pinned); render(); }

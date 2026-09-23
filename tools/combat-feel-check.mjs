@@ -100,6 +100,19 @@ try {
   const recipe = content.recipes.find(r => r.unlockBattlefield === 0 && r.ingredients.length === 2);
   player.units.slice(0, 2).forEach((unit, i) => { unit.definitionId = recipe.ingredients[i]; });
   const beforeAssembly = player.units.map(unit => unit.id), anchorSlot = player.units[0].slot;
+  await page.evaluate(async () => {
+    const { Battlefield } = await import('/battlefield.js');
+    window.assemblyObservation = { acknowledgements: [], effects: [] };
+    const markArrival = Battlefield.prototype.markArrival, addEffect = Battlefield.prototype.addEffect;
+    Battlefield.prototype.markArrival = function(id, kind) {
+      window.assemblyObservation.acknowledgements.push({ id, kind });
+      return markArrival.call(this, id, kind);
+    };
+    Battlefield.prototype.addEffect = function(effect) {
+      if (effect.type === 'assembly') window.assemblyObservation.effects.push({ life: effect.life, x: effect.x, y: effect.y });
+      return addEffect.call(this, effect);
+    };
+  });
   await page.waitForTimeout(250);
   await page.locator('#recipes-tab').tap();
   await page.locator(`[data-combine-recipe="${recipe.id}"]:enabled`).tap();
@@ -111,13 +124,16 @@ try {
   assert.equal(assembled.definitionId, recipe.result);
   assert.equal(assembled.slot, anchorSlot);
   if (await page.locator('#unit-dialog[open]').count()) await page.locator('[data-close="unit-dialog"]').tap();
-  assert.ok(await page.locator('#combat-alert').isVisible());
+  const assemblyCue = await page.evaluate(() => window.assemblyObservation);
+  assert.deepEqual(assemblyCue.acknowledgements, [{ id: assembled.id, kind: 'combine' }]);
+  assert.equal(assemblyCue.effects.length, 1);
+  assert.equal(assemblyCue.effects[0].life, 400);
   await page.screenshot({ path: 'artifacts/combat-assembly.png' });
-  pass('UI assembly consumes materials and shows a nonblocking activation cue');
+  pass('UI assembly consumes materials at the selected slot and triggers one 400ms field assembly cue');
   await page.locator('#combat-alert').waitFor({ state: 'hidden' });
 
   game.tick = game.rules.waveTicks - 1; tick(game);
-  await page.waitForFunction(() => document.querySelector('#combat-alert-title').textContent === 'WAVE 02');
+  await page.waitForFunction(() => document.querySelector('#combat-alert-title').textContent === '2 웨이브');
   assert.equal(await page.locator('dialog[open]').count(), 0);
   pass('new waves announce themselves without opening a dialog');
   game.tick = game.rules.waveTicks * game.rules.totalWaves - 1;
@@ -147,6 +163,6 @@ try {
   for (const context of contexts) await context.close();
   if (page) { const path = await page.video()?.path(); if (path) report.artifacts.push(path); }
   if (browser) await browser.close();
-  await new Promise(resolve => server.close(resolve));
+  await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
   report.errors = errors; await writeFile('artifacts/combat-feel-report.json', JSON.stringify(report, null, 2));
 }

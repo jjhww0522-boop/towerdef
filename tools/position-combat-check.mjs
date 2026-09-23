@@ -42,16 +42,21 @@ try {
     assert.equal(player.lastSeq, before.seq, 'codex selects a placement before consuming materials');
     assert.equal(player.units.length, before.units);
     assert.equal(await page.evaluate(id => window.positionField.selected.has(id), anchor.id), true);
-    assert.match(await page.locator('#unit-subtitle').innerText(), /화염.*사거리 짧음/);
+    assert.equal(await page.locator('#unit-subtitle').innerText(), '화염 · 근거리');
     await page.waitForTimeout(450);
-    const selectedVisible = await page.evaluate(id => {
+    const visibility = await page.evaluate(id => {
       const f = window.positionField, v = f.units.get(id), b = f.canvas.getBoundingClientRect();
       const h = f.unitHeight(f.definitions.get(v.unit.definitionId));
-      return document.elementFromPoint(b.left + f.ox + v.x * f.scale, b.top + f.oy + (v.y - h * .47) * f.scale) === f.canvas;
+      const point = { x: b.left + f.ox + v.x * f.scale, y: b.top + f.oy + (v.y - h * .47) * f.scale };
+      const element = document.elementFromPoint(point.x, point.y);
+      return { visible: element === f.canvas, point,
+        field: { worldHeight: f.worldHeight, x: v.x, y: v.y, ox: f.ox, oy: f.oy, scale: f.scale },
+        dialog: document.querySelector('#unit-dialog').getBoundingClientRect().toJSON(),
+        blocker: element && { tag: element.tagName, id: element.id, className: element.className } };
     }, anchor.id);
-    assert.equal(selectedVisible, true, 'floating inspector leaves the selected robot visible');
     const path = `artifacts/position-combat-${size.width}.png`;
     await page.screenshot({ path });
+    assert.equal(visibility.visible, true, 'floating inspector leaves the selected robot visible: ' + JSON.stringify(visibility));
     const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/action');
     await page.locator('#unit-dialog [data-evolve-recipe="make_guan_ping"]').tap();
     const response = await responsePromise, packet = response.request().postDataJSON(), result = await response.json();

@@ -15,11 +15,13 @@ const clamp = value => Math.max(0, Math.min(1, value));
 const easeOut = value => 1 - Math.pow(1 - clamp(value), 3);
 const attackTimings = { fire: [65, 125, 120], wind: [125, 170, 170], frost: [80, 180, 130], laser: [110, 55, 95] };
 const defaultAttackTiming = [80, 150, 90];
+// Presentation only: leave the lighter open between confirmed shots, then close it at rest.
+const LIGHTER_READY_MS = 1200;
 // Presentation only. Attack stamps, health and removal come from the server.
 export class Battlefield {
   constructor(canvas, onSelect, onCombat = () => {}) {
     this.canvas = canvas; this.ctx = canvas.getContext('2d');
-    this.units = new Map(); this.enemies = new Map(); this.effects = [];
+    this.units = new Map(); this.enemies = new Map(); this.effects = []; this.arrivals = new Map();
     this.player = null; this.selected = new Set(); this.reduced = false;
     this.frames = new Map(); this.walkFrames = []; this.drawOrder = [];
     this.lastFrame = performance.now(); this.lastSnapshotAt = 0; this.snapshotDelay = 200;
@@ -109,6 +111,8 @@ export class Battlefield {
     this.effects.push(effect);
   }
 
+  markArrival(unitId, kind) { this.arrivals.set(unitId, kind); }
+
   burst(x, y, color, now, count = 5) {
     for (let i = 0; i < count; i++) {
       const angle = i / count * Math.PI * 2 + x * .013;
@@ -130,7 +134,7 @@ export class Battlefield {
     const unitIds = new Set(player.units.map(unit => unit.id));
     const enemyIds = new Set(player.enemies.map(enemy => enemy.id));
     const previousArrival = this.lastSnapshotAt;
-    if (resuming) this.effects.length = 0;
+    if (resuming) { this.effects.length = 0; this.arrivals.clear(); }
     const impacts = new Map();
     const removedEnemyIds = new Set();
     let destroyed = 0;
@@ -141,17 +145,20 @@ export class Battlefield {
       const definition = definitions.get(unit.definitionId);
       // Decode on snapshot arrival instead of waiting for the first visible pose.
       for (const pose of ['idle', 'windup', 'strike']) this.unitFrame(definition, pose);
+      if (applianceKind(definition) === 'lighter') this.unitFrame(definition, 'recovery');
       let view = this.units.get(unit.id);
       const home = this.position(unit.slot), target = unit.dispatched ? this.portalSlot(unit.id) : home;
       if (!view) {
         view = { x: target.x, y: target.y, born: resuming ? now - 1000 : now,
           attackAt: -10000, lastAttackTick: unit.lastAttackTick, facing: 1, targetX: target.x + 1, targetY: target.y,
-          dispatched: unit.dispatched };
+          dispatched: unit.dispatched, arrivalKind: resuming ? null : this.arrivals.get(unit.id) || 'summon' };
         this.units.set(unit.id, view);
         if (!resuming) {
           const color = palette[definitions.get(unit.definitionId).faction];
-          this.addEffect({ type: 'landing', x: home.x, y: home.y, color, born: now, life: 520 });
-          this.burst(home.x, home.y - 4, color, now + 190, 6);
+          const assembling = view.arrivalKind === 'combine';
+          this.addEffect({ type: assembling ? 'assembly' : 'landing', x: home.x,
+            y: assembling ? home.y - this.unitHeight(definition) * .45 : home.y,
+            color, born: now, life: assembling ? 400 : 300 });
           this.onCombat({ type: 'assemble', intensity: .6 });
         }
       } else {
@@ -168,6 +175,8 @@ export class Battlefield {
       view.unit = unit;
       if (resuming) { view.attackAt = -10000; view.lastAttackTick = unit.lastAttackTick; }
     }
+    // An acknowledgement belongs to this observation only, never a later lane or reconnect.
+    this.arrivals.clear();
     for (const unitId of this.units.keys()) if (!unitIds.has(unitId)) this.units.delete(unitId);
 
     for (const enemy of player.enemies) {
@@ -236,6 +245,7 @@ export class Battlefield {
     }).filter(Boolean);
     if (!targets.length) return;
     const position = targets[0].position;
+    view.attackFromOpenLid = applianceKind(definition) === 'lighter' && now - view.attackAt < LIGHTER_READY_MS;
     view.attackAt = now;
     view.targetX = position.x; view.targetY = position.y;
     view.hitPositions = targets.map(hit => hit.position);
@@ -571,11 +581,11 @@ export class Battlefield {
         rotation = -view.facing * kick * (definition.element === 'laser' ? .008 : definition.element === 'wind' ? .035 : .02);
       }
       const summonAge = now - view.born;
-      if (summonAge < 420) {
-        const pop = easeOut(summonAge / 250);
+      if (view.arrivalKind !== 'combine' && summonAge < 300) {
+        const pop = easeOut(summonAge / 200);
         stretchX *= .88 + pop * .12; stretchY *= .88 + pop * .12;
-        offsetY -= (1 - pop) * 90;
-        if (summonAge > 220) offsetY += Math.sin((summonAge - 220) / 200 * Math.PI) * 2;
+        offsetY -= (1 - pop) * 55;
+        if (summonAge > 180) offsetY += Math.sin((summonAge - 180) / 120 * Math.PI) * 2;
         context.save(); context.globalAlpha = 1 - pop;
         context.strokeStyle = '#ffe0a4'; context.lineWidth = 2;
         context.beginPath(); context.ellipse(x, y + 1, 19 + pop * 25, 8 + pop * 10, 0, 0, Math.PI * 2); context.stroke(); context.restore();
@@ -593,7 +603,12 @@ export class Battlefield {
       context.strokeStyle = '#fff3a6'; context.lineWidth = 3; context.stroke();
       this.circle(x, y - height - 8, 3, '#ffe3a0');
     }
-    const pose = this.reduced ? 'idle' : age >= 0 && age < prepare ? 'windup' : age >= prepare && age < prepare + travel ? 'strike' : 'idle';
+    let pose = 'idle';
+    if (!this.reduced && age >= 0) {
+      if (age < prepare) pose = appliance === 'lighter' && view.attackFromOpenLid ? 'recovery' : 'windup';
+      else if (age < prepare + travel) pose = 'strike';
+      else if (appliance === 'lighter' && age < LIGHTER_READY_MS) pose = 'recovery';
+    }
     const frame = this.unitFrame(definition, pose);
     this.drawSprite(frame, x + offsetX, y + offsetY, height, view.facing, stretchX, stretchY, rotation);
     if (definition.element) this.circle(x, y + 3, 3, color);
@@ -773,6 +788,17 @@ export class Battlefield {
           context.strokeStyle = '#fff7dc'; context.lineWidth = 2 * (1 - t) + .5;
           context.beginPath(); context.moveTo(-5 - t * 9, 0); context.lineTo(5 + t * 9, 0);
           context.moveTo(0, -5 - t * 9); context.lineTo(0, 5 + t * 9); context.stroke();
+        }
+      } else if (effect.type === 'assembly') {
+        const lock = easeOut(t / .6), distance = 30 - lock * 12;
+        context.translate(effect.x, effect.y); context.globalAlpha = t < .65 ? .85 : (1 - t) / .35;
+        context.strokeStyle = effect.color; context.lineWidth = 2.5;
+        for (const side of [-1, 1]) {
+          context.beginPath(); context.moveTo(side * (distance - 8), -distance);
+          context.lineTo(side * distance, -distance); context.lineTo(side * distance, -distance + 8);
+          context.moveTo(side * (distance - 8), distance);
+          context.lineTo(side * distance, distance); context.lineTo(side * distance, distance - 8); context.stroke();
+          if (t > .55) this.circle(side * 18, 0, 2.5, '#fff0be');
         }
       } else if (effect.type === 'landing') {
         const fall = clamp(t / .45);

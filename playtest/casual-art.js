@@ -18,7 +18,7 @@ export function applianceKind(definition) {
 }
 
 function applianceSvg(kind, pose) {
-  const ready = pose === 'windup', firing = pose === 'strike';
+  const ready = pose === 'windup', firing = pose === 'strike', recovering = pose === 'recovery';
   let shapes = ellipse(47, 88, 26, 3, '#06141c44', 'stroke="none"');
   if (kind === 'lighter') {
     shapes += svgPath('M37 70 L35 81 M59 70 L63 81', 'none', 'stroke="#596765" stroke-width="6"');
@@ -27,7 +27,7 @@ function applianceSvg(kind, pose) {
     shapes += svgPath('M32 39 L32 62 Q32 68 39 68', 'none', 'stroke="#ffd6a2" stroke-width="3"');
     shapes += rect(36, 23, 28, 13, 3, '#d5d1bb');
     for (const x of [42, 49, 56]) shapes += circle(x, 29, 1.6, '#48585b', 'stroke="none"');
-    shapes += `<g transform="rotate(${firing ? -105 : ready ? -25 : 0} 30 35)">`;
+    shapes += `<g transform="rotate(${firing || recovering ? -105 : ready ? -25 : 0} 30 35)">`;
     shapes += rect(29, 18, 39, 18, 4, '#ce704c') + svgPath('M33 22 L62 22', 'none', 'stroke="#f3b27b" stroke-width="2"') + '</g>';
     shapes += circle(30, 35, 3, '#d5d1bb');
     shapes += circle(60, 24, 5, '#7a8581') + svgPath(`M57 ${ready ? 20 : 23} L63 ${ready ? 26 : 23}`, 'none', 'stroke="#e8dfc8" stroke-width="1.5"');

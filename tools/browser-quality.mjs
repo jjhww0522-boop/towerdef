@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { selectDestination, selectRunSpeed } from './playtest-navigation.mjs';
+import { selectDestination, selectRunSpeed, openUnitInspection, closeUnitInspection } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -145,6 +145,7 @@ try {
     assert.equal(status.includes('설계도 연구 필요'), recipe.unlockBattlefield !== 0 && !authoritative.player.unlockedRecipes.includes(recipe.id), `${recipe.id}: research requirement matches unlocked recipes`);
   }
   pass('selected unit shows exact missing material names and quantities with disabled execution');
+  await openUnitInspection(page);
   assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'false', 'opening detail does not queue a unit');
   await page.locator('#queue-dispatch').click();
   assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'true');
@@ -155,6 +156,8 @@ try {
   await page.locator('#queue-dispatch').click();
   assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'false');
   assert.equal(await page.locator(`[data-unit-id="${firstUnit.id}"]`).getAttribute('aria-pressed'), 'true', 'queue changes do not change the focused unit');
+  await closeUnitInspection(page);
+  assert.equal(await page.locator('#unit-dialog').isVisible(), true, 'closing management preserves the selected robot summary');
   await page.locator('[data-close="unit-dialog"]').click();
   pass('evolution focus and local dispatch queue remain independent');
   // Real random draws, never injected units or a client-side outcome. Try a small
@@ -228,7 +231,11 @@ try {
   await mobile.screenshot({ path: 'artifacts/evolution-mobile.jpg', type: 'jpeg', quality: 70, fullPage: false });
   pass('mobile selected-unit evolution panel is captured', { artifact: 'artifacts/evolution-mobile.jpg' });
   await touchTarget(mobile, '#unit-dialog [data-evolve-recipe]', 'evolution path');
+  await touchTarget(mobile, '#unit-manage', 'unit management entry');
+  await openUnitInspection(mobile);
   await touchTarget(mobile, '#queue-dispatch', 'dispatch queue');
+  await touchTarget(mobile, '#sell-unit', 'sale preview entry');
+  await closeUnitInspection(mobile);
   await mobile.locator('[data-close="unit-dialog"]').tap();
   await mobile.waitForFunction(() => !document.querySelector('#unit-dialog').open);
   await mobile.locator('[data-tab="recipes"]').tap();

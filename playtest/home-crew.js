@@ -9,7 +9,8 @@ export function mountHomeCrew(container) {
   ];
   for (const definition of crew) {
     const robot = document.createElement('div'); robot.className = 'crew-robot'; robot.dataset.device = definition.device;
-    for (const pose of ['idle', 'windup', 'strike']) {
+    const poses = definition.device === 'lighter' ? ['idle', 'windup', 'strike', 'recovery'] : ['idle', 'windup', 'strike'];
+    for (const pose of poses) {
       const frame = new Image(); frame.src = unitSpriteUrl(definition, pose); frame.alt = ''; frame.className = 'pose-' + pose;
       frame.width = 144; frame.height = 144; robot.append(frame);
     }

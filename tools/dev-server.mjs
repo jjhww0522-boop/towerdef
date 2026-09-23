@@ -20,6 +20,8 @@ staticFiles['/mobile-game.css'] = ['mobile-game.css', 'text/css'];
 staticFiles['/home-crew.js'] = ['home-crew.js', 'text/javascript'];
 staticFiles['/assets/crew-deck.svg'] = ['assets/crew-deck.svg', 'image/svg+xml'];
 staticFiles['/assets/fonts/PretendardVariable.woff2'] = ['assets/fonts/PretendardVariable.woff2', 'font/woff2'];
+staticFiles['/assets/fonts/DoHyeon-Regular.ttf'] = ['assets/fonts/DoHyeon-Regular.ttf', 'font/ttf'];
+staticFiles['/assets/fonts/DoHyeon-OFL.txt'] = ['assets/fonts/DoHyeon-OFL.txt', 'text/plain'];
 staticFiles['/assets/fonts/OFL.txt'] = ['assets/fonts/OFL.txt', 'text/plain'];
 staticFiles['/shared/battle-geometry.js'] = ['../shared/battle-geometry.js', 'text/javascript'];
 const snapshot = room => ({ ...publicState(room.game), playbackSpeed: room.speed });

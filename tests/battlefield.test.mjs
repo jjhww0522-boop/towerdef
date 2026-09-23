@@ -303,3 +303,79 @@ test('a full high-tier formation draws rank markers without per-unit text raster
     assert.equal(r.draws.length, 30, 'rank markers do not remove any robot sprites');
   }
 });
+
+test('the lighter extinguishes into an open recovery pose between confirmed shots, then rests', () => {
+  const r = renderer();
+  const lighter = { ...r.definitions.get('archer'), id: 'wu_archer', element: 'fire' };
+  r.definitions.set('archer', lighter);
+  r.update(lane(null));
+  r.update(lane(2), { at: 1600 });
+  const unit = r.view.units.get(1), recovery = r.view.unitFrame(lighter, 'recovery');
+  const drawPose = now => { r.draws.length = 0; r.view.soldier(unit, now, 16); return r.draws.at(-1); };
+  assert.equal(drawPose(1630), r.view.unitFrame(lighter, 'windup'));
+  assert.equal(drawPose(1710), r.view.unitFrame(lighter, 'strike'));
+  assert.equal(drawPose(1840), recovery);
+  assert.equal(drawPose(2320), recovery, 'the lid stays open while waiting for another shot');
+  assert.notEqual(recovery.src, r.view.unitFrame(lighter, 'idle').src);
+  assert.notEqual(recovery.src, r.view.unitFrame(lighter, 'strike').src, 'recovery has its own extinguished artwork');
+  r.update(lane(10), { at: 2400 });
+  assert.equal(drawPose(2430), recovery, 'a consecutive shot does not close and reopen the lid');
+  assert.equal(drawPose(2510), r.view.unitFrame(lighter, 'strike'));
+  assert.equal(drawPose(3650), r.view.unitFrame(lighter, 'idle'));
+  assert.equal(r.combat.length, 2, 'drawing recovery never emits another shot');
+  r.update(lane(20), { at: 3800, reduced: true });
+  assert.equal(drawPose(3910), r.view.unitFrame(lighter, 'idle'));
+  assert.equal(r.view.effects.length, 0);
+});
+
+test('only the representative lighter adds a cached recovery frame', async () => {
+  const r = renderer(false, 'bolt', true);
+  const lighter = { ...r.definitions.get('archer'), id: 'wu_archer', element: 'fire' };
+  r.definitions.set('archer', lighter); r.update(lane(null));
+  await Promise.resolve();
+  assert.equal(r.rasterizations.length, 16, 'twelve enemy frames plus four lighter poses');
+  r.update(lane(2));
+  for (const now of [1430, 1510, 1640, 2020]) r.view.draw(now);
+  await Promise.resolve();
+  assert.equal(r.rasterizations.length, 16, 'recovery drawing reuses its cached pixels');
+});
+
+test('acknowledged summons land while combines stay at the selected slot and both finish promptly', () => {
+  for (const kind of ['summon', 'combine']) {
+    const r = renderer();
+    r.definitions.set('archer', { ...r.definitions.get('archer'), id: 'wu_archer', element: 'fire' });
+    r.update(lane(null));
+    const snapshot = lane(null), result = { ...snapshot.units[0], id: 3, slot: 7 };
+    snapshot.units = [result];
+    const before = JSON.stringify(snapshot);
+    r.view.markArrival(3, kind); r.update(snapshot, { at: 1600 });
+    const view = r.view.units.get(3), origin = r.view.position(7), positions = [];
+    r.view.drawSprite = (_frame, x, y) => positions.push({ x, y });
+    r.view.soldier(view, 1600, 16);
+    assert.equal(positions[0].x, origin.x);
+    assert.equal(positions[0].y, kind === 'combine' ? origin.y : origin.y - 55);
+    assert.ok(r.view.effects.some(effect => effect.type === (kind === 'combine' ? 'assembly' : 'landing')));
+    assert.equal(r.view.arrivals.size, 0, 'the acknowledgement is consumed once');
+    r.view.drawEffects(1600 + (kind === 'combine' ? 401 : 301));
+    assert.equal(r.view.effects.length, 0, 'arrival effects do not outlive their short presentation');
+    assert.equal(JSON.stringify(snapshot), before, 'presentation never rewrites authoritative units or slots');
+  }
+});
+
+test('arrival acknowledgements cannot leak into later snapshots, watched lanes or reconnections', () => {
+  const r = renderer();
+  r.view.markArrival(1, 'combine'); r.update(lane(null));
+  assert.equal(r.view.effects.length, 0, 'initial connection does not replay an arrival');
+  r.view.markArrival(3, 'combine'); r.update(lane(null));
+  const added = lane(null); added.units.push({ ...added.units[0], id: 3, slot: 1 });
+  r.update(added);
+  assert.equal(r.view.units.get(3).arrivalKind, 'summon', 'an unobserved result cannot remain queued');
+  r.view.markArrival(1, 'combine'); r.update(lane(null, { id: 'other-player' }));
+  assert.equal(r.view.effects.length, 0, 'switching watched lanes clears queued arrivals');
+  r.view.markArrival(3, 'combine'); r.update(added, { at: 6000 });
+  assert.equal(r.view.effects.length, 0, 'reconnecting does not replay acknowledged results');
+  r.view.markArrival(4, 'combine');
+  added.units.push({ ...added.units[0], id: 4, slot: 2 });
+  r.update(added, { reduced: true });
+  assert.equal(r.view.effects.length, 0, 'motion reduction shows the result without arrival effects');
+});

@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { selectDestination, selectRunSpeed } from './playtest-navigation.mjs';
+import { selectDestination, selectRunSpeed, openUnitInspection, closeUnitInspection, openEvolutionDetail } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -45,7 +45,7 @@ async function summon(page) {
   await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('td.pending')) === null);
 }
 
-async function geometry(page, test, label, { detail = false, cooperative = false } = {}) {
+async function geometry(page, test, label, { detail = false, cooperative = false, inspection = false } = {}) {
   const dimensions = await page.evaluate(() => {
     const rect = selector => {
       const element = document.querySelector(selector);
@@ -62,6 +62,7 @@ async function geometry(page, test, label, { detail = false, cooperative = false
       canvas: rect('#battlefield'), command: rect('.command-panel'), commandDialog: rect('#command-dialog[open]'), detail: rect('#unit-dialog[open]'),
       cooperativeStrip: rect('.side-column'), summon: rect('#summon-btn'), unitModal: document.querySelector('#unit-dialog').matches(':modal'),
       cooperative: rect('#co-op-dialog[open]'),
+      inspection: rect('#unit-inspection-dialog[open]'),
     };
   });
   const { width, height } = test.size;
@@ -70,7 +71,14 @@ async function geometry(page, test, label, { detail = false, cooperative = false
   assert.ok(dimensions.scrollWidth <= width + 1, `${label}: horizontal page overflow (${dimensions.scrollWidth}px > ${width}px)`);
   assert.ok(dimensions.scrollHeight <= height + 1, `${label}: page must not scroll vertically (${dimensions.scrollHeight}px > ${height}px)`);
   assert.ok(Math.abs(dimensions.scrollX) <= 1 && Math.abs(dimensions.scrollY) <= 1, `${label}: page remains at its origin`);
-  if (!cooperative) {
+  if (inspection) {
+    const panel = dimensions.inspection;
+    assert.ok(panel?.visible && panel.left >= -1 && panel.right <= width + 1 && panel.top >= -1 && panel.bottom <= height + 1,
+      `${label}: explicit robot inspection fits the viewport`);
+    for (const key of ['top', 'bottom', 'left', 'right', 'width', 'height']) {
+      assert.ok(Math.abs(dimensions.canvas[key] - test.restingCanvas[key]) <= 1, `${label}: inspection must not change canvas ${key}`);
+    }
+  } else if (!cooperative) {
     const active = detail ? dimensions.detail : dimensions.commandDialog?.visible ? dimensions.commandDialog : dimensions.command;
     assert.ok(active?.visible, `${label}: active bottom panel is visible`);
     assert.ok(active.height <= height * 0.30 + 1, `${label}: active bottom panel ${active.height.toFixed(2)}px exceeds 30% of ${height}px`);
@@ -248,18 +256,32 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
     await page.locator('#unit-dialog[open]').waitFor();
     await geometry(page, test, 'unit details float over the unchanged battlefield', { detail: true });
     if (hasCommonUnit) {
-      const materials = await page.locator('#unit-dialog .evolution-card .materials').first().evaluate(element => {
+      const consumption = await page.locator('#unit-dialog .evolution-card .assembly-consumption').first().evaluate(element => {
         const r = element.getBoundingClientRect(), panel = document.querySelector('#evolution-panel'), p = panel.getBoundingClientRect();
         return { top: r.top, bottom: r.bottom, panelTop: p.top, panelBottom: p.bottom, scrollTop: panel.scrollTop, viewportHeight: innerHeight };
       });
-      assert.equal(materials.scrollTop, 0, 'first recipe materials are checked before internal detail scrolling');
-      assert.ok(materials.top >= materials.panelTop - 1 && materials.bottom <= Math.min(materials.panelBottom, size.height - bottomInset) + 1,
-        `first basic/elite recipe materials must be fully visible without scrolling: ${JSON.stringify(materials)}`);
-      pass(test, 'first recipe materials are visible without scrolling', materials);
+      assert.equal(consumption.scrollTop, 0, 'first recipe consumption is checked before internal detail scrolling');
+      assert.ok(consumption.top >= consumption.panelTop - 1 && consumption.bottom <= Math.min(consumption.panelBottom, size.height - bottomInset) + 1,
+        `first basic/elite recipe consumption must be fully visible without scrolling: ${JSON.stringify(consumption)}`);
+      assert.ok((await page.locator('#unit-dialog .assembly-status').first().innerText()).trim(), 'summary preserves the assembly availability or missing materials');
+      pass(test, 'first recipe consumption and assembly status are visible in the summary', consumption);
     } else {
       test.allowances.push('All actual opening draws were heroes: long legend recipes may wrap and require internal scrolling; no units were injected.');
     }
     await target(page, test, '#unit-dialog [data-evolve-recipe]', 'evolution action');
+    const firstRecipeId = await page.locator('#unit-dialog [data-evolution-detail]').first().getAttribute('data-evolution-detail');
+    const beforeDetail = await snapshot(page);
+    await target(page, test, '#unit-dialog [data-evolution-detail]', 'assembly detail entry');
+    await openEvolutionDetail(page, firstRecipeId);
+    await geometry(page, test, 'explicit assembly details fit the viewport', { inspection: true });
+    await target(page, test, '[data-close="unit-inspection-dialog"]', 'assembly detail close');
+    await page.locator('#unit-inspection-content .materials').first().scrollIntoViewIfNeeded();
+    assert.equal(await page.locator('#unit-inspection-content .materials').first().isVisible(), true, 'tap reveals material quantities without hover');
+    assert.equal((await snapshot(page)).player.lastSeq, beforeDetail.player.lastSeq, 'reading assembly details sends no action');
+    await closeUnitInspection(page);
+    assert.equal(await page.locator('#unit-dialog').isVisible(), true, 'closing detailed information preserves summary');
+    await target(page, test, '#unit-manage', 'robot management entry');
+    await openUnitInspection(page);
     const queue = await target(page, test, '#queue-dispatch', 'dispatch queue');
     assert.equal(await queue.getAttribute('aria-pressed'), 'false', 'opening details does not queue the unit');
     const preQueue = await snapshot(page);
@@ -268,7 +290,8 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
     const postQueue = await snapshot(page);
     assert.equal(postQueue.player.lastSeq, preQueue.player.lastSeq, 'queue selection remains local until actual story dispatch');
     assert.equal(postQueue.player.units.filter(candidate => candidate.dispatched).length, preQueue.player.units.filter(candidate => candidate.dispatched).length, 'queue selection does not prematurely dispatch units');
-    await geometry(page, test, 'queued unit details remain compact', { detail: true });
+    await closeUnitInspection(page);
+    await geometry(page, test, 'queued unit summary remains compact', { detail: true });
     await capture(page, test, 'unit');
     const close = await target(page, test, '[data-close="unit-dialog"]', 'unit detail close');
     await close.tap();
@@ -280,12 +303,25 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
       return { width: field.worldWidth, height: field.worldHeight, scale: field.scale, ox: field.ox, oy: field.oy,
         units: [...field.units].map(([id, view]) => ({ id, x: view.x, y: view.y })) };
     });
+    const exposedRobotPoint = candidateIds => page.evaluate(ids => {
+      const field = window.layoutField, bounds = field.canvas.getBoundingClientRect();
+      for (const id of ids) {
+        const view = field.units.get(id), height = field.unitHeight(field.definitions.get(view.unit.definitionId));
+        // A floating panel may hide the sprite center while its upper or lower
+        // body is still visible and inside the renderer's selection ellipse.
+        for (const fraction of [.47, .20, .74]) {
+          const x = bounds.left + field.ox + view.x * field.scale;
+          const y = bounds.top + field.oy + (view.y - height * fraction) * field.scale;
+          if (document.elementFromPoint(x, y) === field.canvas
+            && document.elementFromPoint(x, y - 5) === field.canvas
+            && document.elementFromPoint(x, y + 5) === field.canvas) return { id, x, y };
+        }
+      }
+      return null;
+    }, candidateIds);
     const tapRobot = async unitId => {
-      const point = await page.evaluate(id => {
-        const field = window.layoutField, view = field.units.get(id), bounds = field.canvas.getBoundingClientRect();
-        const height = field.unitHeight(field.definitions.get(view.unit.definitionId));
-        return { x: bounds.left + field.ox + view.x * field.scale, y: bounds.top + field.oy + (view.y - height * .47) * field.scale };
-      }, unitId);
+      const point = await exposedRobotPoint([unitId]);
+      assert.ok(point, 'the requested robot has a visible body area for a real canvas tap');
       await page.touchscreen.tap(point.x, point.y);
       await page.waitForFunction(id => document.querySelector('#unit-dialog').open && window.layoutField.selected.has(id), unitId);
     };
@@ -299,16 +335,9 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
     const ids = [candidates[0]];
     await tapRobot(ids[0]);
     assert.deepEqual(await fieldGeometry(), stableField, 'opening selection preserves the camera and every robot position');
-    const nextId = await page.evaluate(candidateIds => {
-      const field = window.layoutField, bounds = field.canvas.getBoundingClientRect();
-      return candidateIds.find(id => {
-        const view = field.units.get(id), height = field.unitHeight(field.definitions.get(view.unit.definitionId));
-        const x = bounds.left + field.ox + view.x * field.scale, y = bounds.top + field.oy + (view.y - height * .47) * field.scale;
-        return document.elementFromPoint(x, y) === field.canvas;
-      });
-    }, [...candidates.slice(1), ...stableField.units.filter(unit => !candidates.includes(unit.id)).map(unit => unit.id)]);
-    assert.notEqual(nextId, undefined, 'another robot remains directly selectable outside the inspector');
-    ids.push(nextId);
+    const nextPoint = await exposedRobotPoint([...candidates.slice(1), ...stableField.units.filter(unit => !candidates.includes(unit.id)).map(unit => unit.id)]);
+    assert.ok(nextPoint, 'another robot remains directly selectable outside the inspector');
+    ids.push(nextPoint.id);
     await tapRobot(ids[1]);
     assert.deepEqual(await fieldGeometry(), stableField, 'another canvas tap replaces selection without moving the field');
     assert.equal(await page.locator('#unit-dialog:modal').count(), 0);
@@ -326,17 +355,21 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
 
     await tapRobot(ids[0]);
     const beforePreview = await snapshot(page);
+    await openUnitInspection(page);
     const sale = await target(page, test, '#sell-unit', 'sale preview');
     await sale.tap();
     await page.locator('#sale-inspection:not([hidden])').waitFor();
-    await geometry(page, test, 'sale confirmation floats over the unchanged battlefield', { detail: true });
+    await geometry(page, test, 'sale confirmation fits the explicit inspection', { inspection: true });
+    assert.deepEqual(await fieldGeometry(), stableField, 'sale inspection does not move the camera or units');
     await target(page, test, '#confirm-sale', 'sale confirmation');
     assert.match(await page.locator('#confirm-sale').innerText(), /판매 · \+\d+ 고철/);
     await capture(page, test, 'sale');
     await sale.tap();
     assert.equal(await page.locator('#sale-inspection').isVisible(), false);
     assert.equal((await snapshot(page)).player.lastSeq, beforePreview.player.lastSeq, 'opening or cancelling sale sends no server action');
-    await sale.tap(); await tapRobot(ids[1]);
+    await sale.tap(); await closeUnitInspection(page); await tapRobot(ids[1]);
+    assert.equal(await page.locator('#unit-inspection-dialog').isVisible(), false, 'changing selected robot does not reopen old management');
+    await openUnitInspection(page);
     assert.equal(await page.locator('#sale-inspection').isVisible(), false, 'another robot never inherits the previous sale confirmation');
     pass(test, 'sale preview can be cancelled and changing the robot requires new confirmation');
     await sale.tap();
@@ -351,7 +384,7 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
     const afterSale = result.state.players.find(player => player.id === beforeSale.player.id);
     assert.deepEqual(afterSale.units.map(unit => unit.id), beforeSale.player.units.filter(unit => unit.id !== sold.id).map(unit => unit.id));
     assert.ok(afterSale.gold >= beforeSale.player.gold + sold.salvageGold, 'refund is credited; live enemy kills may also award gold');
-    await page.waitForFunction(() => !document.querySelector('#unit-dialog').open && window.layoutField.selected.size === 0);
+    await page.waitForFunction(() => !document.querySelector('#unit-dialog').open && !document.querySelector('#unit-inspection-dialog').open && window.layoutField.selected.size === 0);
     pass(test, 'confirmed sale removes only the chosen robot, credits its refund and closes selection');
     await geometry(page, test, 'selling returns to the unchanged battlefield');
 

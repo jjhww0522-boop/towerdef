@@ -10,6 +10,8 @@
 
 본문과 Canvas에는 수정하지 않은 **Pretendard Variable v1.3.9**를 로컬 파일로 배포한다. [원본·경로 기록](../playtest/assets/fonts/README.md)과 [저작권·SIL OFL 1.1 전문](../playtest/assets/fonts/OFL.txt)을 함께 보관한다. 폰트 제작자는 Kil Hyung-jin이며 Reserved Font Name은 Pretendard다. 폰트를 재배포할 때 저작권과 라이선스 고지를 함께 유지한다. 폰트와 갑판 SVG의 SHA-256은 `manifest.json`에 기록했다.
 
+2026-09-23에는 제목·주요 버튼에 수정하지 않은 **도현체(Do Hyeon, weight 400)**를 추가했다. [원본 기록](../playtest/assets/fonts/README.md)과 [OFL 전문](../playtest/assets/fonts/DoHyeon-OFL.txt)을 함께 보관한다. 본문·숫자는 Pretendard를 유지한다. 라이터에는 불이 꺼지고 뚜껑이 열린 복귀 자세 하나를 추가했으며, 다른 유닛 전체의 포즈를 확장한 것은 아니다.
+
 실제 자산을 추가할 때 `assets`에 다음을 기록한다.
 
 - `id`, `path`, `kind`, `status`: 고유 ID, 저장소 기준 실제 경로, 종류, placeholder 또는 production

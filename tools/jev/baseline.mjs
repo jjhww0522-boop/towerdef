@@ -25,6 +25,7 @@ export async function verifyTrial(task, page, rooms, actions) {
     sound: document.querySelector('#sound-enabled').checked,
     speed: document.querySelector('#speed-select').value,
     duration: document.querySelector('#expedition-duration').textContent,
+    mode: document.querySelector('#run-mode-label').textContent,
     speedChanges: window.__pilotSpeedChanges || [],
   }));
   const checks = [];
@@ -39,9 +40,9 @@ export async function verifyTrial(task, page, rooms, actions) {
     check('no room created', rooms.length, 0);
   } else if (task === 'practice') {
     check('home visible', ui.home, true);
-    check('practice selection with no reward notice observed', ui.speedChanges.some(s => s.value === '3' && s.duration.includes('보상 없음')), true);
+    check('practice selection with no reward notice observed', ui.speedChanges.some(s => s.value === '3' && s.mode.includes('보상 없음')), true);
     check('returned to normal speed', ui.speed, '1');
-    check('normal reward notice', ui.duration.includes('보상 저장'), true);
+    check('normal reward notice', ui.mode.includes('보상 저장'), true);
     check('no room created', rooms.length, 0);
   } else if (task === 'summon') {
     const room = rooms[0], player = room?.game.players[0];
@@ -125,7 +126,7 @@ async function runBaseline() {
         await page.evaluate(() => {
           window.__pilotSpeedChanges = [];
           document.querySelector('#speed-select').addEventListener('change', event => {
-            window.__pilotSpeedChanges.push({ value: event.target.value, duration: document.querySelector('#expedition-duration').textContent });
+            window.__pilotSpeedChanges.push({ value: event.target.value, mode: document.querySelector('#run-mode-label').textContent });
           });
         });
         trial.emptyRunRejected = !(await verifyTrial(task.id, page, rooms, actions)).passed;
@@ -141,7 +142,7 @@ async function runBaseline() {
         trial.failureCategory = 'unclassified_baseline_failure';
       } finally {
         if (browser) await browser.close();
-        await new Promise(resolve => server.close(resolve));
+        await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
       }
       report.trials.push(trial);
       console.log(`${trial.status.toUpperCase()} baseline ${task.id} ${repetition}/${config.repetitions} (JEV not run)`);
