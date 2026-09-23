@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { selectDestination } from './playtest-navigation.mjs';
+import { selectDestination, selectRunSpeed } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -39,7 +39,7 @@ async function setupPage(options = {}) {
 }
 async function startPractice(page, speed = '1') {
   await selectDestination(page);
-  await page.selectOption('#speed-select', speed); await page.locator('#quick-start').click();
+  await selectRunSpeed(page, speed); await page.locator('#quick-start').click();
   await page.locator('#game:not([hidden])').waitFor();
   await page.waitForFunction(() => !document.querySelector('#summon-btn').disabled);
 }
@@ -130,8 +130,21 @@ try {
   assert.deepEqual(displayedPaths, expectedPaths, 'selected unit shows exactly its own evolution branches');
   assert.ok(expectedPaths.length > 0);
   assert.equal(await page.locator('#unit-dialog [data-evolve-recipe]:enabled').count(), 0, 'a single unit cannot meet any multi-unit recipe');
-  assert.match(await page.locator('#evolution-panel').textContent(), /재료 부족|영구 해금/);
-  pass('selected unit shows its own missing evolution paths with disabled execution');
+  for (const recipe of content.recipes.filter(recipe => expectedPaths.includes(recipe.id))) {
+    const status = await page.locator(`[data-evolution-result="${recipe.result}"] .assembly-status`).textContent();
+    let missingTypes = 0;
+    for (const ingredient of new Set(recipe.ingredients)) {
+      const required = recipe.ingredients.filter(id => id === ingredient).length;
+      const owned = authoritative.player.units.filter(unit => !unit.dispatched && unit.definitionId === ingredient).length;
+      if (owned >= required) continue;
+      const definition = content.units.find(unit => unit.id === ingredient);
+      assert.ok(status.includes(`${definition.name} ${required - owned}기`), `${recipe.id}: missing ${definition.name} count matches content and owned units`);
+      missingTypes++;
+    }
+    assert.ok(missingTypes > 0, `${recipe.id}: the single-unit fixture is missing a required material`);
+    assert.equal(status.includes('설계도 연구 필요'), recipe.unlockBattlefield !== 0 && !authoritative.player.unlockedRecipes.includes(recipe.id), `${recipe.id}: research requirement matches unlocked recipes`);
+  }
+  pass('selected unit shows exact missing material names and quantities with disabled execution');
   assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'false', 'opening detail does not queue a unit');
   await page.locator('#queue-dispatch').click();
   assert.equal(await page.locator('#queue-dispatch').getAttribute('aria-pressed'), 'true');

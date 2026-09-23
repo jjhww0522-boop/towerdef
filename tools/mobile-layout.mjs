@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { selectDestination } from './playtest-navigation.mjs';
+import { selectDestination, selectRunSpeed } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -177,7 +177,7 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
       const { Battlefield } = await import('/battlefield.js'), update = Battlefield.prototype.update;
       Battlefield.prototype.update = function(...args) { update.apply(this, args); window.layoutField = this; };
     });
-    await page.selectOption('#speed-select', '1');
+    await selectRunSpeed(page, '1');
     await page.locator('#quick-start').tap();
     await page.locator('#game:not([hidden])').waitFor();
     await page.waitForFunction(() => !document.querySelector('#summon-btn').disabled);
@@ -290,14 +290,25 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
       await page.waitForFunction(id => document.querySelector('#unit-dialog').open && window.layoutField.selected.has(id), unitId);
     };
     const stableField = await fieldGeometry();
-    // Random draws no longer occupy the first row. Pick two robots on the same
-    // side so the opposite-side inspector doesn't cover the next tap target.
+    // Prefer the same side, then choose an actually exposed robot. A world-half
+    // threshold alone doesn't account for inspector width or safe-area padding.
     const upper = stableField.units.filter(unit => unit.y <= stableField.height * .55);
     const lower = stableField.units.filter(unit => unit.y > stableField.height * .55);
-    const ids = (upper.length >= 2 ? upper : lower).slice(0, 2).map(unit => unit.id);
-    assert.equal(ids.length, 2, 'actual summoned robots are available for canvas selection');
+    const candidates = (upper.length >= 2 ? upper : lower).map(unit => unit.id);
+    assert.ok(candidates.length >= 2, 'actual summoned robots are available for canvas selection');
+    const ids = [candidates[0]];
     await tapRobot(ids[0]);
     assert.deepEqual(await fieldGeometry(), stableField, 'opening selection preserves the camera and every robot position');
+    const nextId = await page.evaluate(candidateIds => {
+      const field = window.layoutField, bounds = field.canvas.getBoundingClientRect();
+      return candidateIds.find(id => {
+        const view = field.units.get(id), height = field.unitHeight(field.definitions.get(view.unit.definitionId));
+        const x = bounds.left + field.ox + view.x * field.scale, y = bounds.top + field.oy + (view.y - height * .47) * field.scale;
+        return document.elementFromPoint(x, y) === field.canvas;
+      });
+    }, [...candidates.slice(1), ...stableField.units.filter(unit => !candidates.includes(unit.id)).map(unit => unit.id)]);
+    assert.notEqual(nextId, undefined, 'another robot remains directly selectable outside the inspector');
+    ids.push(nextId);
     await tapRobot(ids[1]);
     assert.deepEqual(await fieldGeometry(), stableField, 'another canvas tap replaces selection without moving the field');
     assert.equal(await page.locator('#unit-dialog:modal').count(), 0);

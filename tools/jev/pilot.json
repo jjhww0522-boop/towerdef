@@ -1,0 +1,25 @@
+{
+  "jev": {
+    "repository": "https://github.com/browser-use/jev-ultrafast.git",
+    "revision": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+    "python": ">=3.12",
+    "browserHarness": "0.1.13",
+    "installPolicy": "Separate environment; use this revision's uv.lock with uv sync --frozen --no-dev."
+  },
+  "repetitions": 3,
+  "viewport": { "width": 1120, "height": 780 },
+  "tasks": [
+    {
+      "id": "settings",
+      "goal": "설정에서 움직임을 줄이고 효과음을 끈 뒤 홈으로 돌아가세요. 원정을 시작하지 마세요."
+    },
+    {
+      "id": "practice",
+      "goal": "3배속 연습을 선택해 보상이 없다는 안내를 확인한 뒤 1배속 일반 원정으로 되돌리세요. 출발하지 말고 홈으로 돌아가세요."
+    },
+    {
+      "id": "summon",
+      "goal": "첫 행성에서 1배속 일반 원정을 시작하고 로봇을 정확히 한 번 뽑으세요. 그 상태에서 멈추세요."
+    }
+  ]
+}

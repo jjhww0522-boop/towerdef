@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdir, access, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { selectDestination } from './playtest-navigation.mjs';
+import { selectDestination, selectRunSpeed } from './playtest-navigation.mjs';
 
 const base = process.env.PLAYTEST_URL || 'http://127.0.0.1:7351';
 let executablePath = process.env.CHROME_PATH;
@@ -38,7 +38,7 @@ try {
   await page.screenshot({ path: 'artifacts/start-screen.png', fullPage: true });
   check('start screen renders');
   await selectDestination(page);
-  await page.selectOption('#speed-select', '6');
+  await selectRunSpeed(page, '6');
   await page.click('#quick-start');
   await page.locator('#summon-btn').waitFor({ state: 'visible' });
   await page.locator('#summon-btn').click();

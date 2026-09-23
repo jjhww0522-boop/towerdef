@@ -1,4 +1,4 @@
-import { unitSpriteUrl, enemySpriteUrl } from './casual-art.js';
+import { unitSpriteUrl, enemySpriteUrl, applianceKind } from './casual-art.js';
 import { BOARD_WIDTH, BOARD_HEIGHT, unitPoint, enemyPoint, projectPoint } from '../shared/battle-geometry.js';
 
 const palette = { shu: '#75c9ac', wei: '#83bde7', wu: '#f2ad75' };
@@ -13,6 +13,8 @@ const path = (progress, width = WORLD_W, height = WORLD_H) => {
 };
 const clamp = value => Math.max(0, Math.min(1, value));
 const easeOut = value => 1 - Math.pow(1 - clamp(value), 3);
+const attackTimings = { fire: [65, 125, 120], wind: [125, 170, 170], frost: [80, 180, 130], laser: [110, 55, 95] };
+const defaultAttackTiming = [80, 150, 90];
 // Presentation only. Attack stamps, health and removal come from the server.
 export class Battlefield {
   constructor(canvas, onSelect, onCombat = () => {}) {
@@ -239,24 +241,34 @@ export class Battlefield {
     view.hitPositions = targets.map(hit => hit.position);
     view.facing = position.x < view.x ? -1 : 1;
     const color = elementColors[definition.element] || (pattern === 'blast' ? '#ffbd71' : pattern === 'arc' ? '#a6eeff' : palette[definition.faction]);
-    const height = this.unitHeight(definition), origin = { x: view.x + view.facing * height * .34, y: view.y - height * .45 };
-    this.addEffect({ type: 'muzzle', ...origin, color, facing: view.facing, born: now + 80, life: 105 });
-    if (pattern === 'arc') this.addEffect({ type: 'arc', points: [origin, ...targets.map(hit => hit.position)], color, born: now + 80, life: 210 });
+    const origin = this.weaponOrigin(definition, view.x, view.y, view.facing);
+    const [prepare, travel] = attackTimings[definition.element] || defaultAttackTiming;
+    this.addEffect({ type: 'muzzle', ...origin, color, element: definition.element, facing: view.facing, born: now + prepare, life: 105 });
+    if (pattern === 'arc') this.addEffect({ type: 'arc', points: [origin, ...targets.map(hit => hit.position)], color, born: now + prepare, life: 210 });
     else this.addEffect({ type: definition.element === 'laser' || definition.element === 'fire' ? definition.element : pattern,
-      element: definition.element, ...origin, tx: position.x, ty: position.y, color, born: now + 80, life: 150 });
+      element: definition.element, ...origin, tx: position.x, ty: position.y, color, born: now + prepare, life: travel });
     targets.forEach((hit, index) => {
-      const at = now + (pattern === 'arc' ? 105 + index * 25 : 230);
-      this.addEffect({ type: 'impact', ...hit.position, color, blast: pattern === 'blast' && index === 0, born: at, life: pattern === 'blast' ? 340 : 180 });
-      this.burst(hit.position.x, hit.position.y, color, at, pattern === 'blast' ? 4 : 2);
+      const at = now + prepare + (pattern === 'arc' ? 25 + index * 25 : travel);
+      this.addEffect({ type: 'impact', ...hit.position, color, element: definition.element,
+        angle: Math.atan2(hit.position.y - origin.y, hit.position.x - origin.x),
+        blast: pattern === 'blast' && index === 0, born: at, life: pattern === 'blast' ? 340 : 180 });
+      if (definition.element !== 'wind' && definition.element !== 'laser') this.burst(hit.position.x, hit.position.y, color, at, pattern === 'blast' ? 4 : 2);
       if (hit.damage > 0) {
         const previous = impacts.get(hit.targetId);
         impacts.set(hit.targetId, { position: hit.position, damage: hit.damage + (previous?.damage || 0), at, boss: hit.boss });
       }
     });
-    this.onCombat({ type: pattern, intensity: definition.rarity === 'legend' ? 1 : definition.rarity === 'hero' ? .8 : .5 });
+    this.onCombat({ type: pattern, element: definition.element, delay: prepare / 1000,
+      intensity: definition.rarity === 'legend' ? 1 : definition.rarity === 'hero' ? .8 : .5 });
   }
 
   unitHeight(definition) { return definition.rarity === 'legend' ? 94 : definition.rarity === 'hero' ? 86 : definition.rarity === 'elite' ? 78 : 70; }
+
+  weaponOrigin(definition, x, y, facing) {
+    const height = this.unitHeight(definition), kind = applianceKind(definition);
+    const nozzle = kind === 'lighter' ? [60, 24] : kind === 'dryer' ? [85, 38] : kind === 'pointer' ? [84, 45] : [80.64, 52.8];
+    return { x: x + facing * height * (nozzle[0] / 96 - .5), y: y - height * (1 - nozzle[1] / 96) };
+  }
 
   rect(x, y, width, height, color, radius = 0) {
     const context = this.ctx; context.fillStyle = color;
@@ -271,7 +283,7 @@ export class Battlefield {
     context.ellipse(x, y, width, height, 0, 0, Math.PI * 2); context.fill();
   }
   text(value, x, y, size, color) {
-    const context = this.ctx; context.font = '600 ' + size + 'px "Malgun Gothic",system-ui,sans-serif';
+    const context = this.ctx; context.font = '600 ' + size + 'px "Pretendard", "Malgun Gothic", system-ui, sans-serif';
     context.textAlign = 'center'; context.lineJoin = 'round';
     context.strokeStyle = '#203944e0'; context.lineWidth = 3;
     context.strokeText(value, x, y); context.fillStyle = color; context.fillText(value, x, y);
@@ -543,25 +555,27 @@ export class Battlefield {
     const height = this.unitHeight(definition);
     let stretchX = 1, stretchY = 1, offsetX = 0, offsetY = 0, rotation = 0;
     const age = now - view.attackAt;
+    const [prepare, travel, recovery] = attackTimings[definition.element] || defaultAttackTiming;
+    const appliance = applianceKind(definition);
     if (!this.reduced) {
-      offsetY = Math.sin(now / 410 + unit.id) * .8;
-      if (age >= 0 && age < 80) {
-        const windup = age / 80; stretchX = 1 + windup * .07; stretchY = 1 - windup * .07;
-        offsetX = view.facing * windup * 1.5; rotation = view.facing * windup * .025;
-      } else if (age >= 80 && age < 180) {
-        const strike = Math.sin((age - 80) / 100 * Math.PI);
-        stretchX = 1 - strike * .045; stretchY = 1 + strike * .06;
-        offsetX = -view.facing * strike * (definition.attackPattern === 'blast' ? 7 : 4); rotation = -view.facing * strike * .055;
-      } else if (age >= 180 && age < 320) {
-        const recoil = (1 - (age - 180) / 140) * .04;
-        stretchX += recoil; stretchY -= recoil;
+      // Rigid appliances act through their lid, fan and lens, rather than a shared squash.
+      if (!appliance) offsetY = Math.sin(now / 530 + unit.id) * .35;
+      if (age >= 0 && age < prepare) {
+        const windup = age / prepare;
+        rotation = view.facing * windup * (definition.element === 'laser' ? -.018 : .012);
+      } else if (age >= prepare && age < prepare + travel + recovery) {
+        const shotAge = age - prepare;
+        const kick = shotAge < travel ? Math.sin(shotAge / travel * Math.PI * .5) : 1 - (shotAge - travel) / recovery;
+        const recoil = definition.element === 'wind' ? 3.5 : definition.element === 'laser' ? .6 : definition.element === 'fire' ? 1.5 : definition.attackPattern === 'blast' ? 5 : 2.5;
+        offsetX = -view.facing * kick * recoil;
+        rotation = -view.facing * kick * (definition.element === 'laser' ? .008 : definition.element === 'wind' ? .035 : .02);
       }
       const summonAge = now - view.born;
       if (summonAge < 420) {
         const pop = easeOut(summonAge / 250);
         stretchX *= .88 + pop * .12; stretchY *= .88 + pop * .12;
         offsetY -= (1 - pop) * 90;
-        if (summonAge > 220) stretchY -= Math.sin((summonAge - 220) / 200 * Math.PI) * .09;
+        if (summonAge > 220) offsetY += Math.sin((summonAge - 220) / 200 * Math.PI) * 2;
         context.save(); context.globalAlpha = 1 - pop;
         context.strokeStyle = '#ffe0a4'; context.lineWidth = 2;
         context.beginPath(); context.ellipse(x, y + 1, 19 + pop * 25, 8 + pop * 10, 0, 0, Math.PI * 2); context.stroke(); context.restore();
@@ -579,14 +593,15 @@ export class Battlefield {
       context.strokeStyle = '#fff3a6'; context.lineWidth = 3; context.stroke();
       this.circle(x, y - height - 8, 3, '#ffe3a0');
     }
-    const pose = this.reduced ? 'idle' : age >= 0 && age < 80 ? 'windup' : age >= 80 && age < 230 ? 'strike' : 'idle';
+    const pose = this.reduced ? 'idle' : age >= 0 && age < prepare ? 'windup' : age >= prepare && age < prepare + travel ? 'strike' : 'idle';
     const frame = this.unitFrame(definition, pose);
     this.drawSprite(frame, x + offsetX, y + offsetY, height, view.facing, stretchX, stretchY, rotation);
     if (definition.element) this.circle(x, y + 3, 3, color);
     // Motion reduction retains a short, steady targeting trace with no particles or recoil.
     if (this.reduced && age >= 0 && age < 180 && view.hitPositions?.length) {
       context.save(); context.globalAlpha = .65; context.strokeStyle = color; context.lineWidth = 1.5;
-      context.beginPath(); context.moveTo(x + view.facing * height * .34, y - height * .45);
+      const origin = this.weaponOrigin(definition, x, y, view.facing);
+      context.beginPath(); context.moveTo(origin.x, origin.y);
       for (const position of view.hitPositions) context.lineTo(position.x, position.y);
       context.stroke(); context.restore();
     }
@@ -626,6 +641,15 @@ export class Battlefield {
     if (enemy.slowed) {
       context.strokeStyle = '#86dcff'; context.lineWidth = 2;
       context.beginPath(); context.ellipse(position.x, position.y + 1, enemy.boss ? 28 : 15, 6, 0, 0, Math.PI * 2); context.stroke();
+      // Frost marks follow the actual slow state; they never freeze the walking cycle.
+      context.beginPath();
+      for (const side of [-1, 1]) {
+        const frostX = position.x + side * size * .22, frostY = position.y - size * .4;
+        context.moveTo(frostX, frostY - 5); context.lineTo(frostX, frostY + 5);
+        context.moveTo(frostX - 4, frostY - 3); context.lineTo(frostX + 4, frostY + 3);
+        context.moveTo(frostX - 4, frostY + 3); context.lineTo(frostX + 4, frostY - 3);
+      }
+      context.stroke();
       this.text('감속', position.x, position.y - size - 12, this.worldWidth === 600 ? 15 : 10, '#b1ebff');
     }
     const hitAge = now - view.hitAt;
@@ -652,19 +676,38 @@ export class Battlefield {
       }
       const t = clamp(age / effect.life);
       context.save();
-      if (effect.type === 'laser' || effect.type === 'fire') {
-        context.globalAlpha = 1 - t * .8;
-        context.strokeStyle = effect.color; context.lineWidth = effect.type === 'fire' ? 12 * (1 - t) + 3 : 4;
+      if (effect.type === 'fire') {
+        const distance = Math.hypot(effect.tx - effect.x, effect.ty - effect.y);
+        context.translate(effect.x, effect.y); context.rotate(Math.atan2(effect.ty - effect.y, effect.tx - effect.x));
+        const reach = distance * (.75 + .25 * easeOut(t * 4)), spread = (6 + Math.sin(t * Math.PI) * 5);
+        context.globalAlpha = 1 - t * .7; context.fillStyle = '#ee8748';
+        context.beginPath(); context.moveTo(0, -2);
+        context.quadraticCurveTo(reach * .3, -spread, reach * .55, -spread * .7);
+        context.lineTo(reach * .72, -spread); context.lineTo(reach * .69, -spread * .25);
+        context.lineTo(reach, 0); context.lineTo(reach * .7, spread * .4);
+        context.lineTo(reach * .62, spread); context.quadraticCurveTo(reach * .3, spread, 0, 2);
+        context.closePath(); context.fill();
+        context.fillStyle = '#ffe7a0'; context.beginPath(); context.moveTo(0, -1);
+        context.quadraticCurveTo(reach * .4, -spread * .4, reach * .85, 0);
+        context.quadraticCurveTo(reach * .3, spread * .45, 0, 1); context.fill();
+      } else if (effect.type === 'laser') {
+        context.globalAlpha = 1 - t * .65;
+        context.strokeStyle = effect.color; context.lineWidth = 2.5;
         context.beginPath(); context.moveTo(effect.x, effect.y); context.lineTo(effect.tx, effect.ty); context.stroke();
-        context.strokeStyle = '#fff7dc'; context.lineWidth = 1.5; context.stroke();
+        context.strokeStyle = '#fff0ff'; context.lineWidth = .8; context.stroke();
+        this.circle(effect.tx, effect.ty, 2.5 * (1 - t) + 1, '#fff0ff');
       } else if (effect.type === 'bolt' || effect.type === 'blast') {
-        const arc = effect.type === 'blast' ? Math.sin(t * Math.PI) * 23 : 0;
+        const arc = effect.type === 'blast' && effect.element !== 'wind' ? Math.sin(t * Math.PI) * 23 : 0;
         const x = effect.x + (effect.tx - effect.x) * t, y = effect.y + (effect.ty - effect.y) * t - arc;
         const angle = Math.atan2(effect.ty - effect.y, effect.tx - effect.x);
         context.translate(x, y); context.rotate(angle);
         if (effect.element === 'wind') {
-          context.strokeStyle = effect.color; context.lineWidth = 3;
-          context.beginPath(); context.ellipse(0, 0, 12, 7, t * 4, 0, Math.PI * 1.7); context.stroke();
+          context.strokeStyle = effect.color; context.lineWidth = 2; context.globalAlpha = .85;
+          for (let ribbon = 0; ribbon < 3; ribbon++) {
+            const start = -ribbon * 9;
+            context.beginPath(); context.moveTo(start - 6, -6 - ribbon * 3);
+            context.quadraticCurveTo(start + 13, 0, start - 6, 6 + ribbon * 3); context.stroke();
+          }
         } else if (effect.type === 'blast') {
           this.ellipse(0, 0, 7, 5, '#ffdf9b'); this.ellipse(-4, 0, 5, 4, '#b77843');
           context.globalAlpha = .35; this.rect(-28, -3, 20, 6, '#f4b974', 3);
@@ -691,20 +734,46 @@ export class Battlefield {
         }
       } else if (effect.type === 'muzzle') {
         context.translate(effect.x, effect.y); context.scale(effect.facing, 1); context.globalAlpha = 1 - t;
-        this.ellipse(2, 0, 13 * (1 - t) + 3, 7 * (1 - t) + 2, effect.color);
-        this.ellipse(0, 0, 5, 3, '#fffce8');
+        if (effect.element === 'laser') this.circle(0, 0, 3 * (1 - t) + 1, '#f5d9ff');
+        else if (effect.element === 'wind') {
+          context.strokeStyle = effect.color; context.lineWidth = 1.5;
+          context.beginPath(); context.arc(0, 0, 4 + t * 6, -.8, .8); context.stroke();
+        } else {
+          this.ellipse(2, 0, (effect.element === 'fire' ? 5 : 13) * (1 - t) + 3, 5 * (1 - t) + 2, effect.color);
+          this.ellipse(0, 0, 4, 2, '#fffce8');
+        }
       } else if (effect.type === 'impact') {
         context.translate(effect.x, effect.y); context.globalAlpha = 1 - t;
-        const radius = effect.blast ? 9 + easeOut(t) * 37 : 3 + t * 15;
-        if (effect.blast) {
-          this.circle(0, 0, radius * .86, '#d68d4133');
-          this.circle(0, 0, Math.max(0, 14 * (1 - t)), '#ffdc8f');
+        if (effect.element === 'wind') {
+          context.rotate(effect.angle); context.strokeStyle = effect.color; context.lineWidth = 2 * (1 - t) + .5;
+          for (const offset of [-8, 0, 8]) {
+            context.beginPath(); context.moveTo(-10 + t * 8, offset - 4);
+            context.quadraticCurveTo(8 + t * 10, offset, -5 + t * 8, offset + 4); context.stroke();
+          }
+        } else if (effect.element === 'fire') {
+          this.ellipse(-3, -2 - t * 7, 5 * (1 - t) + 1, 8 * (1 - t) + 2, '#ffb866');
+          this.ellipse(4, 2 - t * 10, 3 * (1 - t) + 1, 6 * (1 - t) + 1, '#ffe3a0');
+        } else if (effect.element === 'laser' || effect.element === 'frost') {
+          context.strokeStyle = effect.color; context.lineWidth = 1.8;
+          const radius = 3 + t * 9;
+          for (let ray = 0; ray < (effect.element === 'frost' ? 6 : 4); ray++) {
+            const angle = ray * Math.PI * 2 / (effect.element === 'frost' ? 6 : 4);
+            context.beginPath(); context.moveTo(Math.cos(angle) * 2, Math.sin(angle) * 2);
+            context.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius); context.stroke();
+          }
+          this.circle(0, 0, 2 * (1 - t), '#fff4fc');
+        } else {
+          const radius = effect.blast ? 9 + easeOut(t) * 37 : 3 + t * 15;
+          if (effect.blast) {
+            this.circle(0, 0, radius * .86, '#d68d4133');
+            this.circle(0, 0, Math.max(0, 14 * (1 - t)), '#ffdc8f');
+          }
+          context.strokeStyle = effect.color; context.lineWidth = effect.blast ? 3 - t * 2 : 2;
+          context.beginPath(); context.arc(0, 0, radius, 0, Math.PI * 2); context.stroke();
+          context.strokeStyle = '#fff7dc'; context.lineWidth = 2 * (1 - t) + .5;
+          context.beginPath(); context.moveTo(-5 - t * 9, 0); context.lineTo(5 + t * 9, 0);
+          context.moveTo(0, -5 - t * 9); context.lineTo(0, 5 + t * 9); context.stroke();
         }
-        context.strokeStyle = effect.color; context.lineWidth = effect.blast ? 3 - t * 2 : 2;
-        context.beginPath(); context.arc(0, 0, radius, 0, Math.PI * 2); context.stroke();
-        context.strokeStyle = '#fff7dc'; context.lineWidth = 2 * (1 - t) + .5;
-        context.beginPath(); context.moveTo(-5 - t * 9, 0); context.lineTo(5 + t * 9, 0);
-        context.moveTo(0, -5 - t * 9); context.lineTo(0, 5 + t * 9); context.stroke();
       } else if (effect.type === 'landing') {
         const fall = clamp(t / .45);
         context.globalAlpha = (1 - t) * .6;

@@ -6,6 +6,10 @@
 
 `manifest.json`에는 현재 사용하는 벡터 소스와 이전 생성 PNG의 이력이 있다. PNG 네 파일은 이전 삼국지 시안이며 보관 상태로 표시한다. 새 세계관에 맞춘 현재 아트나 출시 확정 자산으로 취급하지 않는다. `candidates`는 과거 조사 후보일 뿐 다운로드·사용·구매 완료 목록이 아니다. 아트 제작 기준 문서에 남은 이전 배경 설명은 과거 기록이며, 현재 콘셉트는 [게임 설계](../docs/GAME_DESIGN.md)를 따른다.
 
+2026-09-22에는 기본 유닛 3종의 외형만 생활용품 몸체로 바꾼 대표 시안을 반영했다. 점화봇(`wu_archer`)은 라이터, 캔포봇(`shu_archer`)은 헤어드라이어, 렌즈봇(`wei_archer`)은 레이저포인터이며, 대기·공격 준비·공격 포즈를 같은 SVG 소스에서 제공한다. 이름·조합식·전투 규칙은 변경하지 않았다. 홈의 [원정대 갑판](../playtest/assets/crew-deck.svg)은 Codex와 함께 저장소에서 직접 작성한 벡터다. 외부 이미지 팩이나 CC0 자산으로 표시하지 않는다. 이 반영은 아트 품질이나 실제 이용자 평가의 완료를 뜻하지 않는다.
+
+본문과 Canvas에는 수정하지 않은 **Pretendard Variable v1.3.9**를 로컬 파일로 배포한다. [원본·경로 기록](../playtest/assets/fonts/README.md)과 [저작권·SIL OFL 1.1 전문](../playtest/assets/fonts/OFL.txt)을 함께 보관한다. 폰트 제작자는 Kil Hyung-jin이며 Reserved Font Name은 Pretendard다. 폰트를 재배포할 때 저작권과 라이선스 고지를 함께 유지한다. 폰트와 갑판 SVG의 SHA-256은 `manifest.json`에 기록했다.
+
 실제 자산을 추가할 때 `assets`에 다음을 기록한다.
 
 - `id`, `path`, `kind`, `status`: 고유 ID, 저장소 기준 실제 경로, 종류, placeholder 또는 production

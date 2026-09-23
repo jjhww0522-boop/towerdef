@@ -7,3 +7,11 @@ export async function selectDestination(page) {
     await Promise.allSettled(element.getAnimations().map(animation => animation.finished));
   });
 }
+
+export async function selectRunSpeed(page, speed) {
+  const settings = page.locator('#practice-settings');
+  const wasOpen = await settings.getAttribute('open') !== null;
+  if (!wasOpen) await settings.locator('summary').click();
+  await page.selectOption('#speed-select', speed);
+  if (!wasOpen) await settings.locator('summary').click();
+}

@@ -5,24 +5,34 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101c21">
   <title>폐품로봇 원정대 · 지구로 돌아갈 자원을 찾아서</title>
+  <link rel="preload" href="/assets/fonts/PretendardVariable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/casual-ui.css">
   <link rel="stylesheet" href="/mobile-game.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
+  <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="icon-robot" viewBox="0 0 24 24"><path d="M12 3v3m-2-3h4M5 8h14v11H5zM2 11v5m20-5v5M8 19v3m8-3v3M8 15h8"/><path d="M8 11h1m6 0h1"/></symbol>
+    <symbol id="icon-assemble" viewBox="0 0 24 24"><path d="m4 4 6 3v7l-6-3zm6 3 6-3 4 2v7l-6 3-4-2M4 4l6-3 6 3M4 16l8 5 8-5m-8 5v-5"/></symbol>
+    <symbol id="icon-upgrade" viewBox="0 0 24 24"><path d="m6 10 6-6 6 6M12 4v13M5 16v5h14v-5"/></symbol>
+    <symbol id="icon-research" viewBox="0 0 24 24"><path d="M4 3h11l5 5v13H4zm11 0v5h5M8 12h8m-8 4h5"/></symbol>
+    <symbol id="icon-crew" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m2-16a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5v2"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 2 3-1 2 4 3-1 1-3 4-2-1-3 1-3-3-2-3 1-1-3z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="icon-draw" viewBox="0 0 24 24"><path d="M4 8h16v13H4zM3 4h18v4H3zm9 7v7m-3-3h6"/></symbol>
+  </defs></svg>
   <main id="lobby" class="lobby">
     <section id="home-screen" class="home-screen" aria-label="원정대 홈">
-      <div class="home-top"><span class="credit-balance">연구 크레딧 <strong id="research-credits">—</strong></span><button id="settings-btn" class="icon-button" aria-label="설정">⚙</button></div>
-      <div class="home-brand"><p class="eyebrow">SCRAP CREW</p><h1>폐품로봇<br><em>원정대</em></h1><p>작은 고철로, 먼 우주까지.</p></div>
-      <div class="home-scene" aria-hidden="true"><div class="home-planet"></div><div class="home-orbit"></div><div id="hero-robots" class="hero-robots"></div><div class="landing-pad"></div></div>
-      <div class="home-actions"><button id="home-play" class="primary large" disabled>출정 준비 중…</button><button id="resume-btn" class="secondary" hidden>이전 전장으로</button><div class="home-utilities"><button id="research-btn" class="text-button" disabled><span aria-hidden="true">⌘</span> 설계도 연구</button><button id="feedback-btn" class="text-button">플레이 의견</button></div></div>
+      <div class="home-top"><span class="credit-balance">연구 크레딧 <strong id="research-credits">—</strong></span><button id="settings-btn" class="icon-button" aria-label="설정"><svg class="ui-icon" aria-hidden="true"><use href="#icon-settings"/></svg></button></div>
+      <div class="home-brand"><h1><span>폐품로봇</span><br><em>원정대</em></h1><p>작은 고철로, 먼 우주까지.</p></div>
+      <div class="home-scene" aria-hidden="true"><div class="home-planet"></div><div class="ship-window"></div><div class="crew-deck"></div><div id="hero-robots" class="hero-robots"></div><div class="crew-status"><span></span>출발 전 장비 점검 중</div></div>
+      <div class="home-actions"><button id="home-play" class="primary large" disabled>원정 기록 확인 중…</button><button id="resume-btn" class="secondary" hidden>이전 전장으로</button><div class="home-utilities"><button id="research-btn" class="text-button" disabled><svg class="ui-icon" aria-hidden="true"><use href="#icon-research"/></svg>설계도 연구</button><button id="home-join" class="text-button"><svg class="ui-icon" aria-hidden="true"><use href="#icon-crew"/></svg>함께하기</button></div></div>
     </section>
     <section id="stage-screen" class="stage-screen" aria-labelledby="stage-title" hidden>
-      <div class="stage-heading"><button id="stage-back" class="icon-button" aria-label="홈으로">‹</button><div><p class="eyebrow">SELECT DESTINATION</p><h1 id="stage-title">어디로 떠날까?</h1></div><button id="join-open" class="secondary">함께하기</button></div>
+      <div class="stage-heading"><button id="stage-back" class="icon-button" aria-label="홈으로">‹</button><div><h1 id="stage-title">행성 선택</h1></div><button id="join-open" class="secondary">함께하기</button></div>
       <div id="planet-list" class="planet-list" aria-label="행성 선택"></div>
       <section class="mission-brief" aria-labelledby="destination-name"><small id="destination-type"></small><h2 id="destination-name"></h2><p id="destination-description"></p><dl><div><dt>목표</dt><dd id="destination-win"></dd></div><div><dt>위험</dt><dd id="destination-loss"></dd></div></dl></section>
-      <div class="departure-controls"><div class="practice-options"><label for="speed-select">진행</label><select id="speed-select"><option value="1">원정 · 1배속</option><option value="3">연습 · 3배속 / 보상 없음</option><option value="6">연습 · 6배속 / 보상 없음</option></select></div><span id="expedition-duration"></span><button id="quick-start" class="primary large" disabled>원정 준비 중…</button></div>
+      <div class="departure-controls"><details id="practice-settings"><summary>원정 설정 <span id="run-mode-label">일반 · 보상 저장</span></summary><div class="practice-options"><label for="speed-select">진행 방식</label><select id="speed-select"><option value="1">원정 · 1배속</option><option value="3">연습 · 3배속 / 보상 없음</option><option value="6">연습 · 6배속 / 보상 없음</option></select></div></details><span id="expedition-duration"></span><button id="quick-start" class="primary large" disabled>원정 준비 중…</button></div>
     </section>
     <p id="lobby-notice" class="lobby-notice" role="status">원정 기록을 불러오는 중…</p>
   </main>
@@ -33,7 +43,7 @@
     <section class="game-overview" aria-label="전투 현황">
       <div class="battle-title"><p class="eyebrow">EARTH EXPEDITION</p><h1><span id="planet-title">원정</span> <span id="room-label"></span></h1></div>
       <div class="counters"><div><span>웨이브</span><strong id="wave-value">01 <small>/ 24</small></strong></div><div><span>고철</span><strong id="gold-value" class="gold">0</strong></div><div><span>로봇</span><strong id="unit-value">0 <small>/ 30</small></strong></div></div>
-      <div class="connection-meta"><span id="connection-state" class="connected">● 연결됨</span><small id="speed-label">1배속</small><button id="leave-btn" class="text-button">나가기</button><button id="battle-settings-btn" class="icon-button" aria-label="전투 설정">⚙</button></div>
+      <div class="connection-meta"><span id="connection-state" class="connected">● 연결됨</span><small id="speed-label">1배속</small><button id="leave-btn" class="text-button">나가기</button><button id="battle-settings-btn" class="icon-button" aria-label="전투 설정"><svg class="ui-icon" aria-hidden="true"><use href="#icon-settings"/></svg></button></div>
     </section>
 
     <div class="combat-grid">
@@ -42,12 +52,12 @@
         <div class="canvas-wrap">
           <canvas id="battlefield" width="1000" height="440" aria-label="내 구역의 전투 화면. 로봇 버튼의 목록에서도 선택할 수 있습니다."></canvas>
           <aside class="side-column"><button id="story-toggle" class="co-op-summary"><span>스토리</span><strong id="story-summary">준비 중</strong></button><button id="team-toggle" class="co-op-summary"><span>원정대</span><strong id="team-summary">1 / 4</strong></button></aside>
-          <section class="command-panel" aria-label="전장 조작"><div class="command-toolbar"><div class="tabs" aria-label="로봇 관리"><button id="army-tab" data-tab="army" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><span class="control-icon" aria-hidden="true">▣</span>로봇 <span id="army-count">0</span></button><button id="recipes-tab" data-tab="recipes" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><span class="control-icon" aria-hidden="true">⌘</span>조립 <span id="ready-count">0</span></button><button id="upgrades-tab" data-tab="upgrades" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><span class="control-icon" aria-hidden="true">↑</span>강화</button></div></div></section>
-          <button id="summon-btn" class="primary field-summon" disabled><span class="summon-symbol" aria-hidden="true">＋</span><strong>로봇 뽑기</strong><span id="summon-cost">20 고철</span></button>
+          <section class="command-panel" aria-label="전장 조작"><div class="command-toolbar"><div class="tabs" aria-label="로봇 관리"><button id="army-tab" data-tab="army" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><svg class="ui-icon control-icon" aria-hidden="true"><use href="#icon-robot"/></svg>로봇 <span id="army-count">0</span></button><button id="recipes-tab" data-tab="recipes" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><svg class="ui-icon control-icon" aria-hidden="true"><use href="#icon-assemble"/></svg>조립 <span id="ready-count">0</span></button><button id="upgrades-tab" data-tab="upgrades" aria-haspopup="dialog" aria-controls="command-dialog" aria-expanded="false"><svg class="ui-icon control-icon" aria-hidden="true"><use href="#icon-upgrade"/></svg>강화</button></div></div></section>
+          <button id="summon-btn" class="primary field-summon" disabled><svg class="ui-icon summon-symbol" aria-hidden="true"><use href="#icon-draw"/></svg><strong>로봇 뽑기</strong><span id="summon-cost">20 고철</span></button>
           <footer class="game-footer"><span id="notice" role="status"></span><button id="retry-action" class="text-button" hidden>재시도</button><button id="reconnect-btn" class="text-button" hidden>재접속</button><button id="new-game-btn" class="text-button">새 원정</button></footer>
           <div id="boss-hud" class="boss-hud" hidden><div><strong id="boss-label">탈출 보스</strong><span id="boss-hp"></span></div><progress id="boss-health" max="100" value="100" aria-labelledby="boss-label"></progress></div>
           <div id="combat-alert" class="combat-alert" role="status" aria-atomic="true" hidden><strong id="combat-alert-title"></strong><span id="combat-alert-subtitle"></span></div>
-          <div id="field-hint" class="field-hint">로봇 뽑기를 눌러 첫 로봇을 만나세요.</div>
+          <div id="field-hint" class="field-hint">로봇을 뽑아 방어를 시작하세요.</div>
           <dialog id="unit-dialog" class="unit-dialog" aria-labelledby="unit-title" aria-describedby="unit-subtitle" aria-modal="false">
             <div class="dialog-heading"><span id="unit-portrait" class="unit-detail-portrait" aria-hidden="true"></span><div><h2 id="unit-title"></h2><p id="unit-subtitle"></p></div><button id="queue-dispatch" class="secondary">파견 대기</button><button id="sell-unit" class="text-button" aria-expanded="false" aria-controls="sale-inspection">판매</button><button data-close="unit-dialog" class="icon-button" aria-label="로봇 상세 닫기">×</button></div>
             <div id="evolution-panel"></div>
@@ -70,9 +80,9 @@
       </div>
   </dialog>
 
-  <dialog id="blueprint-dialog" aria-labelledby="blueprint-title"><div class="dialog-heading"><div><p class="eyebrow">ASSEMBLY PLAN</p><h2 id="blueprint-title">조립 경로</h2></div><button data-close="blueprint-dialog" class="icon-button" aria-label="조립 경로 닫기">×</button></div><p id="blueprint-summary" class="muted"></p><div id="blueprint-tree"></div><button id="blueprint-pin" class="secondary">이번 판 목표로 지정</button></dialog>
+  <dialog id="blueprint-dialog" aria-labelledby="blueprint-title"><div class="dialog-heading"><div><h2 id="blueprint-title">조립 경로</h2></div><button data-close="blueprint-dialog" class="icon-button" aria-label="조립 경로 닫기">×</button></div><p id="blueprint-summary" class="muted"></p><div id="blueprint-tree"></div><button id="blueprint-pin" class="secondary">이번 판 목표로 지정</button></dialog>
 
-  <dialog id="research-dialog" aria-labelledby="research-title"><div class="dialog-heading"><div><p class="eyebrow">EARTH RESEARCH LAB</p><h2 id="research-title">설계도 연구</h2></div><button data-close="research-dialog" class="icon-button" aria-label="연구소 닫기">×</button></div><p class="research-balance">연구 크레딧 <strong id="research-balance">0</strong></p><p class="muted">원정 성과로 설계도를 해금하세요. 조립 재료는 매 원정에서 다시 모아야 해요.</p><div id="research-list"></div><p id="research-notice" role="status"></p></dialog>
+  <dialog id="research-dialog" aria-labelledby="research-title"><div class="dialog-heading"><div><h2 id="research-title">설계도 연구</h2></div><button data-close="research-dialog" class="icon-button" aria-label="연구소 닫기">×</button></div><p class="research-balance">연구 크레딧 <strong id="research-balance">0</strong></p><p class="muted">조합식은 계속 유지돼요.<br>재료는 매 원정에서 모아요.</p><div id="research-list"></div><p id="research-notice" role="status"></p></dialog>
 
   <dialog id="co-op-dialog" aria-labelledby="co-op-title"><div class="dialog-heading"><h2 id="co-op-title">원정대 상황</h2><button data-close="co-op-dialog" class="icon-button" aria-label="원정대 상황 닫기">×</button></div>
     <div class="room-invite"><div><small>함께할 동료에게 방 코드 전달</small><code id="invite-room"></code></div><button id="copy-room" class="secondary">복사</button></div>
@@ -82,7 +92,7 @@
 
   <dialog id="result-dialog" class="result-dialog"><div class="result-emblem" aria-hidden="true">★</div><p class="eyebrow">이번 원정의 기록</p><h2 id="result-title">원정 종료</h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><p id="result-research" class="research-balance"></p><p id="result-save-note" class="muted"></p><div class="dialog-actions"><button id="result-lobby" class="primary">귀환 · 연구소로</button><button id="result-retry" class="secondary">다시 도전</button><button id="spectate-btn" class="secondary">동료 관전</button></div><button id="result-feedback" class="text-button">이번 플레이 의견 남기기</button></dialog>
 
-  <dialog id="settings-dialog"><div class="dialog-heading"><h2>전장 설정</h2><button data-close="settings-dialog" class="icon-button" aria-label="설정 닫기">×</button></div><label class="setting-row"><span>움직임 줄이기<small>대기 움직임과 섬광 연출을 줄입니다.</small></span><input id="reduced-motion" type="checkbox"></label><label class="setting-row"><span>효과음<small>실제 사격·폭발·조립의 효과음을 들려줍니다.</small></span><input id="sound-enabled" type="checkbox"></label><button id="restore-guide" class="secondary">플레이 안내 다시 보기</button><button id="settings-feedback" class="text-button">플레이 의견</button><p id="rules-help" class="muted">내 구역을 방어하며 채굴을 완료하고, 마지막 보스를 막아 탈출하세요.</p><p class="muted">로봇 뽑기 확률: 기본 93% · 개조 6.8% · 특급 0.2%. 전설과 궁극은 조립으로 완성해요.</p><p class="muted">전투는 설정 화면을 열어도 계속 진행됩니다.</p></dialog>
+  <dialog id="settings-dialog"><div class="dialog-heading"><h2>전장 설정</h2><button data-close="settings-dialog" class="icon-button" aria-label="설정 닫기">×</button></div><label class="setting-row"><span>움직임 줄이기<small>대기 움직임과 섬광 연출을 줄입니다.</small></span><input id="reduced-motion" type="checkbox"></label><label class="setting-row"><span>효과음<small>공격·조립 효과음</small></span><input id="sound-enabled" type="checkbox"></label><button id="restore-guide" class="secondary">플레이 안내 다시 보기</button><button id="settings-feedback" class="text-button">플레이 의견</button><p id="rules-help" class="muted">내 구역을 방어하며 채굴을 완료하고, 마지막 보스를 막아 탈출하세요.</p><p class="muted">로봇 뽑기 확률: 기본 93% · 개조 6.8% · 특급 0.2%. 전설과 궁극은 조립으로 완성해요.</p><p class="muted">전투는 설정 화면을 열어도 계속 진행됩니다.</p></dialog>
 
   <dialog id="feedback-dialog"><div class="dialog-heading"><div><p class="eyebrow">직접 플레이한 경험을 들려주세요</p><h2>플레이 의견</h2></div><button data-close="feedback-dialog" class="icon-button" aria-label="의견 창 닫기">×</button></div><p class="muted">작성한 내용은 이 브라우저에만 저장합니다. 외부로 전송하지 않으며 이름·방 코드·인증 정보는 기록하지 않습니다.</p><form id="feedback-form"><label>얼마나 재미있었나요?<select name="fun" required><option value="">선택하세요</option><option value="1">1 · 전혀 재미없음</option><option value="2">2 · 아쉬움</option><option value="3">3 · 보통</option><option value="4">4 · 재미있음</option><option value="5">5 · 매우 재미있음</option></select></label><label>조작과 규칙을 이해하기 쉬웠나요?<select name="clarity" required><option value="">선택하세요</option><option value="1">1 · 매우 어려움</option><option value="2">2 · 어려움</option><option value="3">3 · 보통</option><option value="4">4 · 쉬움</option><option value="5">5 · 매우 쉬움</option></select></label><label>한 판 더 해보고 싶나요?<select name="retry" required><option value="">선택하세요</option><option value="yes">네</option><option value="maybe">잘 모르겠어요</option><option value="no">아니요</option></select></label><label>기억에 남은 순간이나 불편한 점<textarea name="comment" maxlength="2000" rows="3" placeholder="선택 사항 · 개인 정보는 적지 마세요"></textarea></label><button type="submit" class="primary">이 브라우저에 의견 저장</button></form><div class="feedback-footer"><span id="feedback-count">저장된 의견 0개</span><button id="export-feedback" class="text-button">의견 JSON 내보내기</button></div><p id="feedback-notice" role="status"></p></dialog>
   <div id="toast" class="toast" role="status" hidden></div>

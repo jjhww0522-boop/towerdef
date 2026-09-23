@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { selectDestination } from './playtest-navigation.mjs';
+import { selectDestination, selectRunSpeed } from './playtest-navigation.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, rmdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -61,7 +61,7 @@ async function snapshot(page) {
 }
 async function start(page, speed = '1') {
   await selectDestination(page);
-  await page.selectOption('#speed-select', speed);
+  await selectRunSpeed(page, speed);
   await page.locator('#quick-start').tap();
   await page.locator('#game:not([hidden])').waitFor();
   await page.locator('#summon-btn:enabled').waitFor();
@@ -165,7 +165,8 @@ function finishPlayer(game, playerId) {
   assert.ok(boss, 'production core spawns the final boss');
   boss.hp = 1;
   for (const unit of player.units) unit.attackCooldownTicks = 0;
-  tick(game);
+  // Random placements need time for the boss to enter a robot's actual range.
+  for (let step = 0; step < game.rules.bossTicks && player.status === 'active'; step++) tick(game);
   assert.equal(player.status, 'cleared');
   assert.ok(player.result?.cleared, 'production core freezes the terminal result');
   return player.result;

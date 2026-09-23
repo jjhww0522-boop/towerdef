@@ -1,5 +1,6 @@
 import { Battlefield } from './battlefield.js';
 import { unitSpriteUrl } from './casual-art.js';
+import { mountHomeCrew } from './home-crew.js';
 import { recipeMaterials, evolutionOptions, theoreticalDps } from './evolution-model.mjs';
 
 const $ = selector => document.querySelector(selector);
@@ -14,6 +15,7 @@ const attackNames = { bolt: '집중 사격', blast: '범위 포격', arc: '연�
 const attackDescriptions = { bolt: '한 적에게 화력을 집중해요.', blast: '주 대상 80% · 가까운 적 최대 2기에 각각 45% 폭발 피해.', arc: '주 대상 100% · 가까운 적으로 최대 두 번 연결해 45%·25% 피해.' };
 const elementNames = { fire: '화염', wind: '바람', frost: '냉동', laser: '레이저', electric: '전격' };
 const attackName = definition => elementNames[definition.element] || attackNames[definition.attackPattern || 'bolt'];
+const attackRole = definition => ({ fire: '화염 집중', wind: '바람 범위 공격', frost: '냉동 감속', laser: '레이저 단일 사격', electric: '연쇄 전격' })[definition.element] || attackNames[definition.attackPattern || 'bolt'];
 const rangeName = definition => definition.attackRange <= 160 ? '짧음' : definition.attackRange >= 500 ? '김' : '중간';
 const attackDescription = definition => ({ fire: '가까운 적에게 강한 화력을 집중해요.', wind: '주 대상 80% · 주변 최대 2기에 각각 45% 피해.',
   frost: `적을 ${content.rules.frostSlowTicks / content.rules.ticksPerSecond}초간 ${Math.round((1 - content.rules.frostSlowMultiplier) * 100)}% 감속해요. 보스는 ${Math.round((1 - content.rules.bossSlowMultiplier) * 100)}%.`,
@@ -46,13 +48,7 @@ let requestTail = Promise.resolve(), nextPoll = 0, resultShown = false, audioCon
 let audioVoices = 0, alertPriority = 0, quietCombatUntil = 0, noiseBuffer;
 const lastCombatSounds = {};
 const field = new Battlefield($('#battlefield'), selectUnit, event => combatSound(event));
-for (const definition of [
-  { id: 'shu_guard', faction: 'shu', troop: 'infantry', trait: 'might', rarity: 'basic' },
-  { id: 'zhuge_liang', faction: 'shu', troop: 'archer', trait: 'strategy', rarity: 'hero' },
-  { id: 'wu_rider', faction: 'wu', troop: 'cavalry', trait: 'command', rarity: 'basic' }
-]) {
-  const robot = new Image(); robot.src = unitSpriteUrl(definition); robot.alt = ''; $('#hero-robots').append(robot);
-}
+mountHomeCrew($('#hero-robots'));
 const me = () => state?.players.find(p => p.id === playerId);
 const watched = () => state?.players.find(p => p.id === watchedId) || me();
 const name = value => definitions?.get(value)?.name || value;
@@ -119,13 +115,14 @@ function renderLobby() {
   }).join(''));
   const planet = content.battlefields.find(p => p.id === selectedBattlefield), r = { ...content.rules, ...planet.rules };
   const speed = Number($('#speed-select').value);
+  text('#run-mode-label', speed === 1 ? '일반 · 보상 저장' : `${speed}배속 연습 · 보상 없음`);
   text('#research-credits', profile.researchCredits.toLocaleString());
   const goal = objectiveCopy(planet, r);
   text('#destination-name', planet.name); text('#destination-type', goal.type); text('#destination-description', planet.description);
   text('#destination-win', goal.win); text('#destination-loss', goal.loss);
   text('#expedition-duration', `최대 ${durationText(expeditionTicks(planet, r))}${speed > 1 ? ' · 배속 연습 / 보상 없음' : ' · 원정 보상 저장'}`);
-  text('#home-play', '출정'); $('#home-play').disabled = joining;
-  text('#quick-start', speed === 1 ? '원정 출발 ↗' : '보상 없는 연습 시작 ↗');
+  text('#home-play', '행성 선택'); $('#home-play').disabled = joining;
+  text('#quick-start', speed === 1 ? '출발' : '연습 출발 · 보상 없음');
   $('#quick-start').disabled = joining;
   $('#join-form button').disabled = joining;
   $('#research-btn').disabled = false;
@@ -154,7 +151,7 @@ function renderResearch() {
     const d = definitions.get(recipe.result), unlocked = profile.unlockedRecipes.includes(recipe.id);
     const eligible = profile.clearedBattlefields.includes(recipe.unlockBattlefield), affordable = profile.researchCredits >= recipe.researchCost;
     const prerequisite = content.battlefields.find(p => p.id === recipe.unlockBattlefield)?.name || recipe.unlockBattlefield;
-    return `<article class="research-card"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><h3>${escape(d.name)} <small>${rarityName(d)}</small></h3><p>${unlocked ? '연구 완료 · 다음 원정부터 조립 가능' : eligible ? '조립 재료: ' + recipe.ingredients.map(name).map(escape).join(' + ') : escape(prerequisite) + ' 탈출 후 연구 가능'}</p><button class="text-button" data-plan-recipe="${recipe.id}">조립 경로 보기</button></div><button class="${unlocked ? 'secondary' : 'primary'}" data-research-recipe="${recipe.id}" ${researching || unlocked || !eligible || !affordable ? 'disabled' : ''}>${unlocked ? '해금 완료' : !eligible ? '탐사 필요' : `${recipe.researchCost} 크레딧 · 연구`}</button></article>`;
+    return `<article class="research-card"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><h3>${escape(d.name)} <small>${rarityName(d)}</small></h3><p class="research-condition">${unlocked ? '다음 원정부터 조립 가능' : eligible ? '재료: ' + recipe.ingredients.map(name).map(escape).join(' + ') : escape(prerequisite) + ' 클리어 후 연구'}</p>${unlocked ? '' : `<p class="research-cost">${recipe.researchCost} 크레딧${eligible && !affordable ? ' · ' + (recipe.researchCost - profile.researchCredits) + ' 부족' : ''}</p>`}<button class="text-button" data-plan-recipe="${recipe.id}">조립 경로</button></div><button class="${unlocked ? 'secondary' : 'primary'}" data-research-recipe="${recipe.id}" aria-label="${escape(d.name)} ${unlocked ? '연구 완료' : '연구'}" ${researching || unlocked || !eligible || !affordable ? 'disabled' : ''}>${unlocked ? '연구 완료' : '연구'}</button></article>`;
   }).join(''));
 }
 
@@ -164,7 +161,7 @@ async function researchRecipe(recipeId) {
   try {
     const result = await api('/research', { recipeId }, profileToken);
     acceptProfile(result.profile);
-    text('#research-notice', `${name(content.recipes.find(recipe => recipe.id === recipeId).result)} 설계도를 해금했어요. 다음 원정에서 재료를 모아 조립하세요.`);
+    text('#research-notice', `${name(content.recipes.find(recipe => recipe.id === recipeId).result)} 연구 완료. 다음 원정부터 조립할 수 있어요.`);
   } catch (error) { text('#research-notice', error.message); }
   finally { researching = false; renderResearch(); }
 }
@@ -173,7 +170,7 @@ function openBlueprint(recipeId) {
   const recipe = content.recipes.find(recipe => recipe.id === recipeId); if (!recipe) return;
   blueprintId = recipeId;
   text('#blueprint-title', name(recipe.result));
-  text('#blueprint-summary', '위에서 아래로 필요한 조립 경로예요. 보유 로봇부터 배정하며, 같은 로봇을 두 번 사용하지 않아요. 재료 획득은 보장되지 않아요.');
+  text('#blueprint-summary', '아래로 펼치면 필요한 재료가 보여요. 보유 로봇은 한 번씩만 배정해요. 부족한 재료는 직접 모아야 해요.');
   const stock = new Map();
   for (const unit of me()?.units || []) if (!unit.dispatched) stock.set(unit.definitionId, (stock.get(unit.definitionId) || 0) + 1);
   function branch(unitId, count, depth = 0) {
@@ -204,7 +201,7 @@ async function joinRoom(roomId, resume = false) {
     session = { roomId, token: result.token }; save(sessionStorage, 'td.session', session);
     state = null; selected.clear(); focusedId = null; for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close(); watchedId = playerId; resultShown = false; active = true; $('#lobby').hidden = true; $('#game').hidden = false; $('#resume-btn').hidden = false;
     clearTimeout(alertTimer); $('#combat-alert').hidden = true; alertPriority = 0;
-    accept(result.state); notice('로봇 뽑기로 첫 로봇을 만나세요.', 'success'); nextPoll = performance.now() + 200;
+    accept(result.state); notice('로봇을 뽑아 방어를 시작하세요.', 'success'); nextPoll = performance.now() + 200;
   } catch (error) { text('#lobby-notice', error.message); text('#join-notice', error.message); if (state) notice(error.message, 'error'); }
   finally { joining = false; $('#quick-start').disabled = !profile; $('#join-form button').disabled = !profile; }
 }
@@ -277,6 +274,10 @@ async function sendAction(type, extra = {}, retry = false) {
 
 function materials(recipe, focus = null) { return recipeMaterials(recipe, me()?.units || [], focus, me()?.unlockedRecipes || []); }
 function materialHTML(recipe) { return materials(recipe).entries.map(e => `<span class="material ${e.have >= e.need ? 'enough' : ''}">${escape(name(e.key))} <b>${e.have}/${e.need}</b></span>`).join(''); }
+function assemblyStatus(recipe, stock) {
+  const missing = stock.entries.filter(entry => entry.have < entry.need).map(entry => `${name(entry.key)} ${entry.need - entry.have}기`);
+  return [isUnlocked(recipe) ? '' : '설계도 연구 필요', missing.length ? missing.join(' · ') + ' 필요' : isUnlocked(recipe) ? '재료 준비 완료' : ''].filter(Boolean).join(' · ');
+}
 function controlsAvailable() { return connected && !actionBusy && !pending && me()?.status === 'active'; }
 function dismissUnit() {
   if (!$('#unit-dialog').open && focusedId === null) return;
@@ -300,7 +301,7 @@ function renderEvolution() {
   const definition = definitions.get(unit.definitionId), choices = evolutionOptions(content, player, focusedId);
   text('#unit-title', definition.name);
   $('#unit-title').title = definition.name;
-  text('#unit-subtitle', `${rarityName(definition)} · ${attackName(definition)} · 사거리 ${rangeName(definition)}`);
+  text('#unit-subtitle', `${attackRole(definition)} · 사거리 ${rangeName(definition)}`);
   $('#unit-subtitle').title = attackDescription(definition);
   $('#unit-portrait').setAttribute('style', portraitStyle(definition).replaceAll('&quot;', '"'));
   const away = player.units.filter(u => u.dispatched).length;
@@ -324,26 +325,27 @@ function renderEvolution() {
     const alternatives = content.recipes.filter(other => other.id !== recipe.id && other.ingredients.some(id => recipe.ingredients.includes(id)));
     const complete = m.ids.length === recipe.ingredients.length;
     return `<article class="evolution-card ${m.ready ? 'ready' : ''}" data-evolution-result="${result.id}">
-      <div class="evolution-main"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(result)}" aria-hidden="true"></span><h3>${escape(result.name)}<small>${rarityName(result)} · ${names[result.faction]}/${names[result.troop]}/${names[result.trait]}</small></h3></div></div>
-      <button class="primary evolve-button" data-evolve-recipe="${recipe.id}" aria-label="${escape(result.name)} ${!isUnlocked(recipe) ? '해금 필요' : m.ready ? '조립' : '재료 부족'}" ${!controlsAvailable() || !m.ready ? 'disabled' : ''}>${!isUnlocked(recipe) ? '잠김' : m.ready ? '조립' : '재료 부족'}</button>
-      <div class="materials" aria-label="소모할 재료와 보유 수">${materialHTML(recipe)}</div></div>
+      <div class="evolution-main"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(result)}" aria-hidden="true"></span><h3>${escape(result.name)}<small>${attackRole(result)} · 사거리 ${rangeName(result)}</small></h3></div></div>
+      <button class="primary evolve-button" data-evolve-recipe="${recipe.id}" aria-label="${escape(result.name)} ${m.ready ? '조립' : escape(assemblyStatus(recipe, m))}" ${!controlsAvailable() || !m.ready ? 'disabled' : ''}>조립</button>
+      <p class="assembly-status">${escape(assemblyStatus(recipe, m))}</p></div>
+      <div class="materials" aria-label="소모할 재료와 보유 수">${materialHTML(recipe)}</div>
       <details class="evolution-detail"><summary>${recipe.ingredients.length}기 → 1기 · 이 자리에서 조립</summary>
       <p class="consumption">${complete ? '소모: ' + consumed.map(u => escape(name(u.definitionId)) + (u.id === focusedId ? ' (선택)' : '')).join(' + ') : '표시된 로봇이 모두 있어야 조립할 수 있어요.'}</p>
-      <p>선택 로봇: ${attackDescription(definition)} ${names[definition.faction]} / ${names[definition.troop]} / ${names[definition.trait]}</p>
-      <p class="evolution-change">결과 태그: ${names[result.faction]} / ${names[result.troop]} / ${names[result.trait]} · 이 태그로 강화 적용</p>
+      <p>선택 로봇: ${rarityName(definition)} · ${attackDescription(definition)} ${names[definition.faction]} / ${names[definition.troop]} / ${names[definition.trait]}</p>
+      <p class="evolution-change">결과: ${rarityName(result)} · ${names[result.faction]} / ${names[result.troop]} / ${names[result.trait]} 강화 적용</p>
       <p>${complete ? '소모 로봇 합 ' + before.toFixed(1) + ' → ' : '결과 로봇 '}${after.toFixed(1)} /초 · 현재 강화 반영</p><small>주 대상 이론치 · 범위·연쇄·초과 피해 제외</small>
       <p>${attackName(result)} · 사거리 ${rangeName(result)} · ${attackDescription(result)}</p>
       ${alternatives.length ? '<p>다른 사용처: ' + alternatives.map(r => escape(name(r.result))).join(', ') + '</p>' : ''}
       <button class="text-button" data-plan-recipe="${recipe.id}">전체 조립 경로</button><button class="pin-button" data-pin="${recipe.id}" aria-label="${escape(result.name)} 목표 지정" aria-pressed="${pinned === recipe.id}">${pinned === recipe.id ? '★ 목표 해제' : '☆ 목표 지정'}</button></details>
     </article>`;
-  }).join('') : '<p class="empty-roster">최종 조립 완성! 강화와 스토리 파견으로 활약하세요.</p>';
+  }).join('') : `<p class="empty-roster">최종 조립 완성</p><details class="evolution-detail"><summary>공격·강화 대상 보기</summary><p>${rarityName(definition)} · ${attackDescription(definition)}</p><p>${names[definition.faction]} / ${names[definition.troop]} / ${names[definition.trait]} 강화 적용</p><p>주 대상 ${theoreticalDps(definition, player, rules()).toFixed(1)} /초 · 현재 강화 반영</p><small>범위·연쇄·초과 피해 제외</small></details>`;
   html('#evolution-panel', options);
 }
 function switchTab(value) {
   currentTab = value; upgradeTag = null;
   for (const button of document.querySelectorAll('[data-tab]')) button.setAttribute('aria-expanded', String(button.dataset.tab === value));
   for (const key of ['army', 'recipes', 'upgrades']) $('#' + key + '-panel').hidden = key !== value;
-  text('#command-title', { army: '보유 로봇', recipes: '조립 설계도', upgrades: '태그 강화' }[value]);
+  text('#command-title', { army: '보유 로봇', recipes: '조립 설계도', upgrades: '로봇 강화' }[value]);
   $('#unit-dialog').close();
   if (!$('#command-dialog').open) $('#command-dialog').showModal();
   $('.command-content').scrollTop = 0; render();
@@ -355,8 +357,8 @@ function renderUpgrade() {
   const player = me(), r = rules(), level = player.upgrades[upgradeTag], max = level >= r.maxUpgradeLevel;
   const affected = player.units.filter(u => { const d = definitions.get(u.definitionId); return [d.faction, d.troop, d.trait].includes(upgradeTag); }).length;
   text('#upgrade-title', `${names[upgradeTag]} · Lv.${level}${max ? ' 최대' : ' → ' + (level + 1)}`);
-  text('#upgrade-effect', `현재·이후 ${names[upgradeTag]} 로봇 공격력 +${Math.round(r.upgradeBonus * 100)}% 추가`);
-  text('#upgrade-applies', `보유 ${affected}기 적용 · 이번 원정만 유지 · 다른 태그와 합산`);
+  text('#upgrade-effect', `${names[upgradeTag]} 공격력 +${Math.round(r.upgradeBonus * 100)}% 추가 · 새 로봇도 적용`);
+  text('#upgrade-applies', `보유 ${affected}기 · 이번 원정만 유지 · 다른 분류 강화와 합산`);
   text('#upgrade-buy', max ? '강화 완료' : `${r.upgradeCosts[level]} 고철 · 강화`);
   $('#upgrade-buy').disabled = !controlsAvailable() || max || player.gold < r.upgradeCosts[level];
 }
@@ -393,7 +395,7 @@ function render() {
   }
   text('#battle-rule', lane.overcrowdedTicks > 0 ? `과밀! ${(Math.max(0, r.overcrowdTicks - lane.overcrowdedTicks) / r.ticksPerSecond).toFixed(1)}초` : `${planet?.name || '원정'}${state.practice ? ' · 연습' : ''}`);
   text('#next-wave', state.bossRemainingTicks != null ? `보스 제한 ${(state.bossRemainingTicks / r.ticksPerSecond).toFixed(1)}초` : `다음 웨이브 ${Math.ceil((r.waveTicks - state.tick % r.waveTicks) / r.ticksPerSecond)}초`);
-  $('#field-hint').hidden = lane.units.length > 0 && lane.status === 'active'; text('#field-hint', lane.status !== 'active' ? `${statuses[lane.status]} · 동료 카드를 눌러 다른 전장을 확인하세요.` : '로봇 뽑기를 눌러 첫 로봇을 만나세요.');
+  $('#field-hint').hidden = lane.units.length > 0 && lane.status === 'active'; text('#field-hint', lane.status !== 'active' ? `${statuses[lane.status]} · 동료 카드를 눌러 다른 전장을 확인하세요.` : '로봇을 뽑아 방어를 시작하세요.');
   field.expedition = expedition; field.battlefieldId = state.battlefieldId; field.objective = state.objective;
   field.update(lane, definitions, lane.id === playerId ? new Set(focusedId === null ? [] : [focusedId]) : new Set(), speed, settings.reduced);
   text('#team-count', `${state.players.length} / 4`); html('#team-list', state.players.map((p, index) => `<button class="team-card ${p.id === lane.id ? 'active' : ''}" data-watch="${escape(p.id)}" aria-label="${p.id === playerId ? '내' : '동료 ' + (index + 1)} 전장 관전"><span class="team-badge">${p.id === playerId ? '나' : index + 1}</span><div><strong>${p.id === playerId ? '내 전장' : '동료 ' + (index + 1)} · ${statuses[p.status]}</strong><small>로봇 ${p.units.length} · 적 ${p.enemies.length} · ${p.connected ? '접속' : '연결 끊김'}</small></div><span aria-hidden="true">›</span></button>`).join(''));
@@ -412,9 +414,9 @@ function render() {
   const selectedDefinitions = player.units.filter(u => u.id === focusedId).map(u => definitions.get(u.definitionId));
   $('#clear-selection').hidden = selected.size === 0;
   text('#selection-info', selectedDefinitions.length ? `${selectedDefinitions[0].name} 선택 · 조립은 로봇을 누르세요` : '로봇을 눌러 조립 · 옆으로 넘겨 보기');
-  html('#roster', player.units.length ? player.units.map(u => { const d = definitions.get(u.definitionId); return `<button class="unit-card ${u.dispatched ? 'dispatched' : ''}" data-unit-id="${u.id}" data-faction="${d.faction}" data-rarity="${d.rarity}" aria-pressed="${focusedId === u.id}" ${u.dispatched || player.status !== 'active' ? 'disabled' : ''} aria-label="${escape(d.name)} ${rarityName(d)} ${u.dispatched ? '파견 중' : '선택'}"><span class="unit-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><strong>${escape(d.name)}</strong><small>${u.dispatched ? '파견 중' : `${selected.has(u.id) ? '파견 대기 · ' : ''}${rarityName(d)} · ${names[d.trait]}`}</small></div></button>`; }).join('') : '<p class="empty-roster">첫 로봇을 뽑아 전장을 채워보세요. 로봇들은 자동으로 적을 공격합니다.</p>');
+  html('#roster', player.units.length ? player.units.map(u => { const d = definitions.get(u.definitionId); return `<button class="unit-card ${u.dispatched ? 'dispatched' : ''}" data-unit-id="${u.id}" data-faction="${d.faction}" data-rarity="${d.rarity}" aria-pressed="${focusedId === u.id}" ${u.dispatched || player.status !== 'active' ? 'disabled' : ''} aria-label="${escape(d.name)} ${rarityName(d)} ${u.dispatched ? '파견 중' : '선택'}"><span class="unit-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><div><strong>${escape(d.name)}</strong><small>${u.dispatched ? '파견 중' : `${selected.has(u.id) ? '파견 대기 · ' : ''}${rarityName(d)} · ${names[d.trait]}`}</small></div></button>`; }).join('') : '<p class="empty-roster">로봇을 뽑아 방어를 시작하세요. 공격은 자동이에요.</p>');
   const recipes = content.recipes.filter(recipe => !$('#craftable-only').checked || materials(recipe).ready);
-  html('#recipe-list', recipes.length ? recipes.map(recipe => { const m = materials(recipe), d = definitions.get(recipe.result); return `<article class="recipe-card ${m.ready ? 'ready' : ''} ${isUnlocked(recipe) ? '' : 'locked'}"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><h3>${escape(d.name)}<small>${rarityName(d)}${isUnlocked(recipe) ? '' : ' · 연구 필요'}</small></h3></div><button class="pin-button" data-pin="${recipe.id}" aria-label="${escape(d.name)} 목표 ${pinned === recipe.id ? '해제' : '고정'}" aria-pressed="${pinned === recipe.id}">◇</button></div><div class="materials">${materialHTML(recipe)}</div><div class="recipe-actions"><button class="text-button" data-plan-recipe="${recipe.id}">조립 경로</button><button class="secondary" data-combine-recipe="${recipe.id}" ${can && m.ready ? '' : 'disabled'}>${m.ready ? '위치 선택' : isUnlocked(recipe) ? '재료 부족' : '연구 필요'}</button></div></article>`; }).join('') : '<p class="empty-roster">지금 가능한 조합이 없습니다. 재료를 더 모으거나 전체 조합을 확인하세요.</p>');
+  html('#recipe-list', recipes.length ? recipes.map(recipe => { const m = materials(recipe), d = definitions.get(recipe.result); return `<article class="recipe-card ${m.ready ? 'ready' : ''} ${isUnlocked(recipe) ? '' : 'locked'}"><div class="recipe-head"><div class="recipe-identity"><span class="recipe-portrait" style="${portraitStyle(d)}" aria-hidden="true"></span><h3>${escape(d.name)}<small>${rarityName(d)}${isUnlocked(recipe) ? '' : ' · 연구 필요'}</small></h3></div><button class="pin-button" data-pin="${recipe.id}" aria-label="${escape(d.name)} 목표 ${pinned === recipe.id ? '해제' : '고정'}" aria-pressed="${pinned === recipe.id}">◇</button></div><div class="materials">${materialHTML(recipe)}</div><p class="assembly-status">${escape(assemblyStatus(recipe, m))}</p><div class="recipe-actions"><button class="text-button" data-plan-recipe="${recipe.id}">조립 경로</button><button class="secondary" data-combine-recipe="${recipe.id}" aria-label="${escape(d.name)} ${m.ready ? '조립할 위치 선택' : escape(assemblyStatus(recipe, m))}" ${can && m.ready ? '' : 'disabled'}>위치 선택</button></div></article>`; }).join('') : '<p class="empty-roster">지금 가능한 조립이 없어요. 재료를 더 모으거나 전체 조립표를 확인하세요.</p>');
   html('#upgrade-list', Object.keys(names).map(tag => { const level = player.upgrades[tag], max = level >= r.maxUpgradeLevel, cost = r.upgradeCosts[level], applies = selectedDefinitions.some(d => [d.faction, d.troop, d.trait].includes(tag)); return `<button class="upgrade-button ${applies ? 'applies' : ''}" data-upgrade-tag="${tag}"><span>${names[tag]}<span class="level">${level}/${r.maxUpgradeLevel}</span></span><small>${max ? '강화 완료' : cost + ' 고철 · 효과 보기'}</small></button>`; }).join(''));
   const goal = content.recipes.find(recipe => recipe.id === pinned); $('#pinned-goal').hidden = !goal;
   if (goal) html('#pinned-goal', `<span>◇ 이번 판의 목표</span><strong>${escape(name(goal.result))}</strong><div class="materials">${materialHTML(goal)}</div><button class="text-button" data-plan-recipe="${goal.id}">조립 경로 →</button>`);
@@ -424,9 +426,9 @@ function render() {
 function renderGuide(ready) {
   $('#guide').hidden = !settings.guide; if (!settings.guide) return;
   const m = metrics?.milestones || {}, story = state.story;
-  let step = '01 · 로봇 뽑기', title = '로봇 뽑기로 첫 로봇을 만나세요.', description = '로봇은 자동으로 공격해요.';
+  let step = '01 · 로봇 뽑기', title = '로봇을 뽑아 방어를 시작하세요.', description = '공격은 자동이에요.';
   if (m.summon && !m.combine) { step = '02 · 조립'; title = ready.length ? '조립 가능! 로봇을 눌러보세요.' : '로봇을 누르면 필요한 재료가 보여요.'; description = '조립하면 표시된 재료 로봇이 소모돼요.'; }
-  else if (m.combine && !m.upgrade) { step = '03 · 강화'; title = '강화로 같은 태그의 로봇을 키우세요.'; description = '앞으로 뽑을 로봇에도 적용돼요.'; }
+  else if (m.combine && !m.upgrade) { step = '03 · 강화'; title = '주력 로봇의 분류를 강화하세요.'; description = '같은 분류의 새 로봇에도 적용돼요.'; }
   else if (m.upgrade && !m.dispatch) { step = '04 · 협동'; title = story?.status === 'active' ? '스토리 진행 중! 최대 2기를 파견해요.' : missions().map(s => s.wave).join('·') + ' 웨이브에 스토리가 열려요.'; description = '파견한 로봇은 잠시 내 방어에서 빠져요.'; }
   else if (m.dispatch) { step = '준비 완료'; title = '로봇 뽑기 · 조립 · 강화, 이번엔 어떤 선택?'; description = '스토리 파견과 내 방어를 함께 챙겨요.'; }
   text('#guide-step', step); text('#guide-title', title); text('#guide-description', description);
@@ -435,11 +437,11 @@ function renderGuide(ready) {
 function showResult() {
   for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   resultShown = true; const player = me(); mark('result');
-  text('#result-title', player.status === 'cleared' ? '자원과 함께, 지구로.' : '이번 원정은 여기까지.');
-  text('#result-description', player.status === 'cleared' ? (state.objective?.kind === 'mining' ? '채굴기를 끝까지 지켜 자원을 확보했어요. 새로운 행성으로 떠나보세요.' : '마지막 위협을 막고 탈출했어요. 새 설계도를 연구하고 다음 행성에 도전하세요.') : player.defeatReason === 'facility_destroyed' ? `${state.objective.label}이 파괴되었어요. 시설 앞에 쌓인 적을 제거할 화력과 조립 위치를 확보해보세요.` : player.defeatReason === 'boss_timeout' ? '제한 시간 안에 최종 보스를 막지 못했어요. 상위 조합과 강화 시점을 바꿔보세요.' : player.defeatReason === 'overcrowded' ? `적 ${rules().overcrowdCount}마리 이상이 ${rules().overcrowdTicks / rules().ticksPerSecond}초 동안 쌓였어요. 방어에 쓸 중간 조합도 챙겨보세요.` : '개인 방어가 종료되었어요. 동료의 전투는 계속됩니다.');
+  text('#result-title', player.status === 'cleared' ? '원정 성공' : '원정 실패');
+  text('#result-description', player.status === 'cleared' ? (state.objective?.kind === 'mining' ? '채굴 완료. 자원을 싣고 귀환합니다.' : '최종 보스 처치. 자원을 싣고 귀환합니다.') : player.defeatReason === 'facility_destroyed' ? `${state.objective.label} 파괴. 시설 앞에 쌓인 적을 먼저 제거하세요.` : player.defeatReason === 'boss_timeout' ? '보스 처치 시간 초과. 조립과 강화 시점을 바꿔보세요.' : player.defeatReason === 'overcrowded' ? `적 ${rules().overcrowdCount}기 이상이 ${rules().overcrowdTicks / rules().ticksPerSecond}초 동안 쌓였어요. 중간 조립으로 방어를 보강하세요.` : '내 방어가 끝났어요. 동료의 전투는 계속됩니다.');
   html('#result-stats', `<div><strong>${state.wave}</strong><span>도달 웨이브</span></div><div><strong>${metrics?.actionCounts.combine || 0}</strong><span>확인된 조합</span></div><div><strong>${metrics?.actionCounts.dispatch || 0}</strong><span>확인된 파견</span></div>`);
   text('#result-research', state.practice ? '배속·연습 원정 · 연구 보상 없음' : `연구 크레딧 +${player.result?.researchCredits || 0}`);
-  text('#result-save-note', state.practice ? '연습에서는 행성과 설계도를 해금할 수 없어요.' : `보유 ${profile?.researchCredits || 0} 크레딧 · 성과를 이 서버에 저장했어요.`);
+  text('#result-save-note', state.practice ? '연습에서는 행성과 설계도가 해금되지 않아요.' : `보유 ${profile?.researchCredits || 0} 크레딧 · 원정 기록 저장됨`);
   $('#spectate-btn').hidden = !state.players.some(p => p.status === 'active');
   if (!$('#result-dialog').open) $('#result-dialog').showModal();
 }
@@ -460,7 +462,7 @@ function applySettings() {
   if (!settings.sound && audioContext?.state === 'running') audioContext.suspend().catch(() => {});
   save(localStorage, 'td.settings', settings); render();
 }
-function audioVoice({ from, to = from, duration = .12, volume = .025, waveform = 'triangle', noise = false, delay = 0 }) {
+function audioVoice({ from, to = from, duration = .12, volume = .025, waveform = 'triangle', noise = false, delay = 0, cutoff = 1400 }) {
   if (audioVoices >= 12) return;
   const start = audioContext.currentTime + delay, gain = audioContext.createGain();
   let source;
@@ -475,21 +477,37 @@ function audioVoice({ from, to = from, duration = .12, volume = .025, waveform =
     source = audioContext.createOscillator(); source.type = waveform;
     source.frequency.setValueAtTime(from, start); source.frequency.exponentialRampToValueAtTime(to, start + duration);
   }
-  source.connect(gain); gain.connect(audioContext.destination);
+  const filter = noise ? audioContext.createBiquadFilter() : null;
+  if (filter) { filter.type = 'lowpass'; filter.frequency.value = cutoff; source.connect(filter); filter.connect(gain); }
+  else source.connect(gain);
+  gain.connect(audioContext.destination);
   gain.gain.setValueAtTime(.0001, start); gain.gain.linearRampToValueAtTime(volume, start + .006);
   gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
-  audioVoices++; source.onended = () => { audioVoices--; source.disconnect(); gain.disconnect(); };
+  audioVoices++; source.onended = () => { audioVoices--; source.disconnect(); filter?.disconnect(); gain.disconnect(); };
   source.start(start); source.stop(start + duration + .01);
 }
 function combatSound(event) {
   if (event.type === 'assemble') return; // The acknowledged summon/combine owns its activation sound.
   const now = performance.now();
-  if (now - (lastCombatSounds[event.type] ?? -1000) < 120 || now < quietCombatUntil) return;
-  lastCombatSounds[event.type] = now; sound(event.type);
+  const voice = event.element || event.type;
+  if (now - (lastCombatSounds[voice] ?? -1000) < 120 || now < quietCombatUntil) return;
+  lastCombatSounds[voice] = now; sound(event.type, event);
 }
-function sound(type) {
+function sound(type, event = {}) {
   if (!settings.sound || audioContext?.state !== 'running' || document.hidden) return;
-  if (type === 'bolt') audioVoice({ from: 650, to: 170, duration: .09, volume: .018 });
+  const weight = .7 + (event.intensity ?? .5) * .6, delay = event.delay || 0;
+  if (event.element === 'fire') {
+    audioVoice({ from: 1600 / weight, to: 420, duration: .035, volume: .011, delay });
+    audioVoice({ noise: true, cutoff: 900, duration: .12 * weight, volume: .019 * weight, delay: delay + .015 });
+  } else if (event.element === 'wind') {
+    audioVoice({ from: 130 / weight, to: 85, duration: .17, volume: .011 * weight, waveform: 'sine', delay });
+    audioVoice({ noise: true, cutoff: 600, duration: .19 * weight, volume: .023, delay });
+  } else if (event.element === 'laser') {
+    audioVoice({ from: 1350 / weight, to: 420 / weight, duration: .065, volume: .016 * weight, waveform: 'sine', delay });
+  } else if (event.element === 'frost') {
+    audioVoice({ from: 1680 / weight, to: 1250, duration: .07, volume: .008, waveform: 'sine', delay });
+    audioVoice({ noise: true, cutoff: 2600, duration: .055, volume: .008, delay: delay + .02 });
+  } else if (type === 'bolt') audioVoice({ from: 650, to: 170, duration: .09, volume: .018, delay });
   else if (type === 'blast' || type === 'destroy') {
     audioVoice({ from: 115, to: 35, duration: .24, volume: .045, waveform: 'sine' });
     audioVoice({ noise: true, duration: type === 'blast' ? .15 : .07, volume: .023 });
@@ -498,7 +516,9 @@ function sound(type) {
     audioVoice({ from: 1200, to: 450, duration: .1, volume: .012 });
   } else if (type === 'combine' || type === 'upgrade') {
     quietCombatUntil = performance.now() + 450;
-    [330, 440, 660].forEach((frequency, i) => audioVoice({ from: frequency * .7, to: frequency, duration: .2, volume: .025, delay: i * .09 }));
+    audioVoice({ from: 1250, to: 520, duration: .05, volume: .022 });
+    audioVoice({ from: 820, to: 400, duration: .05, volume: .018, delay: .075 });
+    audioVoice({ from: 95, to: 210, duration: .24, volume: .026, waveform: 'sine', delay: .12 });
   } else if (type === 'summon') {
     audioVoice({ from: 120, to: 60, duration: .13, volume: .05 });
     audioVoice({ from: 440, to: 780, duration: .18, volume: .024, delay: .08 });
@@ -513,7 +533,7 @@ function openFeedback() { $('#result-dialog').close(); text('#feedback-count', `
 $('#quick-start').addEventListener('click', newGame);
 $('#home-play').addEventListener('click', () => { renderLobby(); showLobbyScreen('stages'); });
 $('#stage-back').addEventListener('click', () => showLobbyScreen('home'));
-$('#join-open').addEventListener('click', () => { text('#join-notice', ''); $('#join-dialog').showModal(); });
+for (const selector of ['#join-open', '#home-join']) $(selector).addEventListener('click', () => { text('#join-notice', ''); $('#join-dialog').showModal(); });
 $('#speed-select').addEventListener('change', renderLobby);
 $('#research-btn').addEventListener('click', () => { renderResearch(); $('#research-dialog').showModal(); });
 $('#blueprint-pin').addEventListener('click', () => {
@@ -585,7 +605,7 @@ for (const dialog of document.querySelectorAll('dialog')) {
   dialog.addEventListener('pointerdown', event => { backdropDown = event.target === dialog && outside(event); });
   dialog.addEventListener('click', event => { if (backdropDown && event.target === dialog && outside(event)) { event.stopPropagation(); dialog.close(); } backdropDown = false; });
 }
-$('#feedback-btn').addEventListener('click', openFeedback); $('#result-feedback').addEventListener('click', openFeedback);
+$('#result-feedback').addEventListener('click', openFeedback);
 $('#feedback-form').addEventListener('submit', event => {
   event.preventDefault(); const form = new FormData(event.target), records = read(localStorage, 'td.feedback', []);
   records.push({ recordedAt: new Date().toISOString(), fun: Number(form.get('fun')), clarity: Number(form.get('clarity')), retryIntent: form.get('retry'), comment: String(form.get('comment')).slice(0, 2000), gameplay: feedbackSnapshot() });

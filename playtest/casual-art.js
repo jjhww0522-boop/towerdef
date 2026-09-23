@@ -12,7 +12,71 @@ const ellipse = (x, y, rx, ry, fill, extra = '') => `<ellipse cx="${x}" cy="${y}
 const circle = (x, y, radius, fill, extra = '') => ellipse(x, y, radius, radius, fill, extra);
 const svg = (shapes, defs = '') => `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">${defs}<g stroke="${outline}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${shapes}</g></svg>`;
 
+export function applianceKind(definition) {
+  if (definition.rarity !== 'basic') return null;
+  return definition.id === 'wu_archer' ? 'lighter' : definition.id === 'shu_archer' ? 'dryer' : definition.id === 'wei_archer' ? 'pointer' : null;
+}
+
+function applianceSvg(kind, pose) {
+  const ready = pose === 'windup', firing = pose === 'strike';
+  let shapes = ellipse(47, 88, 26, 3, '#06141c44', 'stroke="none"');
+  if (kind === 'lighter') {
+    shapes += svgPath('M37 70 L35 81 M59 70 L63 81', 'none', 'stroke="#596765" stroke-width="6"');
+    shapes += rect(26, 80, 15, 7, 3, '#d5d1bb') + rect(59, 80, 15, 7, 3, '#d5d1bb');
+    shapes += rect(29, 32, 39, 41, 7, '#e99a5e');
+    shapes += svgPath('M32 39 L32 62 Q32 68 39 68', 'none', 'stroke="#ffd6a2" stroke-width="3"');
+    shapes += rect(36, 23, 28, 13, 3, '#d5d1bb');
+    for (const x of [42, 49, 56]) shapes += circle(x, 29, 1.6, '#48585b', 'stroke="none"');
+    shapes += `<g transform="rotate(${firing ? -105 : ready ? -25 : 0} 30 35)">`;
+    shapes += rect(29, 18, 39, 18, 4, '#ce704c') + svgPath('M33 22 L62 22', 'none', 'stroke="#f3b27b" stroke-width="2"') + '</g>';
+    shapes += circle(30, 35, 3, '#d5d1bb');
+    shapes += circle(60, 24, 5, '#7a8581') + svgPath(`M57 ${ready ? 20 : 23} L63 ${ready ? 26 : 23}`, 'none', 'stroke="#e8dfc8" stroke-width="1.5"');
+    shapes += ellipse(42, 49, 3, firing ? 2.6 : 4, '#203a40', 'stroke="none"') + ellipse(55, 49, 3, 4, '#203a40', 'stroke="none"');
+    shapes += svgPath('M43 58 Q48 61 53 58', 'none', 'stroke="#7e4b3c" stroke-width="1.8"');
+    shapes += rect(49, 64, 13, 4, 1, '#e8d5a6', 'stroke-width="1"');
+    if (firing) {
+      shapes += svgPath('M54 22 Q48 14 56 7 Q54 14 61 12 Q68 21 59 25 Z', '#ffb65a', 'stroke="#a65d3e" stroke-width="1.5"');
+      shapes += svgPath('M57 22 Q53 18 58 15 Q63 21 59 23 Z', '#fff0b0', 'stroke="none"');
+    }
+  } else if (kind === 'dryer') {
+    const brace = firing ? 4 : 0;
+    shapes += svgPath(`M35 71 L${27 - brace} 81 M51 69 L${59 + brace} 81`, 'none', 'stroke="#49695f" stroke-width="5"');
+    shapes += rect(17 - brace, 80, 18, 7, 3, '#cee1b9') + rect(56 + brace, 80, 18, 7, 3, '#cee1b9');
+    shapes += svgPath('M38 49 L54 48 L50 73 Q47 78 35 74 Z', '#6ea58a');
+    shapes += rect(39, 57, 6, 10, 2, ready || firing ? '#e9bd71' : '#3c635a', 'stroke-width="1.4"');
+    shapes += svgPath('M38 74 Q43 87 31 87 L22 85', 'none', 'stroke="#384e4d" stroke-width="2.5"');
+    shapes += svgPath('M32 20 Q17 19 17 36 Q17 53 35 53 L68 49 L76 43 L76 30 L66 23 Z', '#91bd9d');
+    shapes += svgPath('M32 24 Q51 22 63 27', 'none', 'stroke="#deebca" stroke-width="3"');
+    shapes += svgPath('M68 27 L85 31 L85 44 L68 47 Z', '#d0ddc3');
+    shapes += ellipse(84, 37.5, 4, 7, '#395952');
+    shapes += circle(29, 36, 11, '#456b60') + circle(29, 36, 8, '#c1d5b1', 'stroke="none"');
+    shapes += `<g transform="rotate(${firing ? 100 : ready ? 42 : 0} 29 36)">`;
+    for (const angle of [0, 120, 240]) shapes += `<path d="M29 35 Q20 28 24 32 L29 36 Z" fill="#5e8f7c" stroke="#5e8f7c" stroke-width="3" transform="rotate(${angle} 29 36)"/>`;
+    shapes += '</g>' + circle(29, 36, 2, '#e4e7cc', 'stroke="none"');
+    shapes += ellipse(48, 35, 2.5, firing ? 2.3 : 3.8, '#203a40', 'stroke="none"') + ellipse(59, 34, 2.5, 3.8, '#203a40', 'stroke="none"');
+    shapes += svgPath('M50 43 Q54 45 58 42', 'none', 'stroke="#426b5d" stroke-width="1.5"');
+    shapes += svgPath('M58 48 L62 47', 'none', 'stroke="#d7d7b4" stroke-width="3"');
+  } else {
+    shapes += svgPath('M39 58 L31 78 M60 58 L69 78', 'none', 'stroke="#66768c" stroke-width="5"');
+    shapes += rect(20, 77, 19, 8, 3, '#d2d8df') + rect(64, 77, 18, 8, 3, '#d2d8df');
+    shapes += `<g transform="rotate(${ready ? -3 : firing ? -1 : 0} 47 46)">`;
+    shapes += rect(13, 32, 64, 26, 12, '#8da8c4');
+    shapes += ellipse(16, 45, 5, 11, '#64758a') + svgPath('M23 36 L62 36', 'none', 'stroke="#dce4e7" stroke-width="3"');
+    shapes += rect(64, 32, 17, 26, 5, '#d1d9dc');
+    shapes += ellipse(80, 45, 8, 12, '#657789') + ellipse(82, 45, 4.5, 8, '#343f59');
+    shapes += ellipse(83, 45, firing ? 3 : ready ? 2 : 1.5, firing ? 6 : 3, firing ? '#f4d8ff' : '#b087b2', 'stroke="none"');
+    shapes += rect(44, 26, 13, 6, 3, ready ? '#b8acb1' : '#cd7980', 'stroke-width="1.6"');
+    shapes += ellipse(35, 44, 2.5, 3.5, '#203a40', 'stroke="none"') + ellipse(47, 44, 2.5, ready ? 2 : 3.5, '#203a40', 'stroke="none"');
+    shapes += svgPath('M35 51 L43 51', 'none', 'stroke="#57718b" stroke-width="1.5"');
+    shapes += svgPath('M20 34 L22 24 Q26 19 33 23', 'none', 'stroke="#89949e" stroke-width="2.5"');
+    shapes += '</g>';
+  }
+  return svg(shapes);
+}
+
 function robotSvg(definition, pose) {
+  const appliance = applianceKind(definition);
+  if (appliance) return applianceSvg(appliance, pose);
   const palette = colors[definition.faction] || colors.shu;
   const tier = { basic: 0, elite: 1, hero: 2, legend: 3 }[definition.rarity] || 0;
   const tracked = definition.troop === 'cavalry';
@@ -208,7 +272,7 @@ function scrapDroneSvg(kind, pose) {
 }
 
 export function unitSpriteUrl(definition, pose = 'idle') {
-  const key = [definition.faction, definition.troop, definition.trait, definition.rarity, definition.attackPattern || 'bolt', pose].join(':');
+  const key = [applianceKind(definition) || 'robot', definition.faction, definition.troop, definition.trait, definition.rarity, definition.attackPattern || 'bolt', pose].join(':');
   if (!cache.has(key)) cache.set(key, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(robotSvg(definition, pose)));
   return cache.get(key);
 }
