@@ -1,14 +1,14 @@
 import { unitSpriteUrl, enemySpriteUrl, applianceKind } from './casual-art.js';
-import { BOARD_WIDTH, BOARD_HEIGHT, unitPoint, enemyPoint, projectPoint } from '../shared/battle-geometry.js';
+import { BOARD_WIDTH, BOARD_HEIGHT, unitPoint, enemyPoint, projectPoint, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
 const palette = { shu: '#75c9ac', wei: '#83bde7', wu: '#f2ad75' };
 const elementColors = { fire: '#ff9c54', wind: '#9eeab7', frost: '#86dcff', laser: '#f1a8ff', electric: '#a6eeff' };
 const WORLD_W = 1000, WORLD_H = 440, MAX_EFFECTS = 120;
-const slot = (n, width = WORLD_W, height = WORLD_H) => projectPoint(unitPoint(n), roadFor(width, height), width === 600);
+const slot = (n, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => projectPoint(unitPoint(n, battlefieldId), roadFor(width, height), width === 600);
 const roadFor = (width, height) => ({ left: width * .12, right: width * .84,
   top: height * (width === 600 ? .22 : .27), bottom: height * .80 });
-const path = (progress, width = WORLD_W, height = WORLD_H) => {
-  const point = enemyPoint(progress);
+const path = (progress, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => {
+  const point = enemyPoint(progress, battlefieldId);
   return { ...projectPoint(point, roadFor(width, height), width === 600), face: point.face };
 };
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -51,15 +51,22 @@ export class Battlefield {
     const bounds = this.canvas.getBoundingClientRect();
     const width = portrait ? 600 : WORLD_W;
     const height = Math.max(280, Math.min(1600, Math.round(width * bounds.height / Math.max(1, bounds.width))));
-    if (this.worldWidth === width && this.worldHeight === height) return;
+    const mapId = this.battlefieldId || 1, changedMap = this.layoutBattlefieldId !== undefined && this.layoutBattlefieldId !== mapId;
+    if (this.worldWidth === width && this.worldHeight === height && !changedMap) return;
+    this.layoutBattlefieldId = mapId;
+    if (changedMap) {
+      // A new map may have fewer slots; discard the previous lane before projecting it.
+      this.units.clear(); this.enemies.clear(); this.arrivals.clear(); this.drawOrder.length = 0;
+      this.player = null; this.lastSnapshotAt = 0;
+    }
     this.worldWidth = width; this.worldHeight = height; this.effects.length = 0;
     for (const view of this.units.values()) {
       const target = view.unit.dispatched ? this.portalSlot(view.unit.id) : this.position(view.unit.slot);
       view.x = target.x; view.y = target.y;
     }
   }
-  position(index) { return slot(index, this.worldWidth, this.worldHeight); }
-  path(progress) { return path(progress, this.worldWidth, this.worldHeight); }
+  position(index) { return slot(index, this.worldWidth, this.worldHeight, this.battlefieldId); }
+  path(progress) { return path(progress, this.worldWidth, this.worldHeight, this.battlefieldId); }
 
   drawRange() {
     const context = this.ctx, road = roadFor(this.worldWidth, this.worldHeight), portrait = this.worldWidth === 600;
@@ -335,9 +342,12 @@ export class Battlefield {
       this.rect(x - 5, y - 8, 10, 24, '#acc2c7', 2);
       for (let n = 0; n < 3; n++) this.rect(x - 7, y - 6 + n * 7, 14, 2, '#203946');
     }
-    this.rect(x - 26, y + 21, 52, 5, '#0a1721', 2); this.rect(x - 26, y + 21, 52 * health, 5, color, 2);
-    this.text(objective.label, x + (portrait ? 12 : 0), y - 43, portrait ? 15 : 11, color);
-    if (this.player.facilityAttackers) this.text(`공격 ${this.player.facilityAttackers}기`, x + (portrait ? 12 : 0), y + 43, portrait ? 14 : 11, '#ffb496');
+    const sideLabels = !portrait && this.worldHeight <= 600;
+    const labelX = sideLabels ? x - 70 : x + (portrait ? 12 : 0);
+    const healthX = sideLabels ? x - 96 : x - 26, healthY = sideLabels ? y - 6 : y + 21;
+    this.rect(healthX, healthY, 52, 5, '#0a1721', 2); this.rect(healthX, healthY, 52 * health, 5, color, 2);
+    this.text(objective.label, labelX, y - (sideLabels ? 20 : 43), portrait ? 15 : 11, color);
+    if (this.player.facilityAttackers) this.text(`공격 ${this.player.facilityAttackers}기`, labelX, y + (sideLabels ? 14 : 43), portrait ? 14 : 11, '#ffb496');
     if (hit) {
       context.strokeStyle = '#ffc194'; context.lineWidth = this.reduced ? 2 : 4;
       context.beginPath(); context.moveTo(point.x, point.y - 12); context.lineTo(x, y - 5); context.stroke();
@@ -366,10 +376,7 @@ export class Battlefield {
     const radius = Math.min(width * .155, road.top * (portrait ? .64 : .56));
     const planetX = width * (portrait ? .82 : .94), planetY = road.top * (portrait ? .47 : .75);
     context.save(); context.translate(planetX, planetY); context.rotate(-.3);
-    if (this.battlefieldId === 2) {
-      context.strokeStyle = '#8aafc65c'; context.lineWidth = radius * .21;
-      context.beginPath(); context.ellipse(0, 0, radius * 1.7, radius * .39, 0, 0, Math.PI * 2); context.stroke();
-    }
+
     const planet = context.createRadialGradient(-radius * .52, -radius * .48, 0, 0, 0, radius);
     planet.addColorStop(0, terrain.planet); planet.addColorStop(.68, terrain.sky); planet.addColorStop(1, '#080f1c');
     this.circle(0, 0, radius, planet);
@@ -383,17 +390,12 @@ export class Battlefield {
     this.rect(-radius, -radius, radius * 2, radius * 2, night); context.restore();
     context.strokeStyle = terrain.halo + '70'; context.lineWidth = 1.4;
     context.beginPath(); context.arc(0, 0, radius, Math.PI * .8, Math.PI * 1.8); context.stroke();
-    if (this.battlefieldId === 2) {
-      context.strokeStyle = '#aec5cd73'; context.lineWidth = radius * .16;
-      context.beginPath(); context.ellipse(0, 0, radius * 1.7, radius * .39, 0, 0, Math.PI); context.stroke();
-    }
+
     context.restore();
     const moonX = width * (portrait ? .2 : .05), moonY = road.top * (portrait ? .49 : .72), moonR = radius * .25;
     this.circle(moonX, moonY, moonR, '#8193a057');
     this.circle(moonX + moonR * .42, moonY - moonR * .13, moonR * .93, terrain.sky);
-    if (this.battlefieldId === 3) {
-      this.circle(width * .41, road.top * .2, radius * .09, '#b6acc77a');
-    }
+
   }
 
   drawSurface(terrain, road) {
@@ -421,7 +423,7 @@ export class Battlefield {
         context.beginPath(); context.moveTo(x - 40, y - 30); context.lineTo(x, y);
         context.lineTo(x - 12, y + 32); context.lineTo(x + 34, y + 58);
         context.strokeStyle = '#0b0e2070'; context.lineWidth = 8; context.stroke();
-        context.strokeStyle = '#aa80c526'; context.lineWidth = 1.5; context.stroke();
+        context.strokeStyle = terrain.halo + '26'; context.lineWidth = 1.5; context.stroke();
       }
     } else {
       for (let i = 0; i < 22; i++) {
@@ -451,17 +453,52 @@ export class Battlefield {
     context.restore();
   }
 
+  drawLandmark(road) {
+    const anchors = { 2: { x: 140, y: 230 }, 3: { x: 674, y: 125 }, 4: { x: 544, y: 132 }, 5: { x: 360, y: 29 } };
+    const anchor = anchors[this.battlefieldId];
+    if (!anchor) return;
+    // Landmarks occupy the unavailable notch, never a summon slot or the enemy route.
+    const { x, y } = projectPoint(anchor, road, this.worldWidth === 600), context = this.ctx;
+    context.save(); context.translate(x, y);
+    if (this.worldWidth === 600) context.rotate(Math.PI / 2);
+    if (this.battlefieldId === 2) {
+      this.ellipse(0, 1, 29, 10, '#101a22');
+      for (let i = 0; i < 3; i++) {
+        this.rect(-22 + i * 17, -14, 11, 17, '#62726f', 2);
+        this.rect(-20 + i * 17, -13, 3, 16, '#abb2a366', 1);
+      }
+    } else if (this.battlefieldId === 3) {
+      this.rect(-24, -17, 48, 31, '#263b47', 5);
+      this.circle(0, -2, 13, '#8398a0'); this.circle(0, -2, 8, '#182e3b');
+      for (const side of [-1, 1]) this.rect(side * 29 - 3, -8, 6, 22, '#b5905c', 2);
+    } else if (this.battlefieldId === 4) {
+      for (let i = 0; i < 4; i++) {
+        this.rect(-36 + i * 19, -11 + i % 2 * 7, 23, 19, i % 2 ? '#56615b' : '#6b6960', 3);
+        this.rect(-32 + i * 19, -7 + i % 2 * 7, 11, 3, '#293b3f', 1);
+      }
+    } else {
+      this.rect(-18, -21, 36, 41, '#465b63', 6);
+      this.rect(-12, -17, 24, 7, '#adbdb8', 2);
+      this.circle(0, 3, 10, '#172f3c'); this.circle(0, 3, 5, '#90bdb9');
+      for (const side of [-1, 1]) this.rect(side * 24 - 4, -13, 8, 34, '#8b8169', 2);
+    }
+    context.restore();
+  }
+
   drawDeck() {
     const context = this.ctx, road = roadFor(this.worldWidth, this.worldHeight);
-    const terrain = this.battlefieldId === 2 ? { sky: '#10263c', halo: '#81bccf', planet: '#658fa0', ridge: '#344e5b', soil: '#1d3444', rock: '#426b7a', track: '#334955' } :
-      this.battlefieldId === 3 ? { sky: '#211a35', halo: '#b29acb', planet: '#80768f', ridge: '#494051', soil: '#292837', rock: '#5e4d70', track: '#44404f' } :
-      { sky: '#152336', halo: '#9aaebd', planet: '#698595', ridge: '#4d4e4b', soil: '#2e3438', rock: '#535851', track: '#444e53' };
+    const terrain = { sky: '#152336', halo: '#9aaebd', planet: '#698595', ridge: '#4d4e4b', soil: '#2e3438', rock: '#535851', track: '#444e53' };
     this.drawSky(terrain, road); this.drawSurface(terrain, road);
+    const layout = getBattlefieldLayout(this.battlefieldId);
+    const route = layout.route.map(point => projectPoint(point, road, this.worldWidth === 600));
+    this.drawLandmark(road);
     for (const [color, width] of [['#080f19', 53], [terrain.rock, 46], ['#1a2630', 41], [terrain.track, 29]]) {
       context.strokeStyle = color; context.lineWidth = width; context.lineJoin = 'round';
-      context.beginPath(); context.roundRect(road.left, road.top, road.right - road.left, road.bottom - road.top, 10); context.stroke();
+      context.beginPath(); context.moveTo(route[0].x, route[0].y);
+      for (const point of route.slice(1)) context.lineTo(point.x, point.y);
+      context.closePath(); context.stroke();
     }
-    for (const x of [road.left, road.right]) for (const y of [road.top, road.bottom]) {
+    for (const { x, y } of route) {
       this.circle(x, y, 4, '#142331'); this.circle(x, y, 1.8, '#dcc794');
     }
     for (const direction of [.09, .34, .60, .86]) {
@@ -472,7 +509,7 @@ export class Battlefield {
       context.beginPath(); context.moveTo(-4, -5); context.lineTo(2, 0); context.lineTo(-4, 5); context.stroke(); context.restore();
     }
     context.strokeStyle = '#a3bac221'; context.lineWidth = 1;
-    for (let index = 0; index < 30; index++) {
+    for (let index = 0; index < layout.slots.length; index++) {
       const position = this.position(index);
       context.beginPath(); context.ellipse(position.x, position.y + 2, 20, 7, 0, 0, Math.PI * 2); context.stroke();
     }

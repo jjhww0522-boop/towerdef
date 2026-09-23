@@ -12,7 +12,7 @@ const summary = values => {
   return { mean: rounded(values.reduce((a, b) => a + b, 0) / values.length), p95: rounded(sorted[Math.ceil(sorted.length * .95) - 1]), max: rounded(sorted[sorted.length - 1]) };
 };
 
-function chooseIngredients(player, recipe) {
+function chooseIngredients(player, recipe, battlefieldId) {
   const available = player.units.filter(unit => !unit.dispatched);
   const chosen = [];
   for (const id of recipe.ingredients) {
@@ -24,17 +24,17 @@ function chooseIngredients(player, recipe) {
   // A player can pick which consumed robot keeps its position. Prefer the
   // ingredient slot where the result covers more of the enemy's looping route.
   const result = definitions.get(recipe.result);
-  chosen.sort((a, b) => coverage(result, player.units.find(unit => unit.id === b).slot) - coverage(result, player.units.find(unit => unit.id === a).slot) || a - b);
+  chosen.sort((a, b) => coverage(result, player.units.find(unit => unit.id === b).slot, battlefieldId) - coverage(result, player.units.find(unit => unit.id === a).slot, battlefieldId) || a - b);
   return chosen;
 }
 
 const coverageCache = new Map();
-function coverage(definition, slot) {
-  const key = definition.id + ':' + slot;
+function coverage(definition, slot, battlefieldId) {
+  const key = battlefieldId + ':' + definition.id + ':' + slot;
   if (!coverageCache.has(key)) {
-    const point = unitPoint(slot), radius = definition.attackRange ** 2;
+    const point = unitPoint(slot, battlefieldId), radius = definition.attackRange ** 2;
     let hits = 0;
-    for (let sample = 0; sample < 120; sample++) if (distanceSquared(point, enemyPoint(sample / 120)) <= radius) hits++;
+    for (let sample = 0; sample < 120; sample++) if (distanceSquared(point, enemyPoint(sample / 120, battlefieldId)) <= radius) hits++;
     coverageCache.set(key, hits / 120);
   }
   return coverageCache.get(key);
@@ -52,8 +52,8 @@ function policy(game, player, counts, strategy) {
   const rules = game.rules;
   let recipe;
   if (strategy !== 'summon-only') do {
-    recipe = content.recipes.slice().reverse().find(candidate => (candidate.unlockBattlefield === 0 || player.unlockedRecipes.includes(candidate.id)) && chooseIngredients(player, candidate));
-    if (recipe) act(game, player, { type: 'combine', recipeId: recipe.id, unitIds: chooseIngredients(player, recipe) }, counts);
+    recipe = content.recipes.slice().reverse().find(candidate => (candidate.unlockBattlefield === 0 || player.unlockedRecipes.includes(candidate.id)) && chooseIngredients(player, candidate, game.battlefieldId));
+    if (recipe) act(game, player, { type: 'combine', recipeId: recipe.id, unitIds: chooseIngredients(player, recipe, game.battlefieldId) }, counts);
   } while (recipe);
 
   if ((strategy === 'upgrade' || strategy === 'dispatch') && player.units.length >= 8 && game.tick % rules.waveTicks === 0) {
@@ -64,7 +64,7 @@ function policy(game, player, counts, strategy) {
   }
   if ((strategy === 'upgrade' || strategy === 'dispatch') && player.units.length >= rules.maxUnits && player.gold >= rules.summonCost) {
     const candidates = player.units.filter(unit => !unit.dispatched && definitions.get(unit.definitionId).rarity !== 'legend');
-    candidates.sort((a, b) => dps(player, a) - dps(player, b)
+    candidates.sort((a, b) => dps(player, a, game.battlefieldId) - dps(player, b, game.battlefieldId)
       || player.units.filter(unit => unit.definitionId === b.definitionId).length - player.units.filter(unit => unit.definitionId === a.definitionId).length);
     if (candidates.length) act(game, player, { type: 'salvage', unitIds: [candidates[0].id] }, counts);
   }
@@ -72,14 +72,14 @@ function policy(game, player, counts, strategy) {
 
   if (strategy === 'dispatch' && game.story?.status === 'active' && player.units.length >= 5 && player.enemies.length < 40) {
     const available = rules.maxDispatch - player.units.filter(unit => unit.dispatched).length;
-    const candidates = player.units.filter(unit => !unit.dispatched).sort((a, b) => dps(player, b) - dps(player, a)).slice(0, available);
+    const candidates = player.units.filter(unit => !unit.dispatched).sort((a, b) => dps(player, b, game.battlefieldId) - dps(player, a, game.battlefieldId)).slice(0, available);
     if (candidates.length) act(game, player, { type: 'dispatch', unitIds: candidates.map(unit => unit.id) }, counts);
   }
 }
 
-function dps(player, unit) {
+function dps(player, unit, battlefieldId) {
   const definition = definitions.get(unit.definitionId);
-  return getUnitAttack(player, unit) / definition.attackIntervalTicks * coverage(definition, unit.slot);
+  return getUnitAttack(player, unit) / definition.attackIntervalTicks * coverage(definition, unit.slot, battlefieldId);
 }
 function tagValue(player, tag, rules) {
   return player.units.reduce((sum, unit) => {

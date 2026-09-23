@@ -27,7 +27,7 @@ staticFiles['/shared/battle-geometry.js'] = ['../shared/battle-geometry.js', 'te
 const snapshot = room => ({ ...publicState(room.game), playbackSpeed: room.speed });
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(value);
 
-export function createDevServer({ automaticTicks = true, progressionStore = createProgressionStore(), onRoomCreated = null } = {}) {
+export function createDevServer({ automaticTicks = true, progressionStore = createProgressionStore(), onRoomCreated = null, verifyEnginePurchase = null } = {}) {
   const rooms = new Map();
   const sessions = new Map();
   function settleRoom(room) {
@@ -93,6 +93,24 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
         if (path === '/profile') return send(response, 200, { profile: progressionStore.getProfile(profile.id) });
         return send(response, 200, progressionStore.research(profile.id, body.recipeId));
       }
+      if ((request.method === 'GET' && path === '/engine/store') || (request.method === 'POST' && path === '/engine/refill')) {
+        const profile = session ? progressionStore.getProfile(session.profileId) : progressionStore.authenticate(token);
+        if (!profile) return send(response, 401, { error: 'profile_required' });
+        if (path === '/engine/store') return send(response, 200, {
+          available: typeof verifyEnginePurchase === 'function', productId: 'engine_refill',
+          kind: 'full_refill', reason: verifyEnginePurchase ? null : 'store_not_configured'
+        });
+        if (typeof verifyEnginePurchase !== 'function') return send(response, 503, { error: 'store_not_configured' });
+        if (!['apple', 'google'].includes(body.platform) || typeof body.purchaseToken !== 'string' ||
+            !body.purchaseToken.length || body.purchaseToken.length > 4096) return send(response, 400, { error: 'invalid_purchase' });
+        let purchase;
+        try { purchase = await verifyEnginePurchase({ platform: body.platform, purchaseToken: body.purchaseToken, profileId: profile.id }); }
+        catch { return send(response, 503, { error: 'purchase_verification_failed' }); }
+        if (!purchase || purchase.platform !== body.platform || purchase.profileId !== profile.id) {
+          return send(response, 400, { error: 'purchase_not_verified' });
+        }
+        return send(response, 200, progressionStore.refillEngines(profile.id, purchase));
+      }
       if (request.method === 'POST' && path === '/session') {
         const { roomId, playerId } = body;
         if (body.speed !== undefined && ![1, 3, 6].includes(body.speed)) return send(response, 400, { error: 'invalid_speed' });
@@ -140,8 +158,10 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
           const practice = room ? room.game.practice : speed !== 1 || body.practice === true;
           const initial = createGame({ playerIds: [playerId], seed: randomInt(1, 2147483647), practice,
             battlefieldId, unlockedRecipesByPlayer: { [playerId]: profile.unlockedRecipes } });
+          const expeditionId = room?.expeditionId || randomUUID();
+          progressionStore.consumeEngine(profile.id, expeditionId);
           if (!room) {
-            room = { game: initial, speed, expeditionId: randomUUID(), profileIds: new Map(), settledProfiles: new Set() };
+            room = { game: initial, speed, expeditionId, profileIds: new Map(), settledProfiles: new Set() };
             rooms.set(roomId, room);
             room.profileIds.set(playerId, profile.id);
             if (onRoomCreated) onRoomCreated(room);

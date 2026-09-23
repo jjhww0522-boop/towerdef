@@ -330,8 +330,8 @@ export function tick(game: GameState): void {
       } else {
         if (!p.enemies.length) return;
         // Keep stable oldest-first targeting, restricted to this robot's range.
-        const position = unitPoint(u.slot), rangeSquared = d.attackRange * d.attackRange;
-        const primary = p.enemies.filter(enemy => distanceSquared(position, enemyPoint(enemy.progress)) <= rangeSquared)[0];
+        const position = unitPoint(u.slot, game.battlefieldId), rangeSquared = d.attackRange * d.attackRange;
+        const primary = p.enemies.filter(enemy => distanceSquared(position, enemyPoint(enemy.progress, game.battlefieldId)) <= rangeSquared)[0];
         if (!primary) return;
         u.lastTargetId = primary.id;
         const targets = attackTargets(p.enemies, primary, pattern);

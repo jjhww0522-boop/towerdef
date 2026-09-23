@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { SLOT_COUNT } from '../shared/battle-geometry.js';
+import { SLOT_COUNT, BOARD_WIDTH, BOARD_HEIGHT, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
 /** Return descriptive validation errors; an empty array means valid. Never mutate input. */
 function validateDefinition(content, validateStages = true) {
@@ -77,7 +77,7 @@ function validateDefinition(content, validateStages = true) {
     if (!result) errors.push(label + ' unknown result: ' + recipe.result);
     if (!Array.isArray(recipe.ingredients) || recipe.ingredients.length < 2 || recipe.ingredients.length > 3) errors.push(label + ' requires 2 or 3 ingredients');
     if (Array.isArray(recipe.ingredients)) for (const id of recipe.ingredients) if (!units.has(id)) errors.push(label + ' unknown ingredient: ' + id);
-    if (!Number.isSafeInteger(recipe.unlockBattlefield) || recipe.unlockBattlefield < 0 || recipe.unlockBattlefield > 3) errors.push(label + ' invalid unlockBattlefield (expected 0..3)');
+    if (!Number.isSafeInteger(recipe.unlockBattlefield) || recipe.unlockBattlefield < 0 || recipe.unlockBattlefield > 5) errors.push(label + ' invalid unlockBattlefield (expected 0..5)');
     if (result) {
       if (result.rarity === 'basic') errors.push(label + ' recipe result cannot be basic');
       if (result.rarity !== 'legend' && recipe.unlockBattlefield > 0) errors.push(label + ' only legends can require unlocks; other recipes must be initially available');
@@ -101,7 +101,7 @@ function validateDefinition(content, validateStages = true) {
   }
   for (const id of units.keys()) visit(id);
   const reachable = new Set([...units.values()].filter(unit => unit.rarity === 'basic').map(unit => unit.id));
-  for (let unlock = 0; unlock <= 3; unlock++) {
+  for (let unlock = 0; unlock <= 5; unlock++) {
     let changed = true;
     while (changed) {
       changed = false;
@@ -138,9 +138,14 @@ function validateDefinition(content, validateStages = true) {
     for (const stage of content.battlefields) {
       if (!object(stage)) { errors.push('battlefield must be an object'); continue; }
       const label = 'battlefield ' + stage.id + ': ';
-      if (!integer(stage.id) || stage.id > 3 || stageIds.has(stage.id)) errors.push(label + 'expected unique id 1..3');
+      if (!integer(stage.id) || stage.id > 5 || stageIds.has(stage.id)) errors.push(label + 'expected unique id 1..5');
       stageIds.add(stage.id);
       if (!text(stage.name) || !text(stage.description)) errors.push(label + 'name and description required');
+      if (stage.chapterId !== 1 || stage.planetId !== 'scrap') errors.push(label + 'chapter 1 must share the scrap planet');
+      const layout = getBattlefieldLayout(stage.id);
+      if (layout.slots.length !== (stage.rules?.maxUnits ?? rules.maxUnits)) errors.push(label + 'maxUnits must match map slots');
+      if (new Set(layout.slots.map(point => point.x + ':' + point.y)).size !== layout.slots.length) errors.push(label + 'duplicate map slots');
+      if ([...layout.route, ...layout.slots].some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.x > BOARD_WIDTH || point.y < 0 || point.y > BOARD_HEIGHT)) errors.push(label + 'map point outside combat bounds');
       const objective = stage.objective;
       if (!object(objective) || !['overcrowd', 'mining', 'engine'].includes(objective.kind) || !text(objective.label)) errors.push(label + 'valid objective required');
       else if (objective.kind !== 'overcrowd') {
@@ -151,7 +156,7 @@ function validateDefinition(content, validateStages = true) {
       for (const key of Object.keys(stage.rules)) if (!(key in content.rules)) errors.push(label + 'unknown rule ' + key);
       errors.push(...validateDefinition({ ...content, rules: { ...rules, ...stage.rules }, stories: stage.stories }, false).map(error => label + error));
     }
-    if (![1, 2, 3].every(id => stageIds.has(id))) errors.push('battlefields must define stages 1, 2 and 3');
+    if (![1, 2, 3, 4, 5].every(id => stageIds.has(id))) errors.push('battlefields must define stages 1 through 5');
   }
   return [...new Set(errors)];
 }

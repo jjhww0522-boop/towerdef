@@ -20,27 +20,36 @@
     <symbol id="icon-research" viewBox="0 0 24 24"><path d="M4 3h11l5 5v13H4zm11 0v5h5M8 12h8m-8 4h5"/></symbol>
     <symbol id="icon-crew" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m2-16a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5v2"/></symbol>
     <symbol id="icon-settings" viewBox="0 0 24 24"><path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 2 3-1 2 4 3-1 1-3 4-2-1-3 1-3-3-2-3 1-1-3z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="icon-engine" viewBox="0 0 24 24"><path d="M8 3h8v3H8zM7 6h10l3 4v8H4v-8zm1 12-2 3m10-3 2 3M2 11h2m16 0h2"/><path d="m13 8-4 5h5l-3 4"/></symbol>
     <symbol id="icon-draw" viewBox="0 0 24 24"><path d="M4 8h16v13H4zM3 4h18v4H3zm9 7v7m-3-3h6"/></symbol>
   </defs></svg>
   <main id="lobby" class="lobby">
     <section id="home-screen" class="home-screen" aria-label="원정대 홈">
-      <div class="home-top"><span class="credit-balance">연구 크레딧 <strong id="research-credits">—</strong></span><button id="settings-btn" class="icon-button" aria-label="설정"><svg class="ui-icon" aria-hidden="true"><use href="#icon-settings"/></svg></button></div>
+      <div class="home-top"><span class="credit-balance">연구 크레딧 <strong id="research-credits">—</strong></span><button class="engine-button" data-engine-open aria-haspopup="dialog" aria-label="엔진 확인 중" disabled><svg class="ui-icon" aria-hidden="true"><use href="#icon-engine"/></svg><strong>—</strong><span aria-hidden="true">+</span></button><button id="settings-btn" class="icon-button" aria-label="설정"><svg class="ui-icon" aria-hidden="true"><use href="#icon-settings"/></svg></button></div>
       <div class="home-brand"><h1><span>폐품로봇</span><br><em>원정대</em></h1></div>
       <div class="home-scene" aria-hidden="true"><div class="home-planet"></div><div class="ship-window"></div><div class="crew-deck"></div><div id="hero-robots" class="hero-robots"></div></div>
       <div class="home-actions"><button id="home-play" class="primary large" disabled>원정 기록 확인 중…</button><button id="resume-btn" class="secondary" hidden>이전 전장으로</button><div class="home-utilities"><button id="research-btn" class="text-button" disabled><svg class="ui-icon" aria-hidden="true"><use href="#icon-research"/></svg>설계도 연구</button><button id="home-join" class="text-button"><svg class="ui-icon" aria-hidden="true"><use href="#icon-crew"/></svg>함께하기</button></div></div>
     </section>
     <section id="stage-screen" class="stage-screen" aria-labelledby="stage-title" hidden>
-      <div class="stage-heading"><button id="stage-back" class="icon-button" aria-label="홈으로">‹</button><div><h1 id="stage-title">행성 선택</h1></div><button id="planet-picker" class="secondary" aria-haspopup="dialog">목록</button></div>
-      <div class="planet-carousel"><button id="planet-prev" class="icon-button" aria-label="이전 행성">‹</button><div class="planet-showcase"><span id="destination-orb" class="planet-orb" aria-hidden="true"></span><span id="planet-index"></span><h2 id="destination-name"></h2><span id="destination-lock"></span></div><button id="planet-next" class="icon-button" aria-label="다음 행성">›</button></div>
-      <section class="mission-brief" aria-labelledby="destination-name"><small id="destination-type"></small><dl><div><dt>목표</dt><dd id="destination-win"></dd></div><div><dt>위험</dt><dd id="destination-loss"></dd></div></dl><details id="destination-details"><summary>행성 정보</summary><p id="destination-description"></p></details></section>
+      <div class="stage-heading"><button id="stage-back" class="icon-button" aria-label="홈으로">‹</button><div><h1 id="stage-title">챕터 1</h1><small>고물 궤도</small></div><button class="engine-button" data-engine-open aria-haspopup="dialog" aria-label="엔진 확인 중" disabled><svg class="ui-icon" aria-hidden="true"><use href="#icon-engine"/></svg><strong>—</strong><span aria-hidden="true">+</span></button><button id="planet-picker" class="secondary" aria-haspopup="dialog">목록</button></div>
+      <div class="planet-carousel"><button id="planet-prev" class="icon-button" aria-label="이전 스테이지">‹</button><div class="planet-showcase"><span id="destination-orb" class="planet-orb" aria-hidden="true"></span><span id="planet-index"></span><h2 id="destination-name"></h2><span id="destination-lock"></span></div><button id="planet-next" class="icon-button" aria-label="다음 스테이지">›</button></div>
+      <section class="mission-brief" aria-labelledby="destination-name"><small id="destination-type"></small><dl><div><dt>목표</dt><dd id="destination-win"></dd></div><div><dt>위험</dt><dd id="destination-loss"></dd></div></dl><details id="destination-details"><summary>구역 정보</summary><p id="destination-description"></p></details></section>
       <div class="departure-controls"><details id="practice-settings"><summary>원정 설정 <span id="run-mode-label">일반 · 보상 저장</span></summary><div class="practice-options"><label for="speed-select">진행 방식</label><select id="speed-select"><option value="1">원정 · 1배속</option><option value="3">연습 · 3배속 / 보상 없음</option><option value="6">연습 · 6배속 / 보상 없음</option></select></div></details><span id="expedition-duration"></span><button id="quick-start" class="primary large" disabled>원정 준비 중…</button></div>
     </section>
     <p id="lobby-notice" class="lobby-notice" role="status">원정 기록을 불러오는 중…</p>
   </main>
 
-  <dialog id="planet-dialog" aria-labelledby="planet-list-title"><div class="dialog-heading"><h2 id="planet-list-title">행성 목록</h2><button data-close="planet-dialog" class="icon-button" aria-label="행성 목록 닫기">×</button></div><div id="planet-list" class="planet-list" aria-label="행성 선택"></div><button id="join-open" class="secondary">동료와 함께하기</button></dialog>
+  <dialog id="engine-dialog" aria-labelledby="engine-title">
+    <div class="dialog-heading"><h2 id="engine-title">엔진 충전</h2><button data-close="engine-dialog" class="icon-button" aria-label="엔진 충전 닫기">×</button></div>
+    <strong id="engine-balance">— / 5</strong><div id="engine-cells" aria-hidden="true"></div><p id="engine-next" role="status"></p>
+    <p class="engine-help">30분마다 1개 회복 · 최대 5개<br>새 원정에 1개 사용해요.</p>
+    <section class="engine-refill"><h3>즉시 완충</h3><p>엔진을 5개로 채워요.</p><button id="engine-buy" class="primary" disabled>결제 연결 준비 중</button><p id="engine-store-note">현재 테스트 버전에서는 결제할 수 없어요.</p></section>
+    <details class="engine-rules"><summary>사용 안내</summary><p>일반·연습 원정 모두 엔진 1개를 사용해요. 실패하거나 중간에 나가도 돌려받지 않아요. 같은 원정 재접속에는 추가로 사용하지 않아요.</p></details>
+  </dialog>
 
-  <dialog id="join-dialog" aria-labelledby="join-title"><div class="dialog-heading"><h2 id="join-title">동료와 함께</h2><button data-close="join-dialog" class="icon-button" aria-label="참가 창 닫기">×</button></div><form id="join-form" class="join-form"><label for="room-input">방 코드</label><div><input id="room-input" name="room" placeholder="동료의 방 코드" maxlength="32" pattern="[A-Za-z0-9_-]+" autocomplete="off" required><button class="primary" type="submit" disabled>참가</button></div><small>최대 4명 · 출발한 동료가 원정대 메뉴에서 코드를 공유할 수 있어요.</small><p id="join-notice" role="status"></p></form></dialog>
+  <dialog id="planet-dialog" aria-labelledby="planet-list-title"><div class="dialog-heading"><h2 id="planet-list-title">챕터 1 · 고물 궤도</h2><button data-close="planet-dialog" class="icon-button" aria-label="스테이지 목록 닫기">×</button></div><div id="planet-list" class="planet-list" aria-label="스테이지 선택"></div><button id="join-open" class="secondary">동료와 함께하기</button></dialog>
+
+  <dialog id="join-dialog" aria-labelledby="join-title"><div class="dialog-heading"><h2 id="join-title">동료와 함께</h2><button data-close="join-dialog" class="icon-button" aria-label="참가 창 닫기">×</button></div><form id="join-form" class="join-form"><label for="room-input">방 코드</label><div><input id="room-input" name="room" placeholder="동료의 방 코드" maxlength="32" pattern="[A-Za-z0-9_-]+" autocomplete="off" required><button class="primary" type="submit" disabled>참가</button></div><small>최대 4명 · 새 참가에 엔진 1개. 같은 원정 재접속은 무료예요.</small><p id="join-notice" role="status"></p></form></dialog>
 
   <main id="game" class="game-shell" hidden>
     <section class="game-overview" aria-label="전투 현황">

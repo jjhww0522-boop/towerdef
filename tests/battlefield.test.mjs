@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
+import { getBattlefieldLayout, unitPoint, enemyPoint, projectPoint } from '../shared/battle-geometry.js';
 
 const artSource = readFileSync('playtest/casual-art.js', 'utf8').replaceAll('export function ', 'function ');
 const geometrySource = readFileSync('shared/battle-geometry.js', 'utf8').replaceAll('export ', '');
@@ -378,4 +379,42 @@ test('arrival acknowledgements cannot leak into later snapshots, watched lanes o
   added.units.push({ ...added.units[0], id: 4, slot: 2 });
   r.update(added, { reduced: true });
   assert.equal(r.view.effects.length, 0, 'motion reduction shows the result without arrival effects');
+});
+
+test('all five maps project the authoritative path and slots in both orientations', () => {
+  for (const portrait of [false, true]) for (const battlefieldId of [1, 2, 3, 4, 5]) {
+    const r = renderer(portrait), layout = getBattlefieldLayout(battlefieldId);
+    r.view.battlefieldId = battlefieldId;
+    const snapshot = lane(null); snapshot.units[0].slot = layout.slots.length - 1;
+    r.update(snapshot);
+    const w = r.view.worldWidth, h = r.view.worldHeight;
+    const road = { left: w * .12, right: w * .84, top: h * (portrait ? .22 : .27), bottom: h * .8 };
+    for (let index = 0; index < layout.slots.length; index++) {
+      const expected = projectPoint(unitPoint(index, battlefieldId), road, portrait), actual = r.view.position(index);
+      assert.ok(Math.abs(actual.x - expected.x) < 1e-8 && Math.abs(actual.y - expected.y) < 1e-8);
+    }
+    for (const progress of [0, .12, .37, .61, .85, .999]) {
+      const expected = projectPoint(enemyPoint(progress, battlefieldId), road, portrait), actual = r.view.path(progress);
+      assert.ok(Math.abs(actual.x - expected.x) < 1e-8 && Math.abs(actual.y - expected.y) < 1e-8);
+    }
+    const slotsDrawn = [], position = r.view.position.bind(r.view);
+    r.view.position = index => { slotsDrawn.push(index); return position(index); };
+    r.view.drawDeck();
+    assert.deepEqual(slotsDrawn, Array.from({ length: layout.slots.length }, (_, index) => index));
+  }
+});
+
+test('switching maps discards old slots and effects before adopting a smaller map', () => {
+  const r = renderer(), first = lane(null);
+  first.units[0].slot = 29; r.update(first);
+  r.view.markArrival(1, 'combine');
+  r.view.battlefieldId = 4;
+  const next = lane(20); next.units[0].slot = 21;
+  r.update(next);
+  assert.equal(r.view.units.size, 1);
+  assert.equal(r.view.units.get(1).unit.slot, 21);
+  assert.equal(r.view.units.get(1).x, r.view.position(21).x);
+  assert.equal(r.view.effects.length, 0);
+  assert.equal(r.view.arrivals.size, 0);
+  assert.ok(r.view.units.get(1).attackAt < 0, 'the next map is an initial snapshot');
 });

@@ -35,12 +35,15 @@ Object.assign(errors, {
   profile_already_playing: '이 원정대가 이미 다른 전장에 있어요. 이전 전장으로 돌아가세요.',
   profile_in_active_expedition: '이미 진행 중인 원정이 있어요. 이전 전장으로 돌아가 먼저 마쳐주세요.',
   profile_already_in_room: '같은 원정대는 방에 한 자리만 참가할 수 있어요.',
-  research_prerequisite: '연구에 필요한 행성 탈출 기록이 없어요.'
+  research_prerequisite: '연구에 필요한 스테이지 클리어 기록이 없어요.',
+  insufficient_engines: '엔진이 부족해요. 회복을 기다리거나 충전하세요.',
+  store_not_configured: '현재 테스트 버전에서는 결제할 수 없어요.'
 });
 let playerId = read(sessionStorage, 'td.player', null) || id('p-'); save(sessionStorage, 'td.player', playerId);
 let settings = read(localStorage, 'td.settings', { reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, sound: true, guide: true });
 let metrics = read(sessionStorage, 'td.metrics', null), pinned = read(localStorage, 'td.goal', null);
 let focusedId = null, saleId = null, inspectedRecipe = null;
+let profileReceivedAt = 0, profileRefreshAt = 0, profileRefreshing = false;
 let profile = null, profileToken = read(localStorage, 'td.profile', null)?.token || null;
 let selectedBattlefield = read(localStorage, 'td.battlefield', 1), researching = false, upgradeTag = null, blueprintId = null;
 let selected = new Set(), watchedId = playerId, connected = false, actionBusy = false, joining = false, pollBusy = false, active = false, currentTab = 'army';
@@ -61,7 +64,7 @@ function objectiveCopy(planet, r) {
   const kind = planet.objective?.kind || 'overcrowd';
   return kind === 'mining' ? { type: '시설 방어 · 채굴', win: '채굴 완료까지 채굴기 보호', loss: '채굴기 체력 0 · 도착한 적이 계속 공격' } :
     kind === 'engine' ? { type: '시설 방어 · 탈출', win: '엔진을 지키며 충전 후 보스 처치', loss: '엔진 체력 0 또는 보스 제한 시간 초과' } :
-      { type: '순환 방어 · 첫 원정', win: '채굴 완료 후 최종 보스 처치', loss: `적 ${r.overcrowdCount}기 이상 ${r.overcrowdTicks / r.ticksPerSecond}초 유지 또는 보스 시간 초과` };
+      { type: '순환 방어', win: '채굴 완료 후 최종 보스 처치', loss: `적 ${r.overcrowdCount}기 이상 ${r.overcrowdTicks / r.ticksPerSecond}초 유지 또는 보스 시간 초과` };
 }
 function showLobbyScreen(screen) {
   $('#home-screen').hidden = screen !== 'home'; $('#stage-screen').hidden = screen !== 'stages';
@@ -91,7 +94,7 @@ function api(path, body, token = session?.token) {
     try {
       const response = await fetch(path, { method: body ? 'POST' : 'GET', headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: controller.signal, cache: 'no-store' });
       const data = await response.json();
-      if (!response.ok) { const error = new Error(errors[data.error] || '서버가 요청을 처리하지 못했습니다. (' + response.status + ')'); error.status = response.status; throw error; }
+      if (!response.ok) { const error = new Error(errors[data.error] || '서버가 요청을 처리하지 못했습니다. (' + response.status + ')'); error.status = response.status; error.code = data.error; throw error; }
       return data;
     } catch (error) { if (error.name === 'AbortError' || error instanceof TypeError) throw new Error('서버 응답을 기다리지 못했습니다. 연결을 확인하고 다시 시도하세요.'); throw error; }
     finally { clearTimeout(timer); }
@@ -102,32 +105,81 @@ function api(path, body, token = session?.token) {
 function acceptProfile(next) {
   if (!next) return;
   profile = next;
-  renderLobby();
+  profileReceivedAt = performance.now(); profileRefreshAt = profileReceivedAt;
+  renderLobby(); renderEngines();
   if ($('#research-dialog').open) renderResearch();
 }
+
+function engineSeconds() {
+  const engines = profile?.engines;
+  if (!engines || engines.nextRecoveryAt === null) return null;
+  const serverNow = engines.serverTime + performance.now() - profileReceivedAt;
+  return Math.max(0, Math.ceil((engines.nextRecoveryAt - serverNow) / 1000));
+}
+function renderEngines() {
+  const engines = profile?.engines;
+  for (const button of document.querySelectorAll('[data-engine-open]')) {
+    button.disabled = !engines;
+    button.querySelector('strong').textContent = engines ? engines.count + '/' + engines.max : '—';
+    button.setAttribute('aria-label', engines ? '엔진 ' + engines.count + '개, 최대 ' + engines.max + '개. 충전 보기' : '엔진 확인 중');
+  }
+  if (!engines) return;
+  text('#engine-balance', engines.count + ' / ' + engines.max);
+  const seconds = engineSeconds();
+  const remaining = seconds === null ? '엔진이 가득 찼어요' : seconds === 0 ? '회복 확인 중…' :
+    '다음 엔진까지 ' + Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+  text('#engine-next', remaining);
+
+  html('#engine-cells', Array.from({ length: engines.max }, (_, index) =>
+    '<span class="' + (index < engines.count ? 'charged' : '') + '" aria-hidden="true"><svg class="ui-icon"><use href="#icon-engine"/></svg></span>').join(''));
+}
+async function refreshProfile() {
+  if (!profileToken || profileRefreshing) return;
+  profileRefreshing = true; profileRefreshAt = performance.now();
+  try { acceptProfile((await api('/profile', null, profileToken)).profile); }
+  catch (error) { if ($('#engine-dialog').open) text('#engine-store-note', error.message); }
+  finally { profileRefreshing = false; }
+}
+async function openEngines() {
+  $('#join-dialog').close(); $('#planet-dialog').close();
+  renderEngines();
+  if (!$('#engine-dialog').open) $('#engine-dialog').showModal();
+  await refreshProfile();
+  try {
+    const store = await api('/engine/store', null, profileToken);
+    text('#engine-store-note', store.available ? '이 브라우저에는 스토어 결제가 연결되어 있지 않아요.' : '현재 테스트 버전에서는 결제할 수 없어요.');
+  } catch (error) { text('#engine-store-note', error.message); }
+}
+setInterval(() => {
+  if (!profile || document.hidden) return;
+  renderEngines();
+  if (!active && (performance.now() - profileRefreshAt >= 30000 ||
+      engineSeconds() === 0 && performance.now() - profileRefreshAt >= 5000)) refreshProfile();
+}, 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !active) refreshProfile(); });
 
 function renderLobby() {
   if (!content || !profile) return;
   if (!content.battlefields.some(planet => planet.id === selectedBattlefield)) selectedBattlefield = 1;
   html('#planet-list', content.battlefields.map(planet => {
     const available = profile.unlockedBattlefields.includes(planet.id);
-    return `<button class="planet-card" data-battlefield="${planet.id}" aria-pressed="${planet.id === selectedBattlefield}"><span class="planet-orb planet-${planet.id}" aria-hidden="true"></span><span><strong>${escape(planet.name)}</strong><small>${profile.clearedBattlefields.includes(planet.id) ? '클리어' : available ? '원정 가능' : '이전 행성 클리어 후 개방'}</small></span><span class="planet-marker" aria-hidden="true">${available ? '›' : '잠김'}</span></button>`;
+    return `<button class="planet-card" data-battlefield="${planet.id}" aria-pressed="${planet.id === selectedBattlefield}"><span class="planet-orb planet-1" aria-hidden="true"></span><span><strong>1-${planet.id} ${escape(planet.name)}</strong><small>${profile.clearedBattlefields.includes(planet.id) ? '클리어' : available ? '원정 가능' : '이전 스테이지 클리어 후 개방'}</small></span><span class="planet-marker" aria-hidden="true">${available ? '›' : '잠김'}</span></button>`;
   }).join(''));
   const planet = content.battlefields.find(p => p.id === selectedBattlefield), r = { ...content.rules, ...planet.rules };
   const index = content.battlefields.indexOf(planet), available = profile.unlockedBattlefields.includes(planet.id);
-  $('#destination-orb').className = `planet-orb planet-${planet.id}`;
-  text('#planet-index', `${String(index + 1).padStart(2, '0')} / ${String(content.battlefields.length).padStart(2, '0')}`);
-  text('#destination-lock', available ? '' : '이전 행성 클리어 후 개방');
+  $('#destination-orb').className = 'planet-orb planet-1';
+  text('#planet-index', `STAGE 1-${planet.id} · ${index + 1} / ${content.battlefields.length}`);
+  text('#destination-lock', available ? '' : '이전 스테이지 클리어 후 개방');
   $('#planet-prev').disabled = index === 0; $('#planet-next').disabled = index === content.battlefields.length - 1;
   const speed = Number($('#speed-select').value);
   text('#run-mode-label', speed === 1 ? '일반 · 보상 저장' : `${speed}배속 연습 · 보상 없음`);
   text('#research-credits', profile.researchCredits.toLocaleString());
   const goal = objectiveCopy(planet, r);
-  text('#destination-name', planet.name); text('#destination-type', goal.type); text('#destination-description', planet.description);
+  text('#destination-name', planet.name); text('#destination-type', goal.type + ' · 배치 ' + r.maxUnits + '기'); text('#destination-description', planet.description);
   text('#destination-win', goal.win); text('#destination-loss', goal.loss);
   text('#expedition-duration', `최대 ${durationText(expeditionTicks(planet, r))}`);
-  text('#home-play', '행성 선택'); $('#home-play').disabled = joining;
-  text('#quick-start', !available ? '아직 갈 수 없는 행성' : speed === 1 ? '출발' : '연습 출발');
+  text('#home-play', '스테이지 선택'); $('#home-play').disabled = joining;
+  text('#quick-start', !available ? '잠긴 스테이지' : profile.engines?.count === 0 ? '엔진 충전' : (speed === 1 ? '출발' : '연습 출발') + ' · 엔진 1');
   $('#quick-start').disabled = joining || !available;
   $('#join-form button').disabled = joining;
   $('#research-btn').disabled = false;
@@ -207,8 +259,8 @@ async function joinRoom(roomId, resume = false) {
     state = null; selected.clear(); focusedId = null; for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close(); watchedId = playerId; resultShown = false; active = true; $('#lobby').hidden = true; $('#game').hidden = false; $('#resume-btn').hidden = false;
     clearTimeout(alertTimer); $('#combat-alert').hidden = true; alertPriority = 0;
     accept(result.state); notice('로봇을 뽑아 방어를 시작하세요.', 'success'); nextPoll = performance.now() + 200;
-  } catch (error) { text('#lobby-notice', error.message); text('#join-notice', error.message); if (state) notice(error.message, 'error'); }
-  finally { joining = false; $('#quick-start').disabled = !profile; $('#join-form button').disabled = !profile; }
+  } catch (error) { text('#lobby-notice', error.message); text('#join-notice', error.message); if (state) notice(error.message, 'error'); if (error.code === 'insufficient_engines') await openEngines(); }
+  finally { joining = false; renderLobby(); }
 }
 
 function accept(next) {
@@ -480,6 +532,7 @@ function showResult() {
 }
 async function newGame() {
   if (actionBusy || joining || !profile) return;
+  if (profile.engines?.count === 0) { await openEngines(); return; }
   if (me()?.status === 'active' && (!connected || pending || !await sendAction('leave'))) return;
   active = false; state = null; connected = false; $('#game').hidden = true; $('#lobby').hidden = false; $('#result-dialog').close(); setPending(null); await joinRoom(id('war-'));
 }
@@ -563,6 +616,7 @@ function sound(type, event = {}) {
 function feedbackSnapshot() { return state && me() ? { contentVersion: state.contentVersion, playbackSpeed: state.playbackSpeed || 1, wave: state.wave, outcome: me().status, defeatReason: me().defeatReason || null, elapsedSeconds: metrics ? Math.round((Date.now() - metrics.startedAt) / 1000) : null, acknowledgedActions: metrics?.actionCounts || {}, milestones: metrics?.milestones || {} } : null; }
 function openFeedback() { $('#result-dialog').close(); text('#feedback-count', `저장된 의견 ${read(localStorage, 'td.feedback', []).length}개`); $('#feedback-dialog').showModal(); }
 
+for (const button of document.querySelectorAll('[data-engine-open]')) button.addEventListener('click', openEngines);
 $('#quick-start').addEventListener('click', newGame);
 $('#home-play').addEventListener('click', () => { renderLobby(); showLobbyScreen('stages'); });
 $('#stage-back').addEventListener('click', () => showLobbyScreen('home'));

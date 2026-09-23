@@ -3,6 +3,10 @@ import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, re
 import { dirname, resolve } from 'node:path';
 import core from '../dist/server/core/index.js';
 
+export const ENGINE_MAX = 5;
+export const ENGINE_RECOVERY_MS = 30 * 60 * 1000;
+export const ENGINE_REFILL_PRODUCT = 'engine_refill';
+
 const clone = value => JSON.parse(JSON.stringify(value));
 const hash = token => createHash('sha256').update(token).digest('hex');
 
@@ -12,7 +16,7 @@ export class ProgressionError extends Error {
 
 // One local server process owns this store. A complete transaction is flushed to
 // a sibling file, then renamed, before its new balance is returned to a client.
-export function createProgressionStore({ filePath = null, content = core.content } = {}) {
+export function createProgressionStore({ filePath = null, content = core.content, now = Date.now } = {}) {
   const target = filePath ? resolve(filePath) : null;
   let data = { version: 1, profiles: {} }, writeNumber = 0;
   if (target && existsSync(target)) {
@@ -22,8 +26,19 @@ export function createProgressionStore({ filePath = null, content = core.content
     }
   }
   const battlefields = () => content.battlefields || [{ id: 1 }];
-  const view = profile => ({
+  function engineBalance(profile, timestamp = now()) {
+    const stored = profile.engines || { count: ENGINE_MAX, nextRecoveryAt: null };
+    let { count, nextRecoveryAt } = stored;
+    if (count < ENGINE_MAX && nextRecoveryAt !== null && timestamp >= nextRecoveryAt) {
+      const recovered = Math.floor((timestamp - nextRecoveryAt) / ENGINE_RECOVERY_MS) + 1;
+      count = Math.min(ENGINE_MAX, count + recovered);
+      nextRecoveryAt = count === ENGINE_MAX ? null : nextRecoveryAt + recovered * ENGINE_RECOVERY_MS;
+    }
+    return { count, nextRecoveryAt };
+  }
+  const view = (profile, timestamp = now()) => ({
     id: profile.id,
+    engines: { ...engineBalance(profile, timestamp), max: ENGINE_MAX, recoveryIntervalMs: ENGINE_RECOVERY_MS, serverTime: timestamp },
     researchCredits: profile.researchCredits,
     unlockedRecipes: [...profile.unlockedRecipes],
     clearedBattlefields: [...profile.clearedBattlefields],
@@ -59,7 +74,8 @@ export function createProgressionStore({ filePath = null, content = core.content
     createProfile() {
       const profileToken = randomBytes(32).toString('hex'), id = randomUUID();
       const profile = { id, tokenHash: hash(profileToken), researchCredits: 0, unlockedRecipes: [], clearedBattlefields: [],
-        stats: { expeditions: 0, clears: 0 }, lastResult: null, rewards: {} };
+        stats: { expeditions: 0, clears: 0 }, lastResult: null, rewards: {},
+        engines: { count: ENGINE_MAX, nextRecoveryAt: null }, engineEntries: {} };
       const next = clone(data); next.profiles[id] = profile; commit(next);
       return { profileToken, profile: view(profile) };
     },
@@ -69,6 +85,39 @@ export function createProgressionStore({ filePath = null, content = core.content
       return profile ? view(profile) : null;
     },
     getProfile(profileId) { return view(requireProfile(profileId)); },
+    consumeEngine(profileId, expeditionId) {
+      const profile = requireProfile(profileId);
+      if (typeof expeditionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(expeditionId)) throw new Error('Invalid authoritative expedition ID.');
+      if (Object.hasOwn(profile.engineEntries || {}, expeditionId)) return { applied: false, profile: view(profile) };
+      const timestamp = now(), engines = engineBalance(profile, timestamp);
+      if (engines.count === 0) throw new ProgressionError('insufficient_engines');
+      const next = clone(data), updated = next.profiles[profileId];
+      updated.engines = { count: engines.count - 1, nextRecoveryAt: engines.nextRecoveryAt ?? timestamp + ENGINE_RECOVERY_MS };
+      updated.engineEntries ||= {};
+      updated.engineEntries[expeditionId] = timestamp;
+      commit(next);
+      return { applied: true, profile: view(updated) };
+    },
+    // Internal only: the HTTP layer must verify a store purchase and account binding first.
+    refillEngines(profileId, purchase) {
+      const profile = requireProfile(profileId);
+      if (!purchase || !['apple', 'google'].includes(purchase.platform) ||
+          typeof purchase.transactionId !== 'string' || !purchase.transactionId.length || purchase.transactionId.length > 512 ||
+          purchase.productId !== ENGINE_REFILL_PRODUCT || purchase.profileId !== profileId || purchase.status !== 'purchased') {
+        throw new ProgressionError('purchase_not_verified', 400);
+      }
+      const key = purchase.platform + ':' + purchase.transactionId;
+      if (Object.hasOwn(data.enginePurchases || {}, key)) {
+        if (data.enginePurchases[key].profileId !== profileId) throw new ProgressionError('purchase_already_claimed');
+        return { applied: false, profile: view(profile) };
+      }
+      const next = clone(data), updated = next.profiles[profileId];
+      updated.engines = { count: ENGINE_MAX, nextRecoveryAt: null };
+      next.enginePurchases ||= {};
+      next.enginePurchases[key] = { profileId, productId: ENGINE_REFILL_PRODUCT };
+      commit(next);
+      return { applied: true, profile: view(updated) };
+    },
     research(profileId, recipeId) {
       const profile = requireProfile(profileId);
       const recipe = content.recipes.find(item => item.id === recipeId);

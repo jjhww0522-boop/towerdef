@@ -57,7 +57,7 @@ test('validator detects self/circular requirements despite rare direct summons',
 test('validator requires initially available craft paths and valid legend unlocks', () => {
   invalid(c => { c.recipes[0].unlockBattlefield = 1; }, /unlock|initial/i);
   invalid(c => { c.recipes[15].unlockBattlefield = 0; }, /unlock|legend/i);
-  invalid(c => { c.recipes[15].unlockBattlefield = 4; }, /unlock/i);
+  invalid(c => { c.recipes[15].unlockBattlefield = 6; }, /unlock/i);
   invalid(c => { c.recipes.splice(0, 1); }, /reachable|recipe/i);
   invalid(c => { c.recipes[0].ingredients[0] = 'liu_bei'; }, /initial|reachable|cycle/i);
 });
@@ -105,4 +105,12 @@ test('facility objectives require a known goal, valid arrival point and positive
   invalid(c => { c.battlefields[1].objective.damage = -1; }, /facility/i);
   invalid(c => { c.battlefields[1].objective.attackIntervalTicks = 0; }, /facility/i);
   invalid(c => { c.battlefields[1].objective.arrivalProgress = 1; }, /arrival/i);
+});
+
+test('chapter stages require a shared planet, all five identifiers and the real placement cap', () => {
+  invalid(c => { c.battlefields.pop(); }, /stages 1 through 5/i);
+  invalid(c => { c.battlefields[4].id = 6; }, /unique id 1..5/i);
+  invalid(c => { c.battlefields[2].chapterId = 2; }, /chapter 1/i);
+  invalid(c => { c.battlefields[1].planetId = 'ice'; }, /scrap planet/i);
+  invalid(c => { c.battlefields[3].rules.maxUnits = 30; }, /maxUnits.*map slots/i);
 });
