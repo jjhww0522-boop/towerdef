@@ -22,8 +22,8 @@ const overwhelm = (game, player) => {
 test('chapter stages progressively expand capacity and defense time with separate boss deadlines', () => {
   const games = [1, 2, 3, 4, 5].map(battlefieldId => create({ battlefieldId }));
   assert.deepEqual(games.map(g => g.rules.maxUnits), [10, 12, 14, 16, 20]);
-  assert.deepEqual(games.map(g => g.rules.waveTicks * g.rules.totalWaves / g.rules.ticksPerSecond), [180, 300, 420, 600, 900]);
-  assert.deepEqual(games.map(g => publicState(g).expedition.remainingTicks / g.rules.ticksPerSecond), [240, 300, 510, 690, 990]);
+  assert.deepEqual(games.map(g => g.rules.waveTicks * g.rules.totalWaves / g.rules.ticksPerSecond), [120, 240, 420, 600, 900]);
+  assert.deepEqual(games.map(g => publicState(g).expedition.remainingTicks / g.rules.ticksPerSecond), [180, 240, 510, 690, 990]);
   assert.deepEqual(games.map(g => g.stories.map(s => s.wave)), [[4, 7, 10], [4, 8, 12], [5, 11, 16], [6, 12, 18], [9, 18, 27]]);
   assert.ok(games[1].rules.enemyHpAcceleration > games[0].rules.enemyHpAcceleration);
   assert.ok(games[2].rules.bossHp > games[1].rules.bossHp);

@@ -24,6 +24,19 @@ test('combat content rejects missing roles, impossible encounters and unsafe tac
   invalid(c => { c.rules.overdriveMultiplier = 1; }, /overdriveMultiplier/);
 });
 
+test('stage difficulty uses the common 1 to 10 scale, including fractional targets', () => {
+  const data = fixture();
+  assert.equal(data.battlefields[0].difficulty, 1);
+  assert.equal(data.battlefields[1].difficulty, 1.5);
+  for (const difficulty of [1, 1.5, 10]) {
+    data.battlefields[0].difficulty = difficulty;
+    assert.deepEqual(validateContent(data), []);
+  }
+  for (const difficulty of [0, 10.5, -1, 1.2, '1.5', null, NaN, Infinity]) {
+    invalid(c => { c.battlefields[0].difficulty = difficulty; }, /difficulty/i);
+  }
+});
+
 test('current content passes validation without mutation', () => {
   const data = fixture(), before = JSON.stringify(data);
   assert.deepEqual(validateContent(data), []);

@@ -204,6 +204,13 @@ async function mapFlow(f, size) {
       await selectBattlefield(page, stage.id);
       assert.match(await page.locator('#planet-index').innerText(), new RegExp('1-' + stage.id));
       assert.equal(await page.locator('#destination-name').innerText(), stage.name);
+      const stageType = await page.locator('#destination-type').innerText();
+      if (stage.id <= 2) {
+        assert.ok(stageType.includes(`난이도 ${stage.id === 1 ? 1 : 1.5}/10`));
+        assert.equal(await page.locator('#expedition-duration').innerText(), stage.id === 1 ? '최대 3:00' : '최대 4:00');
+        await readable(page, '#destination-type', 14);
+        await readable(page, '#expedition-duration', 14);
+      } else assert.ok(!stageType.includes('난이도'), 'unrated later stages do not inherit the introductory rating');
       if (stage.id === 1) await screenshot(page, `engine-chapter-${size.width}-stages`);
       const beforeRooms = f.rooms.length, response = await enter(page), room = f.rooms.at(-1), player = room.game.players[0];
       assert.equal(f.rooms.length, beforeRooms + 1); assert.equal(response.state.battlefieldId, stage.id);

@@ -167,6 +167,7 @@ function validateDefinition(content, validateStages = true) {
       if (!integer(stage.id) || stage.id > 5 || stageIds.has(stage.id)) errors.push(label + 'expected unique id 1..5');
       stageIds.add(stage.id);
       if (!text(stage.name) || !text(stage.description)) errors.push(label + 'name and description required');
+      if ('difficulty' in stage && (!positive(stage.difficulty) || stage.difficulty < 1 || stage.difficulty > 10 || !Number.isInteger(stage.difficulty * 2))) errors.push(label + 'difficulty must be a number from 1 to 10 in 0.5 steps');
       if (stage.chapterId !== 1 || stage.planetId !== 'scrap') errors.push(label + 'chapter 1 must share the scrap planet');
       const layout = getBattlefieldLayout(stage.id);
       if (layout.slots.length !== (stage.rules?.maxUnits ?? rules.maxUnits)) errors.push(label + 'maxUnits must match map slots');

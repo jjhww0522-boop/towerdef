@@ -184,7 +184,7 @@ function renderLobby() {
   text('#run-mode-label', speed === 1 ? '일반 · 보상 저장' : `${speed}배속 연습 · 보상 없음`);
   text('#research-credits', profile.researchCredits.toLocaleString());
   const goal = objectiveCopy(planet, r);
-  text('#destination-name', planet.name); text('#destination-type', goal.type + ' · 배치 ' + r.maxUnits + '기'); text('#destination-description', planet.description);
+  text('#destination-name', planet.name); text('#destination-type', goal.type + ' · 배치 ' + r.maxUnits + '기' + (planet.difficulty === undefined ? '' : ` · 난이도 ${planet.difficulty}/10`)); text('#destination-description', planet.description);
   const narrative = MISSION_STORIES[planet.id];
   text('#mission-title', narrative.title); text('#mission-briefing', narrative.briefing); text('#mission-lesson', narrative.lesson);
   text('#destination-win', goal.win); text('#destination-loss', goal.loss);
