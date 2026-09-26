@@ -419,25 +419,6 @@ function renderEvolution() {
     </article>`;
   }).join('') : '<p class="empty-roster">지금 사용할 수 있는 조립이 없어요.</p>';
   html('#evolution-panel', options);
-  if ($('#unit-dialog').open) {
-    const dialog = $('#unit-dialog'), area = $('.canvas-wrap').getBoundingClientRect(), canvas = field.canvas.getBoundingClientRect();
-    const position = field.position(unit.slot), robotHeight = field.unitHeight(definition) * field.scale;
-    const center = canvas.top - area.top + field.oy + position.y * field.scale - robotHeight * .47;
-    if (innerHeight <= 500 && !state.tutorial) {
-      const targetRight = canvas.left - area.left + field.ox + position.x * field.scale > area.width / 2;
-      dialog.style.width = 'min(480px, calc(100% - 24px))';
-      dialog.style.left = targetRight ? '12px' : 'auto'; dialog.style.right = targetRight ? 'auto' : '12px';
-    } else { dialog.style.width = ''; dialog.style.left = ''; dialog.style.right = ''; }
-    const top = Math.max(0, ...['.canvas-wrap>.side-column', '.arena-panel>.panel-heading', '#boss-hud', '#threat-label', '#tutorial-guide']
-      .map(selector => $(selector)).filter(element => element.getClientRects().length > 0 && (element.id !== 'tutorial-guide' || innerHeight > 500))
-      .map(element => element.getBoundingClientRect().bottom - area.top)) + 6;
-    const bottom = Math.min($('.command-panel').getBoundingClientRect().top, $('#summon-btn').getBoundingClientRect().top) - area.top - 10;
-    const height = dialog.getBoundingClientRect().height, lower = Math.max(top, bottom - height);
-    const overlap = y => Math.max(0, Math.min(y + height, center + robotHeight / 2) - Math.max(y, center - robotHeight / 2));
-    const above = overlap(top) < overlap(lower) || (overlap(top) === overlap(lower) && center > (top + bottom) / 2);
-    dialog.dataset.placement = above ? 'top' : 'bottom';
-    dialog.style.top = `${above ? top : lower}px`; dialog.style.bottom = 'auto';
-  }
 }
 function renderUnitInspection(player, unit, definition) {
   text('#unit-inspection-title', definition.name);
@@ -721,7 +702,7 @@ $('#operation-toggle').addEventListener('click', openOperation);
 $('#settings-operation').addEventListener('click', () => { $('#settings-dialog').close(); openOperation(); });
 for (const button of document.querySelectorAll('[data-tactic]')) button.addEventListener('click', () => sendAction('tactic', { tactic: button.dataset.tactic }));
 document.addEventListener('keydown', event => {
-  if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || !active || state?.tutorial || document.querySelector('dialog[open]') || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName) || event.target.isContentEditable) return;
+  if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || !active || state?.tutorial || document.querySelector('dialog[open]:not(#unit-dialog)') || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName) || event.target.isContentEditable) return;
   const tactic = { KeyQ: 'overdrive', KeyE: 'emp' }[event.code];
   if (tactic && !$('#tactic-' + tactic).disabled) { event.preventDefault(); sendAction('tactic', { tactic }); }
 });

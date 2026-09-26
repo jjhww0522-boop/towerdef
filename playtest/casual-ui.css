@@ -167,7 +167,6 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 /* Nonmodal selection card: overlays the field without claiming layout space. */
 .canvas-wrap>.unit-dialog{position:absolute;inset:auto max(12px,env(safe-area-inset-right)) 32px auto;z-index:6;margin:0;width:min(360px,calc(100% - 24px));max-width:none;height:auto;max-height:30dvh;padding:6px 10px 8px;border:1px solid #6d9791;border-radius:9px;background:#1a2932fa;box-shadow:0 5px 20px #050d1b80;overflow:hidden;text-align:left}
 .canvas-wrap>.unit-dialog[open]{display:flex;flex-direction:column;animation:dock-arrival .14s ease-out}
-.canvas-wrap>.unit-dialog[data-placement=top]{top:12px;bottom:auto}
 .canvas-wrap>.unit-dialog .dialog-heading{height:44px;min-height:44px;margin:0 0 4px;gap:6px}
 .canvas-wrap>.unit-dialog .dialog-heading>div{min-width:0;flex:1}
 .canvas-wrap>.unit-dialog h2{font-size:15px}.canvas-wrap>.unit-dialog #unit-subtitle{font-size:11px;overflow:hidden;text-overflow:ellipsis}

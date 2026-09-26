@@ -24,7 +24,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 await mkdir('artifacts', { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH });
 try {
-  for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
+  for (const size of [{ width: 360, height: 640 }, { width: 390, height: 844 }, { width: 667, height: 375 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
     const context = await browser.newContext({ viewport: size, isMobile: size.width < 1000, hasTouch: true });
     const created = store.createProfile(); store.completeTutorial(created.profile.id);
     await context.addInitScript(token => localStorage.setItem('td.profile', JSON.stringify({ token })), created.profileToken);
@@ -50,19 +50,37 @@ try {
     assert.equal(await page.evaluate(id => window.positionField.selected.has(id), anchor.id), true);
     assert.equal(await page.locator('#unit-subtitle').innerText(), '화염 · 근거리');
     await page.waitForTimeout(450);
-    const visibility = await page.evaluate(id => {
-      const f = window.positionField, v = f.units.get(id), b = f.canvas.getBoundingClientRect();
-      const h = f.unitHeight(f.definitions.get(v.unit.definitionId));
-      const point = { x: b.left + f.ox + v.x * f.scale, y: b.top + f.oy + (v.y - h * .47) * f.scale };
-      const element = document.elementFromPoint(point.x, point.y);
-      return { visible: element === f.canvas, point,
-        field: { worldHeight: f.worldHeight, x: v.x, y: v.y, ox: f.ox, oy: f.oy, scale: f.scale },
-        dialog: document.querySelector('#unit-dialog').getBoundingClientRect().toJSON(),
-        blocker: element && { tag: element.tagName, id: element.id, className: element.className } };
-    }, anchor.id);
+    const fixedBox = await page.locator('#unit-dialog').evaluate(element => element.getBoundingClientRect().toJSON());
     const path = `artifacts/position-combat-${size.width}.png`;
     await page.screenshot({ path });
-    assert.equal(visibility.visible, true, 'floating inspector leaves the selected robot visible: ' + JSON.stringify(visibility));
+    assert.ok(fixedBox.x >= 0 && fixedBox.y >= 0 && fixedBox.right <= size.width && fixedBox.bottom <= size.height, 'fixed inspector fits the viewport');
+    for (const unit of [...player.units.slice(1), anchor]) {
+      await page.locator('[data-close="unit-dialog"]').tap();
+      const point = await page.evaluate(id => {
+        const f = window.positionField, v = f.units.get(id), b = f.canvas.getBoundingClientRect();
+        const h = f.unitHeight(f.definitions.get(v.unit.definitionId));
+        return { x: b.left + f.ox + v.x * f.scale, y: b.top + f.oy + (v.y - h * .47) * f.scale };
+      }, unit.id);
+      await page.mouse.click(point.x, point.y); await page.locator('#unit-dialog[open]').waitFor();
+      await page.locator('#unit-dialog').evaluate(async element => { await Promise.allSettled(element.getAnimations().map(animation => animation.finished)); });
+      assert.equal(await page.evaluate(id => window.positionField.selected.has(id), unit.id), true);
+      const nextBox = await page.locator('#unit-dialog').boundingBox();
+      for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(nextBox[key] - fixedBox[key]) <= 1, `selecting slot ${unit.slot} changes inspector ${key}`);
+    }
+    for (const selector of ['#sell-unit', '#unit-manage', '[data-close="unit-dialog"]', '#tactic-overdrive', '#tactic-emp']) {
+      const usable = await page.locator(selector).evaluate(element => {
+        const r = element.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return { accessible: r.width >= 44 && r.height >= 44 && (hit === element || element.contains(hit)), blocker: hit?.id || hit?.className };
+      });
+      assert.ok(usable.accessible, selector + ' remains directly tappable in the fixed inspector: ' + JSON.stringify(usable));
+    }
+    if (size.width === 1440) {
+      const supportResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/action');
+      await page.keyboard.press('q');
+      assert.equal((await (await supportResponse).json()).ok, true);
+      assert.equal(player.battleStats.tacticsUsed.overdrive, 1);
+      assert.equal(await page.locator('#unit-dialog').evaluate(dialog => dialog.open), true, 'Q support remains usable while inspecting a robot');
+    }
     const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/action');
     await page.locator('#unit-dialog [data-evolve-recipe="make_guan_ping"]').tap();
     const response = await responsePromise, packet = response.request().postDataJSON(), result = await response.json();
@@ -78,7 +96,7 @@ try {
     assert.equal(player.units.find(unit => unit.id === assembled.id).slot, anchorSlot);
     assert.equal(await page.evaluate(id => window.positionField.units.get(id).unit.slot, assembled.id), anchorSlot);
     report.cases.push({ viewport: size, status: 'passed', anchorSlot, freedSlot: 2, path });
-    console.log('PASS selected placement, range display, frost telemetry and rotation', size.width);
+    console.log('PASS fixed inspector for all four slots, anchored assembly, range, frost and rotation', size.width);
     await context.close();
   }
   assert.deepEqual(errors, []);
