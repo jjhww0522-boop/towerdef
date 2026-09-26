@@ -19,7 +19,9 @@
     "test:chapter": "node tools/engine-chapter-check.mjs",
     "test:network": "npm run build && node tools/network-playtest.mjs",
     "simulate": "npm run build && node tools/simulate.mjs",
-    "test:tutorial": "node tools/tutorial-browser-check.mjs"
+    "test:tutorial": "node tools/tutorial-browser-check.mjs",
+    "test:operation": "npm run build && node tools/operation-browser-check.mjs",
+    "simulate:combat": "npm run build && node tools/simulate.mjs --combat"
   },
   "devDependencies": {
     "agent-browser": "0.38.1",

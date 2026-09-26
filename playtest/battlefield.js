@@ -22,7 +22,7 @@ export class Battlefield {
     this.canvas = canvas; this.ctx = canvas.getContext('2d');
     this.units = new Map(); this.enemies = new Map(); this.effects = []; this.arrivals = new Map();
     this.player = null; this.selected = new Set(); this.reduced = false;
-    this.frames = new Map(); this.walkFrames = []; this.drawOrder = [];
+    this.frames = new Map(); this.enemyFrames = new Map(); this.walkFrames = []; this.drawOrder = [];
     this.lastFrame = performance.now(); this.lastSnapshotAt = 0; this.snapshotDelay = 200;
     this.scale = 1; this.ox = 0; this.oy = 0;
     this.onCombat = onCombat;
@@ -150,11 +150,20 @@ export class Battlefield {
     const now = performance.now(), changedLane = !this.player || this.player.id !== player.id;
     const resuming = changedLane || (this.lastSnapshotAt > 0 && now - this.lastSnapshotAt > 2000);
     if (changedLane) { this.units.clear(); this.enemies.clear(); this.effects.length = 0; this.lastSnapshotAt = 0; }
-    if (!changedLane && player.lastFacilityHitTick != null && player.lastFacilityHitTick !== this.player?.lastFacilityHitTick) this.facilityHitAt = now;
+    if (!resuming && player.lastFacilityHitTick != null && player.lastFacilityHitTick > (this.player?.lastFacilityHitTick ?? -1)) {
+      this.facilityHitAt = now;
+      this.onCombat({ type: 'facility-hit', intensity: .8 });
+    }
+    const tactical = player.tactical;
+    const newTactical = !resuming && tactical?.lastUseTick != null && tactical.lastUseTick > (this.player?.tactical?.lastUseTick ?? -1);
     if (changedLane) this.facilityHitAt = -10000;
     this.player = player; this.definitions = definitions; this.selected = selected;
     this.speed = speed; this.reduced = reduced;
     if (reduced) this.effects.length = 0;
+    if (newTactical && ['emp', 'overdrive'].includes(tactical.lastKind)) {
+      this.onCombat({ type: tactical.lastKind, intensity: 1 });
+      this.addEffect({ type: 'tactical', kind: tactical.lastKind, born: now, life: 650 });
+    }
     const unitIds = new Set(player.units.map(unit => unit.id));
     const enemyIds = new Set(player.enemies.map(enemy => enemy.id));
     const previousArrival = this.lastSnapshotAt;
@@ -204,6 +213,7 @@ export class Battlefield {
     for (const unitId of this.units.keys()) if (!unitIds.has(unitId)) this.units.delete(unitId);
 
     for (const enemy of player.enemies) {
+      if (enemy.archetype) for (let pose = 0; pose < 4; pose++) this.enemyRoleFrame(enemy.archetype, pose);
       const view = this.enemies.get(enemy.id);
       if (view) {
         if (!resuming && view.hp > enemy.hp && !impacts.has(enemy.id)) {
@@ -217,15 +227,22 @@ export class Battlefield {
         // Only a closed route crosses the seam. An arrived enemy stays at its open endpoint.
         view.to = closed && enemy.progress < view.from - .5 ? enemy.progress + 1 : enemy.progress;
         view.progress = enemy.progress; view.hp = enemy.hp; view.at = now; view.enemy = enemy;
-      } else this.enemies.set(enemy.id, { from: enemy.progress, to: enemy.progress, progress: enemy.progress,
-        at: now, hp: enemy.hp, hitAt: -10000, enemy });
+      } else {
+        this.enemies.set(enemy.id, { from: enemy.progress, to: enemy.progress, progress: enemy.progress,
+          at: now, hp: enemy.hp, hitAt: -10000, enemy });
+        if (!resuming && enemy.boss) {
+          this.onCombat({ type: 'boss-entry', intensity: 1 });
+          const position = this.path(enemy.progress, enemy.routeIndex);
+          this.addEffect({ type: 'boss-entry', ...position, born: now, life: 750 });
+        }
+      }
     }
     for (const [enemyId, view] of this.enemies) if (!enemyIds.has(enemyId)) {
       const position = this.path(this.progress(view, now), view.enemy.routeIndex);
       if (!resuming) {
         const impact = impacts.get(enemyId), at = impact?.at ?? now + 230;
         this.addEffect({ type: 'death', x: impact?.position.x ?? position.x, y: impact ? impact.position.y + 18 : position.y, facing: position.face,
-          frame: this.enemyFrameIndex(view.enemy, now), boss: view.enemy.boss, born: at, life: 420 });
+          frame: this.enemyFrameIndex(view.enemy, now), sprite: this.enemyFrame(view.enemy, now), boss: view.enemy.boss, born: at, life: 420 });
         this.burst(position.x, position.y - 14, '#e2b476', at, view.enemy.boss ? 9 : 4);
         destroyed++;
       }
@@ -236,7 +253,7 @@ export class Battlefield {
       this.addEffect({ type: 'damage', x: impact.position.x, y: impact.position.y - (impact.boss ? 56 : 29),
         label: String(Math.round(impact.damage)), color: impact.boss ? '#ffd080' : '#fff3c8', born: impact.at, life: 620 });
       const view = this.enemies.get(targetId);
-      if (view) view.hitAt = impact.at;
+      if (view) { view.hitAt = impact.at; view.hitAngle = impact.angle; }
       // A hit record can outlive a target spawned and killed between two snapshots.
       if (!enemyIds.has(targetId) && !removedEnemyIds.has(targetId) && typeof targetId === 'number') {
         const enemy = { id: targetId, boss: impact.boss };
@@ -290,10 +307,13 @@ export class Battlefield {
       if (definition.element !== 'wind' && definition.element !== 'laser') this.burst(hit.position.x, hit.position.y, color, at, pattern === 'blast' ? 4 : 2);
       if (hit.damage > 0) {
         const previous = impacts.get(hit.targetId);
-        impacts.set(hit.targetId, { position: hit.position, damage: hit.damage + (previous?.damage || 0), at, boss: hit.boss });
+        impacts.set(hit.targetId, { position: hit.position, damage: hit.damage + (previous?.damage || 0), at, boss: hit.boss,
+          angle: Math.atan2(hit.position.y - origin.y, hit.position.x - origin.x) });
+        if (index === 0) this.addEffect({ type: 'residue', x: hit.position.x, y: hit.position.y + 18,
+          color, element: definition.element, born: at, life: 720 });
       }
     });
-    this.onCombat({ type: pattern, element: definition.element, delay: prepare / 1000,
+    this.onCombat({ type: pattern, element: definition.element, delay: prepare / 1000, pan: Math.max(-1, Math.min(1, origin.x / this.worldWidth * 2 - 1)),
       intensity: definition.rarity === 'legend' ? 1 : definition.rarity === 'hero' ? .8 : .5 });
   }
 
@@ -646,6 +666,14 @@ export class Battlefield {
       context.beginPath(); context.ellipse(x, y + 2, 24 * trim, 8 * trim, 0, 0, Math.PI * 2); context.stroke();
     }
     this.ellipse(x, y + 2, (hero ? 23 : 18) * trim, 6 * trim, '#102c2870');
+    if (!unit.dispatched && this.player.tactical?.overdriveRemainingTicks > 0) {
+      context.strokeStyle = '#ffd78c'; context.lineWidth = 2;
+      context.beginPath(); context.ellipse(x, y + 2, 20 * trim, 7 * trim, 0, 0, Math.PI * 2); context.stroke();
+      for (const side of [-1, 1]) {
+        const flareX = x + side * 16 * trim;
+        this.rect(flareX - 1, y - height * .6, 2, height * .22, '#ffd78c', 1);
+      }
+    }
     if (this.selected.has(unit.id)) {
       context.strokeStyle = '#071820'; context.lineWidth = 7;
       context.beginPath(); context.ellipse(x, y + 2, 25 * trim, 9 * trim, 0, 0, Math.PI * 2); context.stroke();
@@ -694,21 +722,42 @@ export class Battlefield {
   enemyFrameIndex(enemy, now = 0) {
     if (!this.walkFrames.length) return enemy.boss ? 6 : (enemy.id % 3) * 4 + (enemy.id % 4 === 0 ? 2 : 0);
     const row = enemy.boss ? 2 : enemy.id % 3 === 0 ? 1 : 0;
-    const moving = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility;
+    const moving = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility && !enemy.stunned;
     return row * 4 + (moving ? Math.floor(now / 110 * Math.min(this.speed, 3) + enemy.id) % 4 : 0);
+  }
+  enemyRoleFrame(archetype, pose) {
+    const key = archetype + ':' + pose;
+    if (!this.enemyFrames.has(key)) this.enemyFrames.set(key, this.spriteFrame(enemySpriteUrl(archetype, pose)));
+    return this.enemyFrames.get(key);
+  }
+  enemyFrame(enemy, now) {
+    const index = this.enemyFrameIndex(enemy, now);
+    return enemy.archetype ? this.enemyRoleFrame(enemy.archetype, index % 4) : this.walkFrames[index];
+  }
+  hitPresentation(view, now) {
+    const age = now - view.hitAt;
+    if (this.reduced || age < 0 || age > 190) return { poseTime: now, offsetX: 0, offsetY: 0, rotation: 0 };
+    const recoil = Math.sin(clamp(age / 190) * Math.PI) * (view.enemy.boss ? 1.5 : 4);
+    return { poseTime: age < 65 ? view.hitAt : now, offsetX: Math.cos(view.hitAngle || 0) * recoil,
+      offsetY: Math.sin(view.hitAngle || 0) * recoil * .5, rotation: recoil * .016 };
   }
   enemy(view, now) {
     const enemy = view.enemy, position = this.path(this.progress(view, now), view.enemy.routeIndex), context = this.ctx;
     // Small visual offsets make the stationary crowd readable; combat still uses the shared path point.
     if (enemy.attackingFacility) { position.x += (enemy.id % 3 - 1) * 8; position.y += Math.floor(enemy.id % 9 / 3) * 5; }
-    const size = enemy.boss ? 106 : 51 + enemy.id % 3 * 3;
-    const walking = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility;
-    const bounce = walking ? Math.abs(Math.sin(now * .009 * Math.min(this.speed, 3) + enemy.id)) * 2 : 0;
-    const lean = walking ? Math.sin(now * .009 * Math.min(this.speed, 3) + enemy.id) * .035 : 0;
+    const size = enemy.boss ? 106 : enemy.archetype === 'plated' ? 66 : enemy.archetype === 'swarm' ? 43 : 54;
+    const hit = this.hitPresentation(view, now);
+    const walking = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility && !enemy.stunned;
+    const bounce = walking ? Math.abs(Math.sin(hit.poseTime * .009 * Math.min(this.speed, 3) + enemy.id)) * 2 : 0;
+    const lean = walking ? Math.sin(hit.poseTime * .009 * Math.min(this.speed, 3) + enemy.id) * .035 : 0;
     this.ellipse(position.x, position.y + 2, enemy.boss ? 28 : 12, enemy.boss ? 9 : 4, '#10272275');
-    const frameIndex = this.enemyFrameIndex(enemy, now);
-    this.drawSprite(this.walkFrames[frameIndex], position.x, position.y - bounce,
-      size, position.face, 1, 1, lean);
+    this.drawSprite(this.enemyFrame(enemy, hit.poseTime), position.x + hit.offsetX, position.y - bounce + hit.offsetY,
+      size, position.face, 1, 1, lean + hit.rotation);
+    if (enemy.stunned) {
+      context.strokeStyle = '#d8c8ff'; context.lineWidth = 2;
+      context.beginPath(); context.ellipse(position.x, position.y - size + 2, 13, 4, 0, 0, Math.PI * 2); context.stroke();
+      this.text('정지', position.x, position.y - size - 11, this.worldWidth === 600 ? 14 : 10, '#e3dcff');
+    }
     if (enemy.slowed) {
       context.strokeStyle = '#86dcff'; context.lineWidth = 2;
       context.beginPath(); context.ellipse(position.x, position.y + 1, enemy.boss ? 28 : 15, 6, 0, 0, Math.PI * 2); context.stroke();
@@ -721,10 +770,10 @@ export class Battlefield {
         context.moveTo(frostX - 4, frostY + 3); context.lineTo(frostX + 4, frostY - 3);
       }
       context.stroke();
-      this.text('감속', position.x, position.y - size - 12, this.worldWidth === 600 ? 15 : 10, '#b1ebff');
+      if (!enemy.stunned) this.text('감속', position.x, position.y - size - 12, this.worldWidth === 600 ? 15 : 10, '#b1ebff');
     }
     const hitAge = now - view.hitAt;
-    if (hitAge >= 0 && hitAge < 130) {
+    if (!this.reduced && hitAge >= 0 && hitAge < 130) {
       context.save(); context.globalAlpha = (1 - hitAge / 130) * .6;
       context.strokeStyle = '#fff3cb'; context.lineWidth = enemy.boss ? 4 : 2;
       context.beginPath(); context.ellipse(position.x, position.y - size * .45, size * .24, size * .39, 0, 0, Math.PI * 2); context.stroke(); context.restore();
@@ -732,7 +781,23 @@ export class Battlefield {
     const barWidth = enemy.boss ? 62 : 26, barY = position.y - size - 8;
     this.rect(position.x - barWidth / 2, barY, barWidth, enemy.boss ? 5 : 3, '#233d38', 2);
     this.rect(position.x - barWidth / 2, barY, barWidth * clamp(enemy.hp / enemy.maxHp), enemy.boss ? 5 : 3, enemy.boss ? '#efbc79' : '#e1a28b', 2);
-    if (enemy.boss) this.text('폭주 압축기', position.x, barY - 6, 11, '#ffe7ac');
+    if (enemy.boss) this.text('거대 회수기', position.x, barY - 6, 11, '#ffe7ac');
+  }
+
+  drawGroundEffects(now) {
+    if (this.reduced) return;
+    const context = this.ctx;
+    for (const effect of this.effects) {
+      const age = now - effect.born;
+      if (effect.type !== 'residue' || age < 0 || age > effect.life) continue;
+      const fade = 1 - age / effect.life;
+      context.save(); context.globalAlpha = fade * .36;
+      this.ellipse(effect.x, effect.y + 2, 13, 5, effect.color);
+      context.strokeStyle = effect.color; context.lineWidth = 2;
+      context.beginPath(); context.moveTo(effect.x - 10, effect.y + 2); context.lineTo(effect.x - 4, effect.y - 2);
+      context.moveTo(effect.x + 4, effect.y + 1); context.lineTo(effect.x + 10, effect.y + 4); context.stroke();
+      context.restore();
+    }
   }
 
   drawEffects(now) {
@@ -741,7 +806,7 @@ export class Battlefield {
       const effect = this.effects[index], age = now - effect.born;
       if (age > effect.life || this.reduced) { this.effects.splice(index, 1); continue; }
       if (age < 0) {
-        if (effect.type === 'death') this.drawSprite(this.walkFrames[effect.frame], effect.x, effect.y,
+        if (effect.type === 'death') this.drawSprite(effect.sprite || this.walkFrames[effect.frame], effect.x, effect.y,
           effect.boss ? 106 : 54, effect.facing);
         continue;
       }
@@ -845,6 +910,17 @@ export class Battlefield {
           context.beginPath(); context.moveTo(-5 - t * 9, 0); context.lineTo(5 + t * 9, 0);
           context.moveTo(0, -5 - t * 9); context.lineTo(0, 5 + t * 9); context.stroke();
         }
+      } else if (effect.type === 'tactical') {
+        const x = this.worldWidth * .48, y = this.worldHeight * .52;
+        context.globalAlpha = (1 - t) * .5;
+        context.strokeStyle = effect.kind === 'emp' ? '#cfc4ff' : '#ffdc94'; context.lineWidth = 3 * (1 - t) + 1;
+        context.beginPath(); context.ellipse(x, y, (35 + easeOut(t) * this.worldWidth * .52), (15 + easeOut(t) * this.worldHeight * .43), 0, 0, Math.PI * 2); context.stroke();
+      } else if (effect.type === 'boss-entry') {
+        context.globalAlpha = 1 - t; context.strokeStyle = '#e5a794'; context.lineWidth = 3;
+        for (const side of [-1, 1]) {
+          const x = effect.x + side * (25 + t * 16);
+          context.beginPath(); context.moveTo(x, effect.y - 63); context.lineTo(x - side * 8, effect.y - 55); context.lineTo(x, effect.y - 47); context.stroke();
+        }
       } else if (effect.type === 'assembly') {
         const lock = easeOut(t / .6), distance = 30 - lock * 12;
         context.translate(effect.x, effect.y); context.globalAlpha = t < .65 ? .85 : (1 - t) / .35;
@@ -871,7 +947,7 @@ export class Battlefield {
         this.text(effect.label, effect.x, effect.y - easeOut(t) * 22, this.worldWidth === 600 ? 18 : 13, effect.color);
       } else if (effect.type === 'death') {
         context.globalAlpha = 1 - easeOut(t);
-        this.drawSprite(this.walkFrames[effect.frame], effect.x, effect.y + t * 6,
+        this.drawSprite(effect.sprite || this.walkFrames[effect.frame], effect.x, effect.y + t * 6,
           effect.boss ? 106 : 54, effect.facing, 1 + t * .15, 1 - t * .5, effect.facing * t * .4);
       }
       context.restore();
@@ -893,6 +969,7 @@ export class Battlefield {
         context.translate(this.ox, this.oy); context.scale(this.scale, this.scale);
         context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
         this.ground(now);
+        this.drawGroundEffects(now);
         this.drawPlacementPreview(now);
         this.drawRange();
         for (const entry of this.drawOrder) {

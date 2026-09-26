@@ -1,4 +1,4 @@
-import { GameState, expeditionProgress, tutorialCombatPaused } from './core';
+import { GameState, expeditionProgress, tutorialCombatPaused, encounterPreview } from './core';
 
 // Keep future random results and replay bookkeeping on the authoritative server.
 export function publicState(game: GameState): object {
@@ -16,6 +16,7 @@ export function publicState(game: GameState): object {
     rules: game.rules,
     stories: game.stories,
     expedition: expeditionProgress(game),
+    encounter: encounterPreview(game),
     story: game.story,
     bossRemainingTicks: (!game.tutorial || game.tutorial.bossAtTick !== null) && game.objective.kind !== 'mining' && game.tick >= game.rules.waveTicks * game.rules.totalWaves ? Math.max(0, game.rules.waveTicks * game.rules.totalWaves + game.rules.bossTicks - game.tick) : null,
     players: game.players.map(function (player) {
@@ -29,6 +30,12 @@ export function publicState(game: GameState): object {
         upgrades: player.upgrades,
         unlockedRecipes: player.unlockedRecipes,
         result: player.result,
+        battleStats: player.battleStats,
+        tactical: {
+          cooldownRemainingTicks: Math.max(0, player.nextTacticTick - game.tick),
+          overdriveRemainingTicks: Math.max(0, player.overdriveUntilTick - game.tick),
+          lastUseTick: player.lastTacticTick, lastKind: player.lastTactic
+        },
         units: player.units.map(function (unit) {
           return {
             id: unit.id, definitionId: unit.definitionId, slot: unit.slot, dispatched: unit.dispatched,
@@ -39,6 +46,8 @@ export function publicState(game: GameState): object {
         }),
         enemies: player.enemies.map(function (enemy) {
           return { id: enemy.id, hp: enemy.hp, maxHp: enemy.maxHp, progress: enemy.progress, routeIndex: enemy.routeIndex || 0, boss: enemy.boss,
+            archetype: enemy.archetype || (enemy.boss ? 'boss' : 'grunt'),
+            stunned: (enemy.stunnedUntilTick || 0) > game.tick,
             slowed: (enemy.slowUntilTick || 0) > game.tick,
             attackingFacility: player.facilityHp !== null && enemy.progress >= game.objective.arrivalProgress };
         })

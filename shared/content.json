@@ -1,7 +1,25 @@
 {
-  "version": "0.10.1-training-combat",
+  "version": "0.11.0-reignition",
+  "enemyArchetypes": [
+    {"id":"grunt","label":"고철 정찰병","description":"기본 속도로 전진하는 정찰병입니다.","hpMultiplier":1,"speedMultiplier":1,"siegeMultiplier":1,"killGoldMultiplier":1},
+    {"id":"runner","label":"질주 드론","description":"체력이 낮지만 빠릅니다. 냉각과 넓은 사거리로 접근을 늦추세요.","hpMultiplier":0.65,"speedMultiplier":1.5,"siegeMultiplier":1,"killGoldMultiplier":1},
+    {"id":"plated","label":"중장 공성봇","description":"느리고 튼튼하며 시설에 두 배 피해를 줍니다. 단일 화력을 집중하세요. 속성 저항은 없습니다.","hpMultiplier":1.6,"speedMultiplier":0.7,"siegeMultiplier":2,"killGoldMultiplier":1.5},
+    {"id":"swarm","label":"잔해 군집","description":"약한 적이 두 기씩 몰려옵니다. 폭발과 연쇄 공격이 유리합니다.","hpMultiplier":0.6,"speedMultiplier":1,"siegeMultiplier":0.75,"killGoldMultiplier":0.5},
+    {"id":"boss","label":"거대 회수기","description":"제한 시간 안에 쓰러뜨리세요. EMP 정지는 1초만 적용됩니다.","hpMultiplier":1,"speedMultiplier":1,"siegeMultiplier":6,"killGoldMultiplier":1}
+  ],
+  "encounters": [
+    {"label":"질주 경보","description":"빠른 드론 접근. 냉각 또는 넓은 사거리를 준비하세요.","archetype":"runner","batchSize":1,"intervalMultiplier":1},
+    {"label":"군집 접근","description":"두 기씩 밀집 진입. 폭발과 연쇄 공격을 준비하세요.","archetype":"swarm","batchSize":2,"intervalMultiplier":1.5},
+    {"label":"공성 부대","description":"느리고 튼튼한 공성봇. 시설에 도착하기 전에 단일 화력을 집중하세요.","archetype":"plated","batchSize":1,"intervalMultiplier":1.5},
+    {"label":"정찰 부대","description":"일반 정찰병 접근. 다음 위협에 맞춰 로봇을 조립하세요.","archetype":"grunt","batchSize":1,"intervalMultiplier":1}
+  ],
   "rules": {
     "ticksPerSecond": 10,
+    "tacticCooldownTicks": 400,
+    "overdriveTicks": 60,
+    "overdriveMultiplier": 1.5,
+    "empTicks": 30,
+    "empBossTicks": 10,
     "waveTicks": 150,
     "totalWaves": 12,
     "bossTicks": 600,
@@ -67,7 +85,7 @@
       "name": "엔진 기지",
       "objective": {"kind":"engine","label":"우주선 엔진","facilityHp":5000,"arrivalProgress":1,"damage":5,"attackIntervalTicks":10},
       "description": "가로 통로의 14칸에서 오른쪽 엔진을 지키고 7분 뒤 보스를 쓰러뜨리세요.",
-      "rules": {"maxUnits":14,"enemyProgressPerTick":0.0022,"waveTicks":200,"totalWaves":21,"bossTicks":900,"bossHp":30000,"enemyBaseHp":28,"enemyHpPerWave":18,"enemyHpAcceleration":0.35,"spawnIntervalTicks":13,"spawnRampEveryWaves":7,"minSpawnIntervalTicks":10,"waveGold":45,"waveGoldGrowth":1},
+      "rules": {"maxUnits":14,"enemyProgressPerTick":0.0022,"waveTicks":200,"totalWaves":21,"bossTicks":900,"bossHp":25500,"enemyBaseHp":28,"enemyHpPerWave":18,"enemyHpAcceleration":0.35,"spawnIntervalTicks":13,"spawnRampEveryWaves":7,"minSpawnIntervalTicks":10,"waveGold":45,"waveGoldGrowth":1},
       "stories": [
         {"wave":5,"name":"조난 신호 구조","hp":2500,"durationTicks":350,"rewardGold":80},
         {"wave":11,"name":"중앙 전력 복구","hp":6000,"durationTicks":350,"rewardGold":110},
@@ -80,7 +98,7 @@
       "name": "좁은 협곡",
       "objective": {"kind":"engine","label":"중앙 엔진","facilityHp":7000,"arrivalProgress":1,"damage":5,"attackIntervalTicks":10},
       "description": "양쪽 통로의 16칸을 나눠 중앙 엔진을 지키고 10분 뒤 보스를 처치하세요.",
-      "rules": {"maxUnits":16,"enemyProgressPerTick":0.003,"waveTicks":250,"totalWaves":24,"bossTicks":900,"bossHp":70000,"enemyBaseHp":30,"enemyHpPerWave":24,"enemyHpAcceleration":0.5,"spawnIntervalTicks":12,"spawnRampEveryWaves":8,"minSpawnIntervalTicks":9,"waveGold":50,"waveGoldGrowth":2},
+      "rules": {"maxUnits":16,"enemyProgressPerTick":0.003,"waveTicks":250,"totalWaves":24,"bossTicks":900,"bossHp":59500,"enemyBaseHp":30,"enemyHpPerWave":24,"enemyHpAcceleration":0.5,"spawnIntervalTicks":12,"spawnRampEveryWaves":8,"minSpawnIntervalTicks":9,"waveGold":50,"waveGoldGrowth":2},
       "stories": [
         {"wave":6,"name":"조난 신호 구조","hp":4000,"durationTicks":400,"rewardGold":100},
         {"wave":12,"name":"중앙 전력 복구","hp":10000,"durationTicks":400,"rewardGold":140},
@@ -93,7 +111,7 @@
       "name": "탈출항",
       "objective": {"kind":"engine","label":"탈출선 엔진","facilityHp":9000,"arrivalProgress":1,"damage":6,"attackIntervalTicks":10},
       "description": "네 입구를 둘러싼 20칸으로 중앙 엔진을 15분 동안 지키고 마지막 보스를 쓰러뜨리세요.",
-      "rules": {"maxUnits":20,"enemyProgressPerTick":0.0035,"waveTicks":250,"totalWaves":36,"bossTicks":900,"bossHp":135000,"enemyBaseHp":34,"enemyHpPerWave":30,"enemyHpAcceleration":0.7,"spawnIntervalTicks":11,"spawnRampEveryWaves":9,"minSpawnIntervalTicks":8,"waveGold":55,"waveGoldGrowth":2},
+      "rules": {"maxUnits":20,"enemyProgressPerTick":0.0035,"waveTicks":250,"totalWaves":36,"bossTicks":900,"bossHp":114750,"enemyBaseHp":34,"enemyHpPerWave":30,"enemyHpAcceleration":0.7,"spawnIntervalTicks":11,"spawnRampEveryWaves":9,"minSpawnIntervalTicks":8,"waveGold":55,"waveGoldGrowth":2},
       "stories": [
         {"wave":9,"name":"조난 신호 구조","hp":6000,"durationTicks":450,"rewardGold":120},
         {"wave":18,"name":"중앙 전력 복구","hp":16000,"durationTicks":450,"rewardGold":180},

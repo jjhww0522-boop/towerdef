@@ -97,16 +97,27 @@ function tagValue(player, tag, rules) {
 
 export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true, options = {}) {
   const playerIds = ids(seats), battlefieldId = options.battlefieldId ?? 1;
+  const supportPolicy = options.supportPolicy ?? 'none';
+  if (!['none', 'overdrive', 'emergency-emp'].includes(supportPolicy)) throw new Error('Unknown support policy');
   const clearedRecipes = content.recipes.filter(recipe => recipe.unlockType === 'clear' && recipe.unlockBattlefield < battlefieldId).map(recipe => recipe.id);
   const unlockedRecipesByPlayer = Object.fromEntries(playerIds.map(id => [id, [...clearedRecipes, ...(options.unlockedRecipesByPlayer?.[id] || [])]]));
   const game = createGame({ playerIds, seed, practice: true, ...options, unlockedRecipesByPlayer });
   const rules = game.rules;
-  const actions = { summon: 0, combine: 0, upgrade: 0, dispatch: 0, salvage: 0 };
+  const actions = { summon: 0, combine: 0, upgrade: 0, dispatch: 0, salvage: 0, tactic: 0 };
   const tickMs = [], snapshotBytes = [], stories = [];
   const start = performance.now();
   const maxTicks = rules.waveTicks * rules.totalWaves + rules.bossTicks + 1;
   while (game.status === 'playing' && game.tick < maxTicks) {
-    if (game.tick % rules.ticksPerSecond === 0) for (const player of game.players) policy(game, player, actions, strategy);
+    if (game.tick % rules.ticksPerSecond === 0) for (const player of game.players) {
+      policy(game, player, actions, strategy);
+      if (strategy === 'no-input' || player.status !== 'active' || game.tutorial || game.tick < player.nextTacticTick || !player.enemies.length) continue;
+      if (supportPolicy === 'overdrive' && player.units.some(unit => !unit.dispatched)) act(game, player, { type: 'tactic', tactic: 'overdrive' }, actions);
+      if (supportPolicy === 'emergency-emp') {
+        const urgent = player.facilityHp === null ? player.enemies.length >= Math.ceil(rules.overcrowdCount * .6)
+          : player.enemies.filter(enemy => enemy.progress >= .85).length >= 3;
+        if (urgent) act(game, player, { type: 'tactic', tactic: 'emp' }, actions);
+      }
+    }
     const tickStart = measure ? performance.now() : 0;
     tick(game);
     if (measure) tickMs.push(performance.now() - tickStart);
@@ -114,7 +125,7 @@ export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true
     if (game.story && game.story.status !== 'active' && !stories.some(story => story.wave === game.story.wave)) stories.push({ wave: game.story.wave, status: game.story.status });
   }
   if (game.status !== 'finished') throw new Error('Simulation failed to finish by the rules deadline');
-  return { kind: game.practice ? 'scripted-practice-match' : 'scripted-expedition-match', battlefieldId: game.battlefieldId, seats, seed, strategy, status: game.status, ticks: game.tick,
+  return { kind: game.practice ? 'scripted-practice-match' : 'scripted-expedition-match', battlefieldId: game.battlefieldId, seats, seed, strategy, supportPolicy, status: game.status, ticks: game.tick,
     simulatedSeconds: game.tick / rules.ticksPerSecond, wallMs: rounded(performance.now() - start),
     cleared: game.players.filter(p => p.status === 'cleared').length,
     defeated: game.players.filter(p => p.status === 'defeated').length,
@@ -122,6 +133,7 @@ export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true
       hasLegend: p.units.some(u => definitions.get(u.definitionId).rarity === 'legend'),
       hasLockedRecipeUnit: p.units.some(u => content.recipes.some(r => r.result === u.definitionId && r.unlockBattlefield > 0 && r.unlockType !== 'clear')),
       remainingBossHp: p.enemies.find(enemy => enemy.boss)?.hp ?? 0,
+      battleStats: p.battleStats,
       result: p.result })),
     stories, successfulActions: actions, coreTickMs: measure ? summary(tickMs) : null, snapshotBytes: measure ? summary(snapshotBytes) : null };
 }
@@ -154,7 +166,7 @@ function syntheticStress(seats) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) console.log(JSON.stringify({ contentVersion: content.version, environment: { node: process.version, platform: process.platform, arch: process.arch },
   interpretation: 'Local Node CPU samples and uncompressed JSON state sizes only. Scripted policy is not human balance validation; synthetic stress is not a legal match. These measurements do not verify Nakama, network latency, client rendering or iPhone performance.',
-  ...(process.argv.includes('--compare') ? { strategyComparison: compareStrategies() } : { scriptedMatches: [4, 8].flatMap(seats => [1, 42, 2026].map(seed => scriptedMatch(seats, seed))),
+  ...(process.argv.includes('--combat') ? { combatComparison: compareCombatPolicies() } : process.argv.includes('--compare') ? { strategyComparison: compareStrategies() } : { scriptedMatches: [4, 8].flatMap(seats => [1, 42, 2026].map(seed => scriptedMatch(seats, seed))),
   syntheticStress: [4, 8].map(syntheticStress) }) }, null, 2));
 
 export function compareStrategies(seats = 4, seeds = Array.from({ length: 20 }, (_, i) => i + 1)) {
@@ -167,4 +179,23 @@ export function compareStrategies(seats = 4, seeds = Array.from({ length: 20 }, 
       successfulStories: matches.reduce((sum, match) => sum + match.stories.filter(story => story.status === 'success').length, 0),
       results: matches.map(match => ({ seed: match.seed, cleared: match.cleared, defeated: match.defeated, simulatedSeconds: match.simulatedSeconds })) };
   });
+}
+
+// Same solo seeds and automatic clear unlocks for each policy; no researched recipes.
+export function compareCombatPolicies(seeds = Array.from({ length: 20 }, (_, i) => i + 1)) {
+  return content.battlefields.map(stage => ({ battlefieldId: stage.id, seeds,
+    policies: [
+      ...['no-input', 'summon-only', 'greedy-combine', 'upgrade', 'dispatch'].map(strategy => ({ strategy, supportPolicy: 'none' })),
+      ...['overdrive', 'emergency-emp'].flatMap(supportPolicy => ['greedy-combine', 'dispatch'].map(strategy => ({ strategy, supportPolicy })))
+    ].map(({ strategy, supportPolicy }) => {
+      const runs = seeds.map(seed => scriptedMatch(1, seed, strategy, false, { battlefieldId: stage.id, supportPolicy }));
+      return { strategy, supportPolicy, clears: runs.reduce((sum, run) => sum + run.cleared, 0),
+        tacticsUsed: runs.reduce((sum, run) => sum + run.successfulActions.tactic, 0),
+        meanSimulatedSeconds: rounded(runs.reduce((sum, run) => sum + run.simulatedSeconds, 0) / runs.length),
+        failures: { overcrowded: runs.filter(run => run.players[0].result.reason === 'overcrowded').length,
+          facilityDestroyed: runs.filter(run => run.players[0].result.reason === 'facility_destroyed').length,
+          bossTimeout: runs.filter(run => run.players[0].result.reason === 'boss_timeout').length },
+        results: runs.map(run => ({ seed: run.seed, cleared: run.cleared, seconds: run.simulatedSeconds,
+          remainingBossHp: rounded(run.players[0].remainingBossHp), battleStats: run.players[0].battleStats })) };
+    }) }));
 }

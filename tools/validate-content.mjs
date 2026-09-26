@@ -11,7 +11,7 @@ function validateDefinition(content, validateStages = true) {
   const integer = value => Number.isSafeInteger(value) && value > 0;
   if (!object(content)) return ['content must be an object'];
   if (!text(content.version)) errors.push('version must be a nonempty string');
-  for (const section of ['units', 'recipes', 'stories', ...(validateStages ? ['battlefields'] : [])]) {
+  for (const section of ['units', 'recipes', 'stories', 'enemyArchetypes', 'encounters', ...(validateStages ? ['battlefields'] : [])]) {
     if (!Array.isArray(content[section]) || !content[section].length) errors.push(section + ' must be a nonempty array');
   }
   if (!object(content.rules)) errors.push('rules must be an object');
@@ -38,6 +38,30 @@ function validateDefinition(content, validateStages = true) {
   }
 
   const rules = content.rules;
+  const archetypeIds = new Set(), supportedArchetypes = ['grunt', 'runner', 'plated', 'swarm', 'boss'];
+  for (const [i, enemy] of content.enemyArchetypes.entries()) {
+    const label = 'enemyArchetypes[' + i + ']';
+    if (!object(enemy)) { errors.push(label + ' must be an object'); continue; }
+    if (!supportedArchetypes.includes(enemy.id) || archetypeIds.has(enemy.id)) errors.push(label + ' has invalid or duplicate id');
+    archetypeIds.add(enemy.id);
+    if (!text(enemy.label) || !text(enemy.description)) errors.push(label + ' needs label and description');
+    for (const field of ['hpMultiplier', 'speedMultiplier', 'siegeMultiplier', 'killGoldMultiplier']) if (!positive(enemy[field])) errors.push(label + '.' + field + ' must be positive and finite');
+  }
+  for (const id of supportedArchetypes) if (!archetypeIds.has(id)) errors.push('enemyArchetypes missing ' + id);
+  for (const [i, encounter] of content.encounters.entries()) {
+    const label = 'encounters[' + i + ']';
+    if (!object(encounter)) { errors.push(label + ' must be an object'); continue; }
+    if (!text(encounter.label) || !text(encounter.description)) errors.push(label + ' needs label and description');
+    if (!archetypeIds.has(encounter.archetype) || encounter.archetype === 'boss') errors.push(label + ' requires a normal enemy archetype');
+    if (!integer(encounter.batchSize) || encounter.batchSize > 8) errors.push(label + '.batchSize must be an integer from 1 to 8');
+    if (!positive(encounter.intervalMultiplier)) errors.push(label + '.intervalMultiplier must be positive and finite');
+    else if (Math.round(rules.spawnIntervalTicks * encounter.intervalMultiplier) >= rules.waveTicks) errors.push(label + ' spawn interval must leave room for an enemy in each wave');
+  }
+  if (content.encounters.at(-1)?.archetype !== 'grunt') errors.push('final encounter must be grunt for introductory waves');
+  for (const field of ['tacticCooldownTicks', 'overdriveTicks', 'empTicks', 'empBossTicks']) if (!integer(rules[field])) errors.push('rules.' + field + ' must be a positive integer');
+  if (!positive(rules.overdriveMultiplier) || rules.overdriveMultiplier <= 1) errors.push('rules.overdriveMultiplier must exceed one');
+  if (rules.empBossTicks > rules.empTicks) errors.push('boss EMP must not exceed normal EMP duration');
+  if (Math.max(rules.overdriveTicks, rules.empTicks) >= rules.tacticCooldownTicks) errors.push('tactic duration must be shorter than its shared cooldown');
   if (validateStages && rules.maxUnits !== SLOT_COUNT) errors.push('rules.maxUnits must match default battlefield slots');
   if (!integer(rules.frostSlowTicks)) errors.push('rules.frostSlowTicks must be a positive integer');
   for (const field of ['frostSlowMultiplier', 'bossSlowMultiplier']) {

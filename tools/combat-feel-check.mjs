@@ -144,7 +144,7 @@ try {
   await page.locator('#combat-alert').waitFor({ state: 'hidden' });
 
   game.tick = game.rules.waveTicks - 1; tick(game);
-  await page.waitForFunction(() => document.querySelector('#combat-alert-title').textContent === '2 웨이브');
+  await page.waitForFunction(() => document.querySelector('#combat-alert-title').textContent.startsWith('2 웨이브 · '));
   assert.equal(await page.locator('dialog[open]').count(), 0);
   pass('new waves announce themselves without opening a dialog');
   game.tick = game.rules.waveTicks * game.rules.totalWaves - 1;

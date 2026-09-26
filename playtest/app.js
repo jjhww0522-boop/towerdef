@@ -2,6 +2,9 @@ import { Battlefield } from './battlefield.js';
 import { unitSpriteUrl, elementPalette } from './casual-art.js';
 import { mountHomeCrew } from './home-crew.js';
 import { recipeMaterials, evolutionOptions, theoreticalDps } from './evolution-model.mjs';
+import { MISSION_STORIES } from './mission-content.js';
+import { missionBeats, debriefAdvice } from './operation-model.mjs';
+import { createCombatAudio } from './combat-audio.js';
 
 const $ = selector => document.querySelector(selector);
 const read = (storage, key, fallback) => { try { return JSON.parse(storage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -30,6 +33,10 @@ let content, definitions, state = null, session = read(sessionStorage, 'td.sessi
 Object.assign(errors, {
   RECIPE_LOCKED: '아직 잠긴 조합이에요. 설계도에서 해금 조건을 확인하세요.',
   SUMMON_COOLDOWN: '다음 로봇을 준비하고 있어요.',
+  TACTIC_COOLDOWN: '지원 장치를 충전하고 있어요. 두 전술은 재사용 시간을 공유해요.',
+  UNKNOWN_TACTIC: '사용할 전술을 확인하세요.',
+  NO_HOME_UNITS: '본진에 로봇을 먼저 배치하세요. 파견 중인 로봇에는 과부하가 적용되지 않아요.',
+  NO_ENEMIES: '지금 멈출 적이 없어요. 적이 나타나면 EMP를 사용할 수 있어요.',
   TUTORIAL_ACTION_REQUIRED: '안내된 행동을 먼저 해보세요.',
   tutorial_solo: '기동 훈련은 혼자 진행해요.',
   insufficient_research_credits: '연구 크레딧이 부족해요. 원정에서 더 모아보세요.',
@@ -51,8 +58,7 @@ let profile = null, profileToken = read(localStorage, 'td.profile', null)?.token
 let selectedBattlefield = read(localStorage, 'td.battlefield', 1), researching = false, upgradeTag = null, blueprintId = null;
 let selected = new Set(), watchedId = playerId, connected = false, actionBusy = false, joining = false, pollBusy = false, active = false, currentTab = 'army';
 let requestTail = Promise.resolve(), nextPoll = 0, resultShown = false, audioContext, toastTimer, alertTimer;
-let audioVoices = 0, alertPriority = 0, quietCombatUntil = 0, noiseBuffer;
-const lastCombatSounds = {};
+let alertPriority = 0, combatAudio, radioTimer, latestRadioKey = null;
 const field = new Battlefield($('#battlefield'), selectUnit, event => combatSound(event));
 mountHomeCrew($('#hero-robots'));
 const me = () => state?.players.find(p => p.id === playerId);
@@ -179,6 +185,8 @@ function renderLobby() {
   text('#research-credits', profile.researchCredits.toLocaleString());
   const goal = objectiveCopy(planet, r);
   text('#destination-name', planet.name); text('#destination-type', goal.type + ' · 배치 ' + r.maxUnits + '기'); text('#destination-description', planet.description);
+  const narrative = MISSION_STORIES[planet.id];
+  text('#mission-title', narrative.title); text('#mission-briefing', narrative.briefing); text('#mission-lesson', narrative.lesson);
   text('#destination-win', goal.win); text('#destination-loss', goal.loss);
   text('#expedition-duration', `최대 ${durationText(expeditionTicks(planet, r))}`);
   text('#home-play', '스테이지 선택'); $('#home-play').disabled = joining;
@@ -266,6 +274,7 @@ async function joinRoom(roomId, resume = false, tutorial = false) {
     session = { roomId, token: result.token }; save(sessionStorage, 'td.session', session);
     state = null; selected.clear(); focusedId = null; for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close(); watchedId = playerId; resultShown = false; active = true; $('#lobby').hidden = true; $('#game').hidden = false; $('#resume-btn').hidden = false;
     clearTimeout(alertTimer); $('#combat-alert').hidden = true; alertPriority = 0;
+    combatAudio?.stop(); clearTimeout(radioTimer); $('#radio-message').hidden = true; latestRadioKey = null;
     accept(result.state); notice('로봇을 뽑아 방어를 시작하세요.', 'success'); nextPoll = performance.now() + 200;
   } catch (error) { text('#lobby-notice', error.message); text('#join-notice', error.message); if (state) notice(error.message, 'error'); if (error.code === 'insufficient_engines') await openEngines(); }
   finally { joining = false; renderLobby(); }
@@ -295,7 +304,7 @@ function accept(next) {
   if (previous) {
     const oldPlayer = previous.players.find(p => p.id === playerId), oldLane = previous.players.find(p => p.id === watchedId);
     if (state.wave > previous.wave && state.expedition?.phase === 'mining') {
-      combatAlert(`${state.wave} 웨이브`, '', 'wave');
+      combatAlert(`${state.wave} 웨이브 · ${state.encounter?.current.label || '적 접근'}`, state.encounter?.current.description || '', 'wave');
     }
     const oldIds = new Set(oldPlayer?.units.map(u => u.id) || []);
     const arrival = player.units.find(u => !oldIds.has(u.id) && ['hero', 'legend'].includes(definitions.get(u.definitionId).rarity));
@@ -311,7 +320,7 @@ function accept(next) {
       combatAlert(`${state.objective.label} 위험`, '시설 앞에 쌓인 적을 제거하세요', 'danger', 3); sound('alarm');
     }
   }
-  render();
+  updateRadio(); render();
   if (player.status !== 'active' && player.status !== 'left' && !resultShown) showResult();
 }
 
@@ -339,7 +348,8 @@ async function sendAction(type, extra = {}, retry = false) {
     if (response.ok) {
       if (metrics && Object.hasOwn(metrics.actionCounts, packet.type)) { metrics.actionCounts[packet.type]++; mark(packet.type); persistMetrics(); }
       const messages = { summon: '로봇 뽑기 완료!', combine: `${name(content.recipes.find(r => r.id === packet.recipeId)?.result)} 조립 완료!`, upgrade: `${names[packet.tag]} 강화 완료`, dispatch: '스토리에 파견했어요. 내 방어가 줄어들어요.', salvage: '판매 완료 · 고철을 회수했어요.', leave: '전장에서 나왔습니다.' };
-      notice(messages[packet.type] || '요청이 반영되었습니다.', 'success'); if (packet.type !== 'leave') sound(packet.type); return true;
+      notice(packet.type === 'tactic' ? (packet.tactic === 'emp' ? 'EMP 방출 · 이동과 시설 공격 정지' : '과부하 가동 · 본진 화력 증가') : messages[packet.type] || '요청이 반영되었습니다.', 'success');
+      if (!['leave', 'tactic'].includes(packet.type)) sound(packet.type); return true;
     }
     notice(errors[response.error] || `행동을 적용하지 못했습니다. (${response.error})`, 'error'); return false;
   } catch (error) { connected = false; notice(error.message + ' 같은 요청을 재시도하면 중복 실행되지 않습니다.', 'error'); return false; }
@@ -471,6 +481,7 @@ function render() {
   const player = me(), lane = watched(), r = rules(), can = controlsAvailable(), speed = state.playbackSpeed || 1;
   $('#game').dataset.tutorial = String(!!state.tutorial);
   renderTutorial();
+  renderOperation();
   $('#game').dataset.stateStatus = player.status; $('#game').dataset.wave = state.wave;
   text('#room-label', '방 ' + session.roomId); html('#wave-value', `${String(state.wave).padStart(2, '0')} <small>/ ${r.totalWaves}</small>`); text('#gold-value', player.gold.toLocaleString()); html('#unit-value', `${player.units.length} <small>/ ${r.maxUnits}</small>`); text('#speed-label', speed + '배속' + (state.practice ? ' · 연습' : ' · 원정'));
   const planet = content.battlefields.find(p => p.id === state.battlefieldId);
@@ -497,7 +508,7 @@ function render() {
   const boss = lane.enemies.find(enemy => enemy.boss);
   $('#boss-hud').hidden = !boss;
   if (boss) {
-    text('#boss-label', '폭주 압축기'); $('#boss-health').value = Math.max(0, boss.hp / boss.maxHp * 100);
+    text('#boss-label', content.enemyArchetypes.find(enemy => enemy.id === 'boss').label); $('#boss-health').value = Math.max(0, boss.hp / boss.maxHp * 100);
     text('#boss-hp', `${Math.ceil(boss.hp).toLocaleString()} / ${boss.maxHp.toLocaleString()}`);
     $('#boss-health').setAttribute('aria-valuetext', `체력 ${Math.ceil(boss.hp)} / ${boss.maxHp}`);
     text('#boss-deadline', state.bossRemainingTicks != null ? `제한 ${(Math.max(0, state.bossRemainingTicks) / r.ticksPerSecond).toFixed(1)}초` : '');
@@ -538,6 +549,59 @@ function render() {
   renderEvolution(); renderUpgrade(); renderGuide(ready); $('#leave-btn').disabled = actionBusy || joining; $('#new-game-btn').disabled = actionBusy || joining;
 }
 
+function updateRadio() {
+  const beats = missionBeats(state, me(), MISSION_STORIES[state.battlefieldId]);
+  const latest = beats.at(-1);
+  if (!latest || latest.key === latestRadioKey) return;
+  latestRadioKey = latest.key;
+  text('#radio-speaker', latest.speaker + ' · 수신'); text('#radio-copy', latest.text);
+  clearTimeout(radioTimer);
+  $('#radio-message').hidden = me().status !== 'active';
+  radioTimer = setTimeout(() => { $('#radio-message').hidden = true; }, 7500);
+}
+
+function renderOperation() {
+  const tutorial = !!state.tutorial, player = me(), encounter = state.encounter;
+  $('#operation-toggle').hidden = tutorial || !encounter || watched().enemies.some(enemy => enemy.boss);
+  $('#settings-operation').hidden = tutorial;
+  $('#tactical-controls').hidden = tutorial;
+  if (tutorial) { $('#radio-message').hidden = true; return; }
+  const r = rules(), tactical = player.tactical;
+  const forecast = encounter?.next || encounter?.current;
+  if (forecast) {
+    const next = !!encounter.next, seconds = Math.ceil(encounter.remainingTicks / r.ticksPerSecond);
+    text('#encounter-caption', next ? '다음 위협' : '현재 위협');
+    text('#encounter-label', forecast.label);
+    text('#encounter-time', next ? seconds + '초' : '대응 중');
+    $('#operation-toggle').dataset.archetype = forecast.archetype;
+    $('#operation-toggle').setAttribute('aria-label', `${next ? '다음 위협' : '현재 위협'} ${forecast.label}${next ? ', ' + seconds + '초 후' : ''}. 적 정보와 관제 기록 보기`);
+    text('#intel-title', (next ? '예고 · ' : '진행 · ') + forecast.label);
+    text('#intel-description', forecast.description);
+    text('#intel-routes', `${forecast.count}기 · 진입로 ${forecast.routeCount}개${next ? ' · ' + seconds + '초 후 시작' : ''}`);
+  }
+  const cd = tactical?.cooldownRemainingTicks || 0, overdrive = tactical?.overdriveRemainingTicks || 0;
+  text('#tactical-status', overdrive > 0 ? `과부하 ${Math.ceil(overdrive / r.ticksPerSecond)}초` : cd > 0 ? `지원 충전 ${Math.ceil(cd / r.ticksPerSecond)}초` : '지원 준비 · 하나 선택');
+  $('#tactical-controls').dataset.boosted = String(overdrive > 0);
+  $('#tactical-controls').style.setProperty('--support-ready', Math.max(0, 1 - cd / r.tacticCooldownTicks));
+  for (const button of document.querySelectorAll('[data-tactic]')) {
+    const availableTarget = button.dataset.tactic === 'overdrive' ? player.units.some(unit => !unit.dispatched) : player.enemies.length > 0;
+    button.disabled = !controlsAvailable() || !tactical || cd > 0 || !availableTarget;
+  }
+  text('#support-rules', `고철을 쓰지 않아요. 사용 후 두 전술 모두 ${r.tacticCooldownTicks / r.ticksPerSecond}초 동안 충전합니다. 내 구역에만 적용돼요.`);
+  text('#overdrive-help', `${r.overdriveTicks / r.ticksPerSecond}초 동안 본진 로봇의 피해가 ${Math.round((r.overdriveMultiplier - 1) * 100)}% 늘어요. 사거리 밖이나 스토리 파견에는 효과가 없어요.`);
+  text('#emp-help', `현재 전장에 있는 적의 이동과 시설 공격을 ${r.empTicks / r.ticksPerSecond}초 멈춰요. 보스는 ${r.empBossTicks / r.ticksPerSecond}초. 새로 등장하는 적에는 적용되지 않아요.`);
+  html('#enemy-guide', (content.enemyArchetypes || []).map(enemy => `<article class="enemy-guide-card" data-archetype="${escape(enemy.id)}"><span class="enemy-sigil" aria-hidden="true">${{grunt:'●',runner:'»',plated:'⬟',swarm:'⁙',boss:'◆'}[enemy.id] || '●'}</span><div><strong>${escape(enemy.label)}</strong><p>${escape(enemy.description)}</p></div></article>`).join(''));
+  const narrative = MISSION_STORIES[state.battlefieldId];
+  text('#operation-title', narrative?.title || '관제 기록');
+  html('#operation-log', missionBeats(state, player, narrative).map(beat => `<li><small>${durationText(beat.tick)} · ${escape(beat.speaker)}</small><p>${escape(beat.text)}</p></li>`).join(''));
+}
+
+function openOperation() {
+  if (!state || state.tutorial) return;
+  renderOperation(); dismissUnit();
+  if (!$('#operation-dialog').open) $('#operation-dialog').showModal();
+}
+
 function renderTutorial() {
   const t = state?.tutorial, guide = $('#tutorial-guide');
   guide.hidden = !t || t.step === 'complete';
@@ -559,7 +623,7 @@ function renderTutorial() {
     counterattack: ['4 · 반격', '이제 화력이 달라졌어!', '조립한 렌즈아이로 남은 적을 정리하자.', ''],
     boss_ready: ['5 · 보스', '보스에게는 집중 화력!', '렌즈아이는 멀리 있는 적 한 기를 공격해. 보스를 막아보자.', '보스전 시작'],
     countdown: ['5 · 보스', '보스 등장까지 ' + Math.max(0, Math.ceil((t.bossAtTick - state.tick) / rules().ticksPerSecond)) + '초', '시간이 되면 마지막 보스가 나타나. 공격은 자동이야.', ''],
-    boss: ['5 · 보스', '폭주 압축기를 막아!', '위의 체력 막대를 봐. 제한 시간 안에 쓰러뜨리면 성공!', ''],
+    boss: ['5 · 보스', '거대 회수기를 막아!', '위의 체력 막대를 봐. 제한 시간 안에 쓰러뜨리면 성공!', ''],
     complete: ['', '', '', '']
   }[t.step];
   text('#tutorial-step', state.combatPaused && me().enemies.length ? '전투 잠시 멈춤 · ' + copy[0] : '안내 로봇 토비 · ' + copy[0]);
@@ -590,7 +654,14 @@ function showResult() {
   resultShown = true; const player = me(); mark('result');
   text('#result-title', player.status === 'cleared' ? '원정 성공' : '원정 실패');
   text('#result-description', player.status === 'cleared' ? (state.objective?.kind === 'mining' ? '채굴 완료. 자원을 싣고 귀환합니다.' : '최종 보스 처치. 자원을 싣고 귀환합니다.') : player.defeatReason === 'facility_destroyed' ? `${state.objective.label} 파괴. 시설 앞에 쌓인 적을 먼저 제거하세요.` : player.defeatReason === 'boss_timeout' ? '보스 처치 시간 초과. 조립과 강화 시점을 바꿔보세요.' : player.defeatReason === 'overcrowded' ? `적 ${rules().overcrowdCount}기 이상이 ${rules().overcrowdTicks / rules().ticksPerSecond}초 동안 쌓였어요. 중간 조립으로 방어를 보강하세요.` : '내 방어가 끝났어요. 동료의 전투는 계속됩니다.');
-  html('#result-stats', `<div><strong>${state.wave}</strong><span>도달 웨이브</span></div><div><strong>${metrics?.actionCounts.combine || 0}</strong><span>확인된 조합</span></div><div><strong>${metrics?.actionCounts.dispatch || 0}</strong><span>확인된 파견</span></div>`);
+  const stats = player.result?.battleStats || player.battleStats;
+  html('#result-stats', stats ? [[stats.kills, '처치'], [Math.round(stats.damageDealt).toLocaleString(), '본진 피해'], [stats.peakEnemies, '최대 적 수'], [Math.round(stats.biggestHit).toLocaleString(), '최대 단일 적중'], [Math.round(stats.facilityDamageTaken).toLocaleString(), '시설 받은 피해'], [player.result?.wave ?? state.wave, '도달 웨이브']].map(([value, label]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join('') : '');
+  $('#result-dialog').dataset.outcome = player.status;
+  $('#result-analysis').hidden = !!state.tutorial; $('#result-story').hidden = !!state.tutorial;
+  const narrative = MISSION_STORIES[state.battlefieldId];
+  text('#result-story', narrative ? (player.status === 'cleared' ? narrative.victory : narrative.defeat) : '');
+  text('#result-advice', debriefAdvice(player));
+  text('#result-tactics', stats ? `지원 사용 · 과부하 ${stats.tacticsUsed.overdrive}회 / EMP ${stats.tacticsUsed.emp}회` : '');
   text('#result-research', state.practice ? '배속·연습 원정 · 연구 보상 없음' : `연구 크레딧 +${player.result?.researchCredits || 0}`);
   text('#result-save-note', state.practice ? '연습에서는 행성과 설계도가 해금되지 않아요.' : `보유 ${profile?.researchCredits || 0} 크레딧 · 원정 기록 저장됨`);
   text('#result-lobby', state.tutorial ? '첫 행성으로' : '귀환 · 연구소로');
@@ -616,82 +687,44 @@ async function leave() {
   if (actionBusy || joining) return;
   if (me()?.status === 'active' && (!connected || pending || !await sendAction('leave'))) return;
   active = false; state = null; connected = false; setPending(null); $('#game').hidden = true; $('#lobby').hidden = false;
+  $('#settings-operation').hidden = true;
+  combatAudio?.stop(); clearTimeout(radioTimer); $('#radio-message').hidden = true;
   for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   text('#lobby-notice', ''); $('#resume-btn').hidden = true; renderLobby(); showLobbyScreen('home');
 }
 function applySettings() {
   document.body.classList.toggle('reduce-motion', settings.reduced); $('#reduced-motion').checked = settings.reduced; $('#sound-enabled').checked = settings.sound;
-  if (!settings.sound && audioContext?.state === 'running') audioContext.suspend().catch(() => {});
+  if (!settings.sound) { combatAudio?.stop(); if (audioContext?.state === 'running') audioContext.suspend().catch(() => {}); }
+  else if (!document.hidden && audioContext?.state === 'suspended') audioContext.resume().catch(() => {});
   save(localStorage, 'td.settings', settings); render();
 }
-function audioVoice({ from, to = from, duration = .12, volume = .025, waveform = 'triangle', noise = false, delay = 0, cutoff = 1400 }) {
-  if (audioVoices >= 12) return;
-  const start = audioContext.currentTime + delay, gain = audioContext.createGain();
-  let source;
-  if (noise) {
-    if (!noiseBuffer) {
-      noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate, audioContext.sampleRate);
-      const samples = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
-    }
-    source = audioContext.createBufferSource(); source.buffer = noiseBuffer;
-  } else {
-    source = audioContext.createOscillator(); source.type = waveform;
-    source.frequency.setValueAtTime(from, start); source.frequency.exponentialRampToValueAtTime(to, start + duration);
-  }
-  const filter = noise ? audioContext.createBiquadFilter() : null;
-  if (filter) { filter.type = 'lowpass'; filter.frequency.value = cutoff; source.connect(filter); filter.connect(gain); }
-  else source.connect(gain);
-  gain.connect(audioContext.destination);
-  gain.gain.setValueAtTime(.0001, start); gain.gain.linearRampToValueAtTime(volume, start + .006);
-  gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
-  audioVoices++; source.onended = () => { audioVoices--; source.disconnect(); filter?.disconnect(); gain.disconnect(); };
-  source.start(start); source.stop(start + duration + .01);
-}
 function combatSound(event) {
-  if (event.type === 'assemble') return; // The acknowledged summon/combine owns its activation sound.
-  const now = performance.now();
-  const voice = event.element || event.type;
-  if (now - (lastCombatSounds[voice] ?? -1000) < 120 || now < quietCombatUntil) return;
-  lastCombatSounds[voice] = now; sound(event.type, event);
+  if (event.type !== 'assemble') sound(event.type, event);
 }
 function sound(type, event = {}) {
-  if (!settings.sound || audioContext?.state !== 'running' || document.hidden) return;
-  const weight = .7 + (event.intensity ?? .5) * .6, delay = event.delay || 0;
-  if (event.element === 'fire') {
-    audioVoice({ from: 1600 / weight, to: 420, duration: .035, volume: .011, delay });
-    audioVoice({ noise: true, cutoff: 900, duration: .12 * weight, volume: .019 * weight, delay: delay + .015 });
-  } else if (event.element === 'wind') {
-    audioVoice({ from: 130 / weight, to: 85, duration: .17, volume: .011 * weight, waveform: 'sine', delay });
-    audioVoice({ noise: true, cutoff: 600, duration: .19 * weight, volume: .023, delay });
-  } else if (event.element === 'laser') {
-    audioVoice({ from: 1350 / weight, to: 420 / weight, duration: .065, volume: .016 * weight, waveform: 'sine', delay });
-  } else if (event.element === 'frost') {
-    audioVoice({ from: 1680 / weight, to: 1250, duration: .07, volume: .008, waveform: 'sine', delay });
-    audioVoice({ noise: true, cutoff: 2600, duration: .055, volume: .008, delay: delay + .02 });
-  } else if (type === 'bolt') audioVoice({ from: 650, to: 170, duration: .09, volume: .018, delay });
-  else if (type === 'blast' || type === 'destroy') {
-    audioVoice({ from: 115, to: 35, duration: .24, volume: .045, waveform: 'sine' });
-    audioVoice({ noise: true, duration: type === 'blast' ? .15 : .07, volume: .023 });
-  } else if (type === 'arc') {
-    audioVoice({ from: 240, to: 70, duration: .15, volume: .009, waveform: 'sawtooth' });
-    audioVoice({ from: 1200, to: 450, duration: .1, volume: .012 });
-  } else if (type === 'combine' || type === 'upgrade') {
-    quietCombatUntil = performance.now() + 450;
-    audioVoice({ from: 1250, to: 520, duration: .05, volume: .022 });
-    audioVoice({ from: 820, to: 400, duration: .05, volume: .018, delay: .075 });
-    audioVoice({ from: 95, to: 210, duration: .24, volume: .026, waveform: 'sine', delay: .12 });
-  } else if (type === 'summon') {
-    audioVoice({ from: 120, to: 60, duration: .13, volume: .05 });
-    audioVoice({ from: 440, to: 780, duration: .18, volume: .024, delay: .08 });
-  } else if (type === 'alarm' || type === 'wave') {
-    quietCombatUntil = performance.now() + 550;
-    [0, .19].forEach(delay => audioVoice({ from: type === 'alarm' ? 430 : 330, to: type === 'alarm' ? 280 : 500, duration: .15, volume: .035, delay }));
-  } else if (type === 'dispatch' || type === 'salvage') audioVoice({ from: 380, to: 140, duration: .2, volume: .025 });
+  if (settings.sound && audioContext?.state === 'running' && !document.hidden) combatAudio?.play(type, event);
+}
+async function unlockAudio() {
+  if (!settings.sound || document.hidden) return;
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    combatAudio ||= createCombatAudio(audioContext);
+    if (audioContext.state === 'suspended') await audioContext.resume();
+  } catch { settings.sound = false; applySettings(); }
 }
 function feedbackSnapshot() { return state && me() ? { contentVersion: state.contentVersion, playbackSpeed: state.playbackSpeed || 1, wave: state.wave, outcome: me().status, defeatReason: me().defeatReason || null, elapsedSeconds: metrics ? Math.round((Date.now() - metrics.startedAt) / 1000) : null, acknowledgedActions: metrics?.actionCounts || {}, milestones: metrics?.milestones || {} } : null; }
 function openFeedback() { $('#result-dialog').close(); text('#feedback-count', `저장된 의견 ${read(localStorage, 'td.feedback', []).length}개`); $('#feedback-dialog').showModal(); }
 
+$('#operation-toggle').addEventListener('click', openOperation);
+$('#settings-operation').addEventListener('click', () => { $('#settings-dialog').close(); openOperation(); });
+for (const button of document.querySelectorAll('[data-tactic]')) button.addEventListener('click', () => sendAction('tactic', { tactic: button.dataset.tactic }));
+document.addEventListener('keydown', event => {
+  if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || !active || state?.tutorial || document.querySelector('dialog[open]') || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName) || event.target.isContentEditable) return;
+  const tactic = { KeyQ: 'overdrive', KeyE: 'emp' }[event.code];
+  if (tactic && !$('#tactic-' + tactic).disabled) { event.preventDefault(); sendAction('tactic', { tactic }); }
+});
 for (const button of document.querySelectorAll('[data-engine-open]')) button.addEventListener('click', openEngines);
 $('#quick-start').addEventListener('click', newGame);
 $('#tutorial-start').addEventListener('click', () => joinRoom(id('training-'), false, true));
@@ -746,7 +779,7 @@ $('#restore-guide').addEventListener('click', () => { settings.guide = true; app
 for (const selector of ['#settings-btn', '#battle-settings-btn']) $(selector).addEventListener('click', () => $('#settings-dialog').showModal());
 $('#settings-feedback').addEventListener('click', () => { $('#settings-dialog').close(); openFeedback(); });
 $('#reduced-motion').addEventListener('change', event => { settings.reduced = event.target.checked; applySettings(); });
-$('#sound-enabled').addEventListener('change', async event => { settings.sound = event.target.checked; if (settings.sound) { try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); await audioContext.resume(); } catch { settings.sound = false; toast('이 브라우저에서는 효과음을 사용할 수 없습니다.'); } } applySettings(); sound('summon'); });
+$('#sound-enabled').addEventListener('change', async event => { settings.sound = event.target.checked; if (settings.sound) await unlockAudio(); applySettings(); sound('summon'); });
 document.addEventListener('click', event => {
   const unitDialog = $('#unit-dialog');
   if (unitDialog.open && !unitDialog.contains(event.target) && !event.target.closest('dialog:modal') && event.target !== $('#battlefield') && !event.target.closest('#tutorial-guide')) dismissUnit();
@@ -801,8 +834,14 @@ $('#export-feedback').addEventListener('click', () => {
   const records = read(localStorage, 'td.feedback', []); if (!records.length) { text('#feedback-notice', '아직 저장한 의견이 없습니다. 실제 플레이 의견을 먼저 남겨주세요.'); return; }
   const url = URL.createObjectURL(new Blob([JSON.stringify({ formatVersion: 1, source: 'local-form-entry-unverified', records }, null, 2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = 'towerdef-playtest-feedback.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
-document.addEventListener('pointerdown', async () => {
-  if (settings.sound && !audioContext) { try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); await audioContext.resume(); } catch { settings.sound = false; applySettings(); } }
-}, { once: true });
+document.addEventListener('pointerdown', unlockAudio);
+document.addEventListener('keydown', unlockAudio);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    combatAudio?.stop();
+    if (audioContext?.state === 'running') audioContext.suspend().catch(() => {});
+  } else if (settings.sound && audioContext?.state === 'suspended') audioContext.resume().catch(() => {});
+});
+window.addEventListener('pagehide', () => combatAudio?.stop());
 applySettings();
 prepareLobby();

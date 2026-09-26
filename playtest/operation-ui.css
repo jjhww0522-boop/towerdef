@@ -1,0 +1,65 @@
+/* Reignition: mission information stays subordinate to the live battlefield. */
+.update-badge{color:#a8c7bd;font-size:10px;letter-spacing:2.4px;font-weight:700}
+.home-tagline{color:#c2d3cf;font-size:12px;letter-spacing:.2px;margin:12px 0 0}
+.mission-brief #mission-title{font-size:18px;color:#f5dba2;margin:10px 0 4px}
+.mission-brief #mission-briefing{display:block;font-size:13px;line-height:1.65;margin:0;color:#ccdad5}
+#mission-lesson{color:#f3d39b}
+.operation-strip{position:absolute;top:101px;left:12px;right:12px;z-index:3;display:flex;align-items:center;gap:9px;min-height:44px;padding:5px 10px;border-radius:8px;background:#101f2bed;border:1px solid #607a8466;color:#edf2e4;text-align:left;box-shadow:0 3px 10px #07111d44}
+.operation-strip>span:nth-child(2){flex:1;min-width:0;display:flex;align-items:baseline;gap:9px}
+.operation-strip small{font-size:10px;font-weight:500;color:#a9c1c7;white-space:nowrap}
+.operation-strip strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.encounter-marker{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;background:#28443e;color:#bce5c3;font-weight:800;font-size:13px}
+.operation-strip[data-archetype=runner] .encounter-marker{background:#213f50;color:#92daeb}
+.operation-strip[data-archetype=plated] .encounter-marker{background:#4e392b;color:#efbd80}
+.operation-strip[data-archetype=swarm] .encounter-marker{background:#39354f;color:#c6b0f0}
+.operation-strip[data-archetype=boss]{border-color:#ad7756;background:#302421eb}
+#encounter-time{font-size:12px;color:#f1cf8d;white-space:nowrap}.operation-more{color:#8ca7ad;font-size:15px}
+.radio-message{position:absolute;left:12px;top:153px;z-index:2;display:flex;gap:7px;max-width:min(330px,calc(100% - 24px));padding:8px 10px;min-height:44px;background:#101f2be0;border:1px solid #42655f88;border-radius:8px;text-align:left;color:#dce7df;font-size:12px;line-height:1.5;box-shadow:none;animation:radio-arrival .18s ease-out}
+.radio-message{pointer-events:none;top:auto;bottom:96px;max-width:min(200px,calc(100% - 156px))}
+.radio-message small{display:block;color:#91c9b2;font-size:10px;margin-bottom:2px}.radio-message #radio-copy{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.radio-light{width:5px;height:5px;border-radius:50%;background:#abe1ad;margin-top:5px;flex:none}
+.tactical-controls{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:calc(94px + env(safe-area-inset-bottom));z-index:4;width:124px;text-align:center}
+#tactical-status{display:block;min-height:17px;margin-bottom:4px;font-size:10px;color:#daeadb;text-shadow:0 1px 3px #07101b,0 0 5px #07101b}
+.tactical-controls{pointer-events:none}
+.tactical-controls>div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tactical-controls button{pointer-events:auto}
+.tactical-controls button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;border-radius:12px;background:linear-gradient(160deg,#2f4c43,#172e29);border:1px solid #90bda5;color:#e7f5dd;padding:6px 2px;box-shadow:0 3px 0 #09151d88;overflow:hidden}
+.tactical-controls button::after{content:"";position:absolute;inset:auto 0 0;height:3px;transform-origin:left;transform:scaleX(var(--support-ready,1));background:#aed3a1}
+.tactical-controls button[data-tactic=emp]{background:linear-gradient(160deg,#2b445c,#182d40);border-color:#7dacca;color:#d5efff}
+.tactical-controls button:disabled{opacity:.55;filter:saturate(.5)}.tactical-controls button strong{font-size:11px}.tactical-controls .ui-icon{width:22px;height:22px}
+.tactical-controls button small{position:absolute;right:5px;top:3px;font-size:9px;opacity:.7}
+.tactical-controls[data-boosted=true] #tactic-overdrive{opacity:1;border-color:#ffe1a0;box-shadow:0 0 16px #f1c47833}
+.canvas-wrap:has(.unit-dialog[open]) .radio-message{visibility:hidden}
+.operation-dialog{width:min(520px,calc(100% - 24px));max-height:85dvh;text-align:left;padding:18px;overflow:auto}
+.live-battle-note{margin:0 0 16px;color:#b6c5c6;font-size:11px}
+.encounter-intel{padding:14px;border:1px solid #6b85734d;background:#20383166;border-radius:10px;margin-bottom:20px}
+.encounter-intel h3{font-size:18px;color:#efd9a3;margin:0 0 6px}.encounter-intel p{font-size:13px;line-height:1.6;color:#d7e2dd;margin:0 0 8px}.encounter-intel>span{font-size:11px;color:#aec5c6}
+.support-guide h3,.radio-log h3,.result-analysis h3{font-size:14px;color:#e5d2a4;margin:0 0 6px}.support-guide>p{font-size:12px;color:#b8cecd}
+.support-guide>div{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 18px}.support-guide article{padding:11px;background:#0c1b294d;border:1px solid #607e7a55;border-radius:8px}.support-guide article strong{font-size:12px;color:#c4dfd4}.support-guide article p{font-size:12px;line-height:1.65;margin:6px 0 0;color:#bbcfd0}
+.enemy-manual{border-top:1px solid #4e6566;border-bottom:1px solid #4e6566;margin:0 0 20px}.enemy-manual summary{min-height:44px;padding:12px 0;cursor:pointer;font-size:13px}
+.enemy-guide-card{display:grid;grid-template-columns:32px 1fr;gap:10px;padding:10px 0;border-top:1px solid #40545666}.enemy-guide-card strong{font-size:13px}.enemy-guide-card p{font-size:12px;color:#b8cdce;margin:3px 0;line-height:1.55}.enemy-sigil{height:30px;border-radius:7px;display:grid;place-items:center;background:#2c4048;color:#c6e0dd;font-size:16px}
+.enemy-guide-card[data-archetype=runner] .enemy-sigil{color:#91d9eb}.enemy-guide-card[data-archetype=plated] .enemy-sigil{color:#eac08b}.enemy-guide-card[data-archetype=swarm] .enemy-sigil{color:#c7b4eb}
+.radio-log ol{list-style:none;margin:12px 0 0;padding:0}.radio-log li{border-left:2px solid #587b70;padding:0 0 14px 14px;margin-left:3px;font-size:13px;line-height:1.65}.radio-log li:last-child{padding-bottom:0}.radio-log small{color:#93b6ad;font-size:10px;display:block}.radio-log p{margin:4px 0 0;color:#d6e1dc}
+.result-story{font-size:13px;line-height:1.7;color:#c4dad0;padding:0 5px}.result-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.result-stats>div{padding:10px 4px}.result-stats strong{font-size:24px}.result-stats span{font-size:11px}.result-analysis{text-align:left;border:1px solid #607b7366;background:#172d2944;border-radius:10px;padding:13px;margin:14px 0}.result-analysis p{font-size:12px;line-height:1.75;color:#c4d6d0;margin:6px 0 0}.result-analysis #result-tactics{color:#a0b9bf;font-size:11px}
+@keyframes radio-arrival{from{opacity:0;translate:0 -4px}to{opacity:1;translate:0 0}}
+@media(hover:none){.tactical-controls button small{display:none}}
+@media(min-width:900px) and (min-height:501px){.operation-strip{left:50%;right:auto;width:380px;transform:translateX(-50%);top:45px}.radio-message{top:99px;left:50%;transform:translateX(-50%)}.tactical-controls{width:150px;bottom:102px}.tactical-controls button{min-height:66px}.tactical-controls button strong{font-size:12px}}
+@media(max-height:700px) and (min-height:501px){.home-tagline{font-size:11px;margin-top:7px}.home-brand{padding-top:0}.home-brand h1{font-size:39px}.mission-brief #mission-title{font-size:15px;margin-top:5px}.mission-brief #mission-briefing{font-size:12px;line-height:1.45}.mission-brief dl>div{font-size:12px}.operation-strip{top:100px}.radio-message{top:151px;font-size:11px}.tactical-controls{bottom:90px}}
+@media(max-height:500px){.update-badge{font-size:9px}.home-tagline{font-size:11px;margin-top:3px}.home-brand h1{font-size:35px}.mission-brief #mission-title{font-size:14px;margin:4px 0}.mission-brief #mission-briefing{font-size:11px;line-height:1.45}.operation-strip{top:80px;left:12px;right:auto;width:240px;padding:5px 8px;gap:6px}.operation-strip>span:nth-child(2){display:block}.operation-strip small{display:block;font-size:9px}.operation-strip strong{font-size:11px}.radio-message{display:none}.tactical-controls{width:120px;bottom:80px}.tactical-controls button{min-height:48px}.tactical-controls .ui-icon{width:17px;height:17px}.tactical-controls button strong{font-size:10px}.operation-dialog{max-height:92dvh;padding:14px}.result-dialog{max-height:94dvh}.mission-brief{align-self:start}}
+.reduce-motion .radio-message{animation:none}
+@media(prefers-reduced-motion:reduce){.radio-message{animation:none}}
+/* Reserve the upper utility row; map slots must always remain directly tappable. */
+@media(max-width:899px) and (min-height:501px){
+ .operation-strip{top:39px;left:158px;right:12px;gap:6px;padding:5px 7px}
+ .operation-strip>span:nth-child(2){display:block}.operation-strip small{display:block;font-size:9px}.operation-strip strong{display:block;font-size:11px}
+ .operation-strip .encounter-marker{display:none}.operation-more{font-size:13px}#encounter-time{font-size:11px}
+ .radio-message{top:auto;bottom:96px}
+}
+@media(min-width:900px) and (min-height:501px){.radio-message{top:99px;bottom:auto;max-width:330px}}
+@media(max-height:500px){.operation-strip{top:30px;left:162px;width:220px}}
+@media(max-width:899px){
+ .canvas-wrap>.side-column .co-op-summary{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-width:66px;width:66px;min-height:44px;padding:5px 8px;gap:1px}
+ .canvas-wrap>.side-column .co-op-summary>span:first-child{font-size:9px}
+ .canvas-wrap>.side-column .co-op-summary strong{font-size:11px;white-space:nowrap}
+}
+#game[data-tutorial=false] #next-wave{display:none}

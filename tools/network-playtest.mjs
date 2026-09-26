@@ -18,11 +18,12 @@ function check(name, condition, details = {}) {
   if (!condition) throw new Error('Assertion failed: ' + name);
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const clients = Array.from({ length: 4 }, (_, i) => ({ id: 'network-' + (i + 1), token: null, lastUpgradeWave: 0, actions: { summon: 0, combine: 0, upgrade: 0, dispatch: 0, leave: 0 } }));
+const clients = Array.from({ length: 4 }, (_, i) => ({ id: 'network-' + (i + 1), token: null, lastUpgradeWave: 0, actions: { summon: 0, combine: 0, upgrade: 0, dispatch: 0, tactic: 0, leave: 0 } }));
 let baseUrl, content, latest;
 let pauseStartedAt = null, pauseBefore = null, pauseAfter = null;
 let observedDisconnected = false, observedAutonomousCombat = false, previousOfflineEnemies = [];
 let reconnected = false, left = false, leaveTick = null, continuationChecked = false;
+let tacticalChecked = false;
 
 function player(state, client) { return state.players.find(p => p.id === client.id); }
 function describe(state, client) {
@@ -77,7 +78,7 @@ function chooseAction(client, state) {
       if (tag && p.gold >= content.rules.upgradeCosts[p.upgrades[tag]]) return { type: 'upgrade', tag };
     }
   }
-  if (p.gold >= content.rules.summonCost && p.units.length < content.rules.maxUnits) return { type: 'summon' };
+  if (p.gold >= content.rules.summonCost && p.units.length < content.rules.maxUnits && p.summonCooldownRemainingTicks === 0) return { type: 'summon' };
   if (state.story?.status === 'active' && p.units.length >= 5 && p.enemies.length < 40) {
     const available = content.rules.maxDispatch - p.units.filter(u => u.dispatched).length;
     const units = p.units.filter(u => !u.dispatched).sort((a, b) => dps(p, b) - dps(p, a)).slice(0, available);
@@ -141,6 +142,24 @@ try {
   while (elapsed() < report.deadlineSeconds) {
     const loopStart = performance.now();
     latest = await api('/state', clients[0]);
+    if (!tacticalChecked && player(latest, first).status === 'active' && player(latest, first).enemies.length && player(latest, first).units.some(unit => !unit.dispatched)) {
+      const peerUses = latest.players.filter(p => p.id !== first.id).map(p => p.battleStats.tacticsUsed);
+      const payload = { seq: player(latest, first).lastSeq + 1, type: 'tactic', tactic: 'overdrive' };
+      const used = await action(first, latest, payload);
+      check('real tactical command activates home overdrive', used.ok && player(used.state, first).tactical.overdriveRemainingTicks > 0);
+      const activated = player(used.state, first), stamp = activated.tactical.lastUseTick;
+      const deadline = used.state.tick + activated.tactical.cooldownRemainingTicks;
+      const retry = await api('/action', first, payload), retriedPlayer = player(retry.state, first);
+      check('tactical retransmission never repeats count or resets shared cooldown', retry.ok &&
+        retriedPlayer.battleStats.tacticsUsed.overdrive === 1 && retriedPlayer.tactical.lastUseTick === stamp &&
+        retry.state.tick + retriedPlayer.tactical.cooldownRemainingTicks === deadline);
+      const changed = await api('/action', first, { ...payload, tactic: 'emp' });
+      check('same sequence cannot switch support kind', !changed.ok && changed.error === 'SEQUENCE_REUSED' && player(changed.state, first).battleStats.tacticsUsed.emp === 0);
+      check('support affects only its owning seat', JSON.stringify(changed.state.players.filter(p => p.id !== first.id).map(p => p.battleStats.tacticsUsed)) === JSON.stringify(peerUses) &&
+        changed.state.players.filter(p => p.id !== first.id).every(p => p.tactical.lastUseTick === null && p.tactical.overdriveRemainingTicks === 0));
+      latest = changed.state; tacticalChecked = true;
+      event('tactical-retry-and-isolation', { seq: payload.seq, tick: latest.tick, lastUseTick: stamp, cooldownDeadline: deadline });
+    }
     if (pauseStartedAt === null && elapsed() >= 15) {
       pauseStartedAt = Date.now(); pauseBefore = describe(latest, clients[3]);
       previousOfflineEnemies = player(latest, clients[3]).enemies;
@@ -158,7 +177,11 @@ try {
         pauseAfter = describe(latest, clients[3]);
         check('server marks silent client disconnected', observedDisconnected);
         check('disconnected units continue server combat', observedAutonomousCombat);
-        check('30 wall seconds at six-speed exceed normal tick grace without leaving', pauseAfter.tick - pauseBefore.tick > content.rules.disconnectGraceTicks && pauseAfter.player.status !== 'left', { before: pauseBefore, after: pauseAfter });
+        const simulatedGraceElapsed = pauseAfter.tick - pauseBefore.tick > content.rules.disconnectGraceTicks;
+        const terminalBeforeResume = ['cleared', 'defeated'].includes(pauseAfter.player.status);
+        check('30 wall seconds preserve active grace or an already terminal lane', pauseAfter.player.status !== 'left' &&
+          (simulatedGraceElapsed || terminalBeforeResume), { before: pauseBefore, after: pauseAfter,
+            actualTickDelta: pauseAfter.tick - pauseBefore.tick, simulatedGraceElapsed, terminalBeforeResume });
         check('no actions or replacements were made for silent player', pauseAfter.player.lastSeq === pauseBefore.player.lastSeq &&
           JSON.stringify(pauseAfter.player.unitIds) === JSON.stringify(pauseBefore.player.unitIds));
         const resumed = await api('/session', clients[3], { roomId: 'network-playtest', playerId: clients[3].id, speed: 6 });
@@ -201,10 +224,10 @@ try {
     if (latest.status === 'finished' && reconnected && left) break;
     await delay(Math.max(0, 250 - (performance.now() - loopStart)));
   }
-  check('disconnect reconnect and departure scenarios all completed', reconnected && left && continuationChecked);
+  check('disconnect reconnect departure and tactical scenarios all completed', reconnected && left && continuationChecked && tacticalChecked);
   check('actual room finishes before 130 wall-second deadline', latest.status === 'finished' && elapsed() < report.deadlineSeconds);
   check('every remaining lane has a definite authoritative outcome', latest.players.filter(p => p.id !== clients[2].id).every(p =>
-    p.status === 'cleared' || (p.status === 'defeated' && ['overcrowded', 'boss_timeout'].includes(p.defeatReason))));
+    p.status === 'cleared' || (p.status === 'defeated' && ['overcrowded', 'boss_timeout', 'facility_destroyed'].includes(p.defeatReason))));
   report.finalState = { tick: latest.tick, wave: latest.wave, status: latest.status,
     players: latest.players.map(p => ({ id: p.id, status: p.status, defeatReason: p.defeatReason, gold: p.gold, units: p.units.length, lastSeq: p.lastSeq })) };
   report.successfulActions = clients.map(client => ({ id: client.id, ...client.actions }));

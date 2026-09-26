@@ -10,6 +10,20 @@ const invalid = (mutate, match) => {
   assert.ok(validateContent(data).some(error => match.test(error)), 'Expected validation error matching ' + match);
 };
 
+test('combat content rejects missing roles, impossible encounters and unsafe tactical timings', () => {
+  invalid(c => { c.enemyArchetypes.pop(); }, /missing boss/);
+  invalid(c => { c.enemyArchetypes[1].id = 'grunt'; }, /duplicate id/);
+  invalid(c => { c.enemyArchetypes[1].speedMultiplier = Infinity; }, /speedMultiplier/);
+  invalid(c => { c.encounters[0].archetype = 'boss'; }, /normal enemy archetype/);
+  invalid(c => { c.encounters[0].batchSize = 0; }, /batchSize/);
+  invalid(c => { c.encounters[0].intervalMultiplier = -1; }, /intervalMultiplier/);
+  invalid(c => { c.encounters[0].intervalMultiplier = 100000; }, /spawn interval/);
+  invalid(c => { c.encounters.at(-1).archetype = 'plated'; }, /introductory/);
+  invalid(c => { c.rules.empBossTicks = c.rules.empTicks + 1; }, /boss EMP/);
+  invalid(c => { c.rules.overdriveTicks = c.rules.tacticCooldownTicks; }, /shared cooldown/);
+  invalid(c => { c.rules.overdriveMultiplier = 1; }, /overdriveMultiplier/);
+});
+
 test('current content passes validation without mutation', () => {
   const data = fixture(), before = JSON.stringify(data);
   assert.deepEqual(validateContent(data), []);

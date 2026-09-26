@@ -492,3 +492,64 @@ test('crowded open maps keep each robot selectable in short landscape viewports'
     }
   }
 });
+
+test('authoritative enemy roles choose their own silhouettes and stun stops limb animation only', () => {
+  const r = renderer();
+  const snapshot = lane(null, { progress: .2 });
+  r.update(snapshot);
+  const urls = new Set();
+  for (const archetype of ['grunt', 'runner', 'plated', 'swarm', 'boss']) {
+    const enemy = { ...snapshot.enemies[0], archetype, boss: archetype === 'boss' };
+    urls.add(r.view.enemyFrame(enemy, 1300).src);
+    assert.equal(r.view.enemyFrame({ ...enemy, id: 999 }, 1300).src,
+      r.view.enemyFrame({ ...enemy, id: 999 }, 1740).src, 'the same walk phase preserves the role');
+    assert.equal(r.view.enemyFrame({ ...enemy, stunned: true }, 1300).src,
+      r.view.enemyFrame({ ...enemy, stunned: true }, 1650).src, 'stun holds the limbs');
+  }
+  assert.equal(urls.size, 5);
+  r.update(lane(null, { progress: .3 }), { at: 1400 });
+  const view = r.view.enemies.get(2);
+  view.hitAt = 1450; view.hitAngle = 0;
+  assert.equal(r.view.hitPresentation(view, 1460).poseTime, 1450);
+  assert.ok(r.view.progress(view, 1470) > r.view.progress(view, 1460), 'presentation does not stop authoritative interpolation');
+  r.view.reduced = true;
+  assert.equal(r.view.hitPresentation(view, 1460).offsetX, 0);
+  assert.equal(r.view.hitPresentation(view, 1460).poseTime, 1460);
+});
+
+test('tactical, boss and facility cues follow fresh server events and never replay on reconnect', () => {
+  const r = renderer();
+  const snapshot = (tick, kind = 'emp') => ({ ...lane(null), lastFacilityHitTick: tick,
+    tactical: { lastUseTick: tick, lastKind: kind, cooldownRemainingTicks: 300, overdriveRemainingTicks: kind === 'overdrive' ? 50 : 0 } });
+  r.update(snapshot(10));
+  assert.equal(r.combat.length, 0);
+  r.update(snapshot(20)); r.update(snapshot(20));
+  assert.equal(r.combat.filter(event => event.type === 'emp').length, 1);
+  assert.equal(r.combat.filter(event => event.type === 'facility-hit').length, 1);
+  r.update(snapshot(30, 'overdrive'));
+  assert.equal(r.combat.filter(event => event.type === 'overdrive').length, 1);
+  const boss = snapshot(30); boss.enemies.push({ id: 50, hp: 100, maxHp: 100, progress: .1, boss: true, archetype: 'boss' });
+  r.update(boss); r.update(boss);
+  assert.equal(r.combat.filter(event => event.type === 'boss-entry').length, 1);
+  const count = r.combat.length;
+  r.update(snapshot(100), { at: 7000 });
+  assert.equal(r.combat.length, count);
+  assert.equal(r.view.effects.length, 0);
+  r.update(snapshot(110), { reduced: true });
+  assert.equal(r.view.effects.length, 0);
+  assert.equal(r.combat.at(-1).type, 'emp', 'motion reduction preserves informative audio');
+});
+
+test('a removed specialized enemy retains its silhouette until the confirmed projectile arrives', () => {
+  const r = renderer();
+  const snapshot = lane(null); snapshot.enemies[0].archetype = 'plated';
+  r.update(snapshot);
+  const dead = lane(2, { alive: false });
+  dead.units[0].lastAttackHits = [{ targetId: 2, progress: .1, damage: 20 }];
+  r.update(dead, { at: 1600 });
+  const effect = r.view.effects.find(effect => effect.type === 'death');
+  r.draws.length = 0; r.view.drawEffects(1601);
+  assert.ok(r.draws.includes(effect.sprite), 'pre-impact hold must not turn a siege ram into a generic drone');
+  r.draws.length = 0; r.view.drawEffects(effect.born + 40);
+  assert.ok(r.draws.includes(effect.sprite), 'death keeps the same chassis');
+});

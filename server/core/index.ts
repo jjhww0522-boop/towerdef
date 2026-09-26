@@ -2,8 +2,10 @@ import contentData from '../../shared/content.json';
 import { unitPoint, enemyPoint, distanceSquared, getBattlefieldLayout } from '../../shared/battle-geometry';
 
 export const content = contentData;
-export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave' | 'tutorial_next';
-export interface Action { seq: number; type: ActionType; recipeId?: string; tag?: string; unitIds?: number[] }
+export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave' | 'tutorial_next' | 'tactic';
+export type Tactic = 'overdrive' | 'emp';
+export type EnemyArchetype = 'grunt' | 'runner' | 'plated' | 'swarm' | 'boss';
+export interface Action { seq: number; type: ActionType; recipeId?: string; tag?: string; unitIds?: number[]; tactic?: Tactic }
 export interface ActionResult { ok: boolean; error?: string }
 export interface AttackHit { targetId: number | string; progress?: number; routeIndex?: number; damage: number; boss?: boolean }
 export interface Unit {
@@ -12,12 +14,21 @@ export interface Unit {
   lastAttackHits: AttackHit[];
   investedGold: number;
 }
-export interface Enemy { id: number; hp: number; maxHp: number; progress: number; routeIndex?: number; boss: boolean; slowUntilTick?: number; siegeCooldownTicks?: number }
+export interface Enemy { id: number; hp: number; maxHp: number; progress: number; routeIndex?: number; boss: boolean; archetype?: EnemyArchetype; slowUntilTick?: number; stunnedUntilTick?: number; siegeCooldownTicks?: number }
+export interface BattleStats {
+  kills: number; damageDealt: number; facilityDamageTaken: number; biggestHit: number; peakEnemies: number;
+  tacticsUsed: { overdrive: number; emp: number };
+}
+export interface Encounter {
+  wave: number; label: string; description: string; archetype: EnemyArchetype; count: number;
+  startTick: number; spawnIntervalTicks: number; routeCount: number;
+}
 export type Rules = typeof content.rules;
 export interface ExpeditionResult {
   battlefieldId: number; status: 'defeated' | 'cleared' | 'left'; cleared: boolean; researchCredits: number;
   wave: number; kills: number; elapsedTicks: number; miningProgress: number;
   reason: 'overcrowded' | 'boss_timeout' | 'facility_destroyed' | null;
+  battleStats: BattleStats;
 }
 export interface Player {
   id: string; gold: number; status: 'active' | 'defeated' | 'cleared' | 'left';
@@ -27,6 +38,8 @@ export interface Player {
   upgrades: { [tag: string]: number }; disconnectedAtTick: number | null;
   overcrowdedTicks: number; lastActionKey: string; lastActionResult: ActionResult;
   unlockedRecipes: string[]; kills: number; investmentActions: number; result: ExpeditionResult | null;
+  nextTacticTick: number; overdriveUntilTick: number; lastTacticTick: number | null; lastTactic: Tactic | null;
+  battleStats: BattleStats;
 }
 export interface Story { wave: number; hp: number; maxHp: number; remainingTicks: number; status: 'active' | 'success' | 'failed' }
 export interface Tutorial {
@@ -69,6 +82,8 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
     return { id, gold: rules.startingGold, status: 'active' as 'active', connected: true, lastSeq: 0, nextSummonTick: 0,
       units: [], enemies: [], enemySpawnCount: 0, upgrades, disconnectedAtTick: null, overcrowdedTicks: 0, defeatReason: null,
       facilityHp: battlefield.objective.kind === 'overcrowd' ? null : battlefield.objective.facilityHp, lastFacilityHitTick: null,
+      nextTacticTick: 0, overdriveUntilTick: 0, lastTacticTick: null, lastTactic: null,
+      battleStats: { kills: 0, damageDealt: 0, facilityDamageTaken: 0, biggestHit: 0, peakEnemies: 0, tacticsUsed: { overdrive: 0, emp: 0 } },
       lastActionKey: '', lastActionResult: { ok: false }, unlockedRecipes, kills: 0, investmentActions: 0, result: null };
   });
   return { protocolVersion: '1', contentVersion: content.version, tick: 0, wave: 1,
@@ -81,6 +96,33 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
 
 export function tutorialCombatPaused(game: GameState): boolean {
   return !!game.tutorial && ['skirmish', 'counterattack', 'boss'].indexOf(game.tutorial.step) < 0;
+}
+
+function encounterDefinition(wave: number) {
+  return content.encounters[wave <= 2 ? content.encounters.length - 1 : (wave - 3) % content.encounters.length];
+}
+
+function waveEncounter(game: GameState, wave: number): Encounter {
+  const rules = game.rules, boss = wave > rules.totalWaves;
+  const encounter = encounterDefinition(wave);
+  const baseInterval = Math.max(rules.minSpawnIntervalTicks, rules.spawnIntervalTicks - Math.floor((wave - 1) / rules.spawnRampEveryWaves));
+  const interval = Math.max(1, Math.round(baseInterval * encounter.intervalMultiplier));
+  return { wave: Math.min(wave, rules.totalWaves),
+    label: boss ? '거대 회수기 출현' : encounter.label,
+    description: boss ? '제한 시간 안에 보스를 쓰러뜨리세요. 증폭과 조립을 준비하세요.' : encounter.description,
+    archetype: boss ? 'boss' : encounter.archetype as EnemyArchetype,
+    count: boss ? 1 : Math.floor((rules.waveTicks - 1) / interval) * encounter.batchSize,
+    startTick: (wave - 1) * rules.waveTicks, spawnIntervalTicks: boss ? 0 : interval,
+    routeCount: getBattlefieldLayout(game.battlefieldId).routes.length };
+}
+
+export function encounterPreview(game: GameState): { current: Encounter; next: Encounter | null; remainingTicks: number } | null {
+  if (game.tutorial) return null;
+  const afterWaves = game.tick >= game.rules.waveTicks * game.rules.totalWaves;
+  const wave = afterWaves && game.objective.kind !== 'mining' ? game.rules.totalWaves + 1 : game.wave;
+  const current = waveEncounter(game, wave);
+  const next = wave <= game.rules.totalWaves && !(wave === game.rules.totalWaves && game.objective.kind === 'mining') ? waveEncounter(game, wave + 1) : null;
+  return { current, next, remainingTicks: Math.max(0, current.startTick + (wave > game.rules.totalWaves ? game.rules.bossTicks : game.rules.waveTicks) - game.tick) };
 }
 
 export function expeditionProgress(game: GameState) {
@@ -138,7 +180,8 @@ function retire(game: GameState, player: Player, status: 'defeated' | 'cleared' 
   player.result = {
     battlefieldId: game.battlefieldId, status, cleared: status === 'cleared',
     researchCredits: eligible ? game.battlefieldId * (milestones * 5 + (status === 'cleared' ? 25 : 0)) : 0,
-    wave: game.wave, kills: player.kills, elapsedTicks: game.tick, miningProgress: progress.miningProgress, reason
+    wave: game.wave, kills: player.kills, elapsedTicks: game.tick, miningProgress: progress.miningProgress, reason,
+    battleStats: { ...player.battleStats, tacticsUsed: { ...player.battleStats.tacticsUsed } }
   };
   if (game.tutorial && status === 'cleared') game.tutorial.step = 'complete';
   player.status = status;
@@ -172,6 +215,22 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
     if (!allowed) return fail('TUTORIAL_ACTION_REQUIRED');
   }
   switch (action.type) {
+    case 'tactic': {
+      if (action.tactic !== 'overdrive' && action.tactic !== 'emp') return fail('UNKNOWN_TACTIC');
+      if (game.tick < player.nextTacticTick) return fail('TACTIC_COOLDOWN');
+      if (action.tactic === 'overdrive') {
+        if (!player.units.some(unit => !unit.dispatched)) return fail('NO_HOME_UNITS');
+        player.overdriveUntilTick = game.tick + rules.overdriveTicks;
+      } else {
+        if (!player.enemies.length) return fail('NO_ENEMIES');
+        player.enemies.forEach(enemy => { enemy.stunnedUntilTick = game.tick + (enemy.boss ? rules.empBossTicks : rules.empTicks); });
+      }
+      player.nextTacticTick = game.tick + rules.tacticCooldownTicks;
+      player.lastTacticTick = game.tick;
+      player.lastTactic = action.tactic;
+      player.battleStats.tacticsUsed[action.tactic]++;
+      return { ok: true };
+    }
     case 'summon': {
       if (player.units.length >= rules.maxUnits) return fail('UNIT_CAP');
       if (player.gold < rules.summonCost) return fail('INSUFFICIENT_GOLD');
@@ -256,7 +315,7 @@ export function applyAction(game: GameState, playerId: string, action: Action): 
   const player = playerById(game, playerId);
   if (!player) return fail('UNKNOWN_PLAYER');
   if (!action || !safeInteger(action.seq) || typeof action.type !== 'string') return fail('INVALID_ACTION');
-  const key = JSON.stringify([action.type, action.recipeId, action.tag, action.unitIds]);
+  const key = JSON.stringify([action.type, action.recipeId, action.tag, action.unitIds, action.tactic]);
   if (action.seq === player.lastSeq) return key === player.lastActionKey ? player.lastActionResult : fail('SEQUENCE_REUSED');
   if (action.seq < player.lastSeq) return fail('STALE_SEQUENCE');
   if (game.status !== 'playing' || player.status !== 'active') return fail('NOT_ACTIVE');
@@ -282,12 +341,15 @@ export function setConnection(game: GameState, playerId: string, connected: bool
   player.disconnectedAtTick = connected ? null : game.tick;
 }
 
-function spawnEnemy(game: GameState, player: Player, boss: boolean): void {
+function spawnEnemy(game: GameState, player: Player, boss: boolean, batchRoute?: number): void {
   const rules = game.rules, depth = game.wave - 1;
-  const hp = boss ? rules.bossHp : Math.round(rules.enemyBaseHp + depth * rules.enemyHpPerWave + depth * depth * rules.enemyHpAcceleration);
+  const archetype = boss ? 'boss' : game.tutorial ? 'grunt' : encounterDefinition(game.wave).archetype as EnemyArchetype;
+  const role = content.enemyArchetypes.filter(role => role.id === archetype)[0];
+  const hp = boss ? rules.bossHp : Math.max(1, Math.round((rules.enemyBaseHp + depth * rules.enemyHpPerWave + depth * depth * rules.enemyHpAcceleration) * role.hpMultiplier));
   // Player-local cycling does not consume summon RNG or multiply the spawn count.
-  const routeIndex = player.enemySpawnCount++ % getBattlefieldLayout(game.battlefieldId).routes.length;
-  player.enemies.push({ id: game.nextEntityId++, hp, maxHp: hp, progress: 0, routeIndex, boss });
+  const routeIndex = batchRoute === undefined ? player.enemySpawnCount % getBattlefieldLayout(game.battlefieldId).routes.length : batchRoute;
+  player.enemySpawnCount++;
+  player.enemies.push({ id: game.nextEntityId++, hp, maxHp: hp, progress: 0, routeIndex, boss, archetype });
 }
 
 function finishStory(game: GameState, success: boolean): void {
@@ -351,9 +413,17 @@ export function tick(game: GameState): void {
       if (elapsed <= 41 && (elapsed - 1) % 20 === 0) spawnEnemy(game, p, false);
       if (elapsed >= 80) game.tutorial.step = 'inspect';
     }
-    const spawnInterval = Math.max(rules.minSpawnIntervalTicks, rules.spawnIntervalTicks - Math.floor((game.wave - 1) / rules.spawnRampEveryWaves));
-    if (!game.tutorial && game.tick < bossStart && game.tick % spawnInterval === 0) spawnEnemy(game, p, false);
+    if (!game.tutorial && game.tick < bossStart) {
+      const encounter = waveEncounter(game, game.wave), elapsed = game.tick - encounter.startTick;
+      if (elapsed > 0 && elapsed % encounter.spawnIntervalTicks === 0) {
+        const batch = encounterDefinition(game.wave).batchSize;
+        // A swarm arrives together on one route, so blast and chaining can answer it.
+        const route = (elapsed / encounter.spawnIntervalTicks - 1) % encounter.routeCount;
+        for (let i = 0; i < batch; i++) spawnEnemy(game, p, false, route);
+      }
+    }
     if (game.tick === bossStart && game.objective.kind !== 'mining') spawnEnemy(game, p, true);
+    p.battleStats.peakEnemies = Math.max(p.battleStats.peakEnemies, p.enemies.length);
     p.overcrowdedTicks = game.objective.kind === 'overcrowd' && p.enemies.length >= rules.overcrowdCount ? p.overcrowdedTicks + 1 : 0;
     if (p.overcrowdedTicks >= rules.overcrowdTicks) retire(game, p, 'defeated', 'overcrowded');
     else if (game.objective.kind !== 'mining' && game.tick >= bossStart + rules.bossTicks) retire(game, p, 'defeated', 'boss_timeout');
@@ -366,15 +436,19 @@ export function tick(game: GameState): void {
       return;
     }
     p.enemies.forEach(e => {
+      if ((e.stunnedUntilTick || 0) >= game.tick) return;
       const slowed = (e.slowUntilTick || 0) >= game.tick;
-      const speed = slowed ? (e.boss ? rules.bossSlowMultiplier : rules.frostSlowMultiplier) : 1;
+      const role = content.enemyArchetypes.filter(role => role.id === (e.archetype || (e.boss ? 'boss' : 'grunt')))[0];
+      const speed = role.speedMultiplier * (slowed ? (e.boss ? rules.bossSlowMultiplier : rules.frostSlowMultiplier) : 1);
       const next = e.progress + rules.enemyProgressPerTick * speed;
       e.progress = p.facilityHp === null ? next % 1 : Math.min(game.objective.arrivalProgress, next);
       if (p.facilityHp !== null && e.progress >= game.objective.arrivalProgress) {
         // Arrived enemies stay alive and attack independently; slow affects travel only.
         e.siegeCooldownTicks = Math.max(0, (e.siegeCooldownTicks || 0) - 1);
         if (e.siegeCooldownTicks === 0) {
-          p.facilityHp = Math.max(0, p.facilityHp - game.objective.damage * (e.boss ? 6 : 1));
+          const damage = Math.min(p.facilityHp, game.objective.damage * role.siegeMultiplier);
+          p.facilityHp -= damage;
+          p.battleStats.facilityDamageTaken += damage;
           p.lastFacilityHitTick = game.tick;
           e.siegeCooldownTicks = game.objective.attackIntervalTicks;
         }
@@ -405,15 +479,23 @@ export function tick(game: GameState): void {
         u.lastTargetId = primary.id;
         const targets = attackTargets(p.enemies, primary, pattern, game.battlefieldId);
         targets.forEach(target => {
-          const enemy = target.enemy, applied = Math.min(enemy.hp, damage * target.multiplier);
+          const enemy = target.enemy;
+          const boost = p.overdriveUntilTick >= game.tick ? rules.overdriveMultiplier : 1;
+          const applied = Math.min(enemy.hp, damage * target.multiplier * boost);
           enemy.hp = Math.max(0, enemy.hp - applied);
+          p.battleStats.damageDealt += applied;
+          p.battleStats.biggestHit = Math.max(p.battleStats.biggestHit, applied);
           if (d.element === 'frost' && enemy.hp > 0) enemy.slowUntilTick = game.tick + rules.frostSlowTicks;
           u.lastAttackHits.push({ targetId: enemy.id, progress: enemy.progress, routeIndex: enemy.routeIndex || 0, damage: applied, boss: enemy.boss });
         });
         const killed = targets.filter(target => target.enemy.hp === 0);
         p.enemies = p.enemies.filter(enemy => enemy.hp > 0);
         p.kills += killed.length;
-        p.gold += rules.killGold * killed.length;
+        p.battleStats.kills = p.kills;
+        p.gold += killed.reduce((sum, target) => {
+          const role = content.enemyArchetypes.filter(role => role.id === (target.enemy.archetype || (target.enemy.boss ? 'boss' : 'grunt')))[0];
+          return sum + Math.max(1, Math.round(rules.killGold * role.killGoldMultiplier));
+        }, 0);
         if (killed.some(target => target.enemy.boss)) retire(game, p, 'cleared');
       }
       u.lastAttackTick = game.tick;

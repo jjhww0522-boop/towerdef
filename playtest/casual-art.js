@@ -256,6 +256,39 @@ function scrapDroneSvg(kind, pose) {
     shapes += svgPath('M34 18 L34 24 M47 18 L47 24 M60 18 L60 24', 'none', 'stroke="#5b5878" stroke-width="4"');
     shapes += rect(28, 48, 40, 15, 4, '#5b5878');
     shapes += svgPath('M34 48 L38 57 L43 48 L49 57 L55 48 L62 57 L66 48', '#e2c998', 'stroke-width="1.8"');
+  } else if (kind === 3) {
+    // Runner: low scooter chassis, swept antenna and one large drive wheel.
+    shapes += circle(33, 77, 12, '#53546c') + circle(33, 77, 6, '#c7bacb');
+    shapes += circle(69, 79, 7, '#53546c');
+    shapes += svgPath(`M${29 + step} 74 L${37 - step} 80`, 'none', 'stroke="#79718c" stroke-width="3"');
+    shapes += svgPath('M23 63 L60 55 L76 65 L68 73 L30 73 Z', '#bc8797');
+    shapes += svgPath('M34 57 L40 29 L64 25 L74 49 L60 62 Z', '#d4abb5');
+    shapes += svgPath('M42 30 L34 16 L50 24 M58 26 L69 15', 'none', 'stroke="#9e708c" stroke-width="4"');
+    shapes += rect(36, 37, 29, 13, 4, '#514962');
+    shapes += svgPath('M45 64 L54 61 L51 68 L62 65', 'none', 'stroke="#ffe2bd" stroke-width="3"');
+    shapes += svgPath('M17 50 L29 47 M12 57 L26 54', 'none', 'stroke="#bc8797" stroke-width="3"');
+  } else if (kind === 4) {
+    // Plated: a wide, slow siege ram. Plates communicate mass, not damage resistance.
+    shapes += rect(16, 70, 64, 16, 6, '#53546c');
+    for (const x of [27, 47, 67]) {
+      shapes += circle(x, 78, 6, '#aaa1b5');
+      shapes += svgPath(`M${x - 3} ${78 + step * .4} L${x + 3} ${78 - step * .4}`, 'none', 'stroke="#53546c" stroke-width="2"');
+    }
+    shapes += svgPath('M20 30 L35 21 L61 21 L77 31 L81 62 L67 73 L28 73 L14 60 Z', '#968aa9');
+    shapes += svgPath('M20 35 L33 29 L33 63 L22 57 Z M63 29 L75 35 L74 58 L63 64 Z', '#c5b9cc');
+    shapes += rect(32, 32, 32, 17, 5, '#514962');
+    shapes += rect(30, 54, 36, 12, 3, '#72657e');
+    shapes += svgPath('M33 59 L39 63 L45 57 L51 63 L57 57 L63 61', 'none', 'stroke="#e8c99c" stroke-width="3"');
+    shapes += circle(22, 43, 2, '#e0d3de') + circle(73, 43, 2, '#e0d3de');
+  } else if (kind === 5) {
+    // Swarm: compact triangular scrap beetle with six articulated wire legs.
+    for (const side of [-1, 1]) for (let index = 0; index < 3; index++) {
+      shapes += svgPath(`M${47 + side * 15} ${45 + index * 10} L${47 + side * (26 + (index % 2 ? step : -step))} ${46 + index * 11} L${47 + side * 30} ${54 + index * 12}`, 'none', 'stroke="#8c829e" stroke-width="4"');
+    }
+    shapes += svgPath('M47 24 L66 43 L65 64 L47 76 L29 64 L28 43 Z', '#bd9daa');
+    shapes += svgPath('M47 29 L47 69 M34 57 L43 61 M52 61 L60 57', 'none', 'stroke="#806477" stroke-width="3"');
+    shapes += rect(31, 37, 33, 14, 5, '#514962');
+    shapes += svgPath('M37 29 L31 20 M57 29 L63 20', 'none', 'stroke="#c1b5ce" stroke-width="3"');
   } else if (kind === 1) {
     shapes += svgPath(`M29 61 L${15 + step} 70 L12 82 M66 61 L${81 - step} 70 L84 82 M35 67 L31 84 M59 67 L63 84`, 'none', 'stroke="#79718c" stroke-width="7"');
     shapes += rect(24, 29, 47, 38, 11, '#c1b5ce');
@@ -283,6 +316,7 @@ export function unitSpriteUrl(definition, pose = 'idle') {
 }
 
 export function enemySpriteUrl(kind, pose = 0) {
+  if (typeof kind === 'string') kind = ({ grunt: 0, runner: 3, plated: 4, swarm: 5, boss: 2 })[kind] ?? 0;
   const key = `enemy:${kind}:${pose}`;
   if (!cache.has(key)) cache.set(key, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(scrapDroneSvg(kind, pose)));
   return cache.get(key);
