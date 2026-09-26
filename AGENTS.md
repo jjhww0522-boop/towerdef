@@ -77,3 +77,15 @@ Strong success criteria allow independent progress. Weak criteria, such as "make
 - In final responses, summarize what changed and how it was verified.
 
 These guidelines are working if diffs are smaller, rewrites due to overcomplication are rarer, and clarification happens before implementation mistakes.
+
+## 6. AI Studio Team Dispatch
+
+- The user appoints the primary assistant as the studio lead (대장). The lead interprets incoming work, assigns the appropriate teams, integrates results, and reports to the user. The user does not need to select teams.
+- Use [the team operating guide](docs/TEAM_OPERATIONS.md) for substantive tasks and load only the relevant role profiles from `.cursor/agents/`. Team delegation is explicitly requested; use actual available agent tools when useful.
+- Six teams: 기획·밸런스팀, 클라이언트·UI/UX팀, 서버·전투시스템팀, 아트·사운드팀, QA·플레이테스트팀, 출시·운영팀.
+- Handle small changes directly. Delegate only concrete, bounded tasks that can proceed alongside useful lead work. Respect the available concurrency limit; six roles do not require six simultaneous agents.
+- Assign one editor per file at a time. Share required contracts before parallel implementation. Dependent work waits for its prerequisites. The lead assigns the commit/integration owner separately.
+- Developers verify their changes. Use independent QA for material combat/economy, persistence, synchronization, or core-input changes; do not rerun every check merely because a different team reviews it.
+- Preserve existing user authorization and autonomy preferences. Team assignment does not itself grant permission for payments, sensitive-data disclosure, destructive operations, or external communication. Follow the applicable session authorization and higher-priority instructions.
+- Report implemented changes, evidence, and remaining limitations. Distinguish agent review and simulated player personas from actual human playtests. Do not claim work by a team that was not invoked.
+- Future stage design follows [the common 1–10 difficulty scale](docs/design/DIFFICULTY_SCALE.md). Early stages prioritize short, forgiving success experiences; do not silently revert to earlier difficulty targets.

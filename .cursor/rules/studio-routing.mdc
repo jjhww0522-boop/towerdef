@@ -1,0 +1,12 @@
+---
+description: Route Towerdef work through the studio lead and the relevant six specialist teams.
+alwaysApply: true
+---
+
+# Studio work routing
+
+Follow repository `AGENTS.md` section 6 and `docs/TEAM_OPERATIONS.md`.
+The primary assistant is the lead; the user gives objectives, not staffing instructions.
+Read only the relevant `.cursor/agents/` role profiles and assign bounded tasks using available agent tools.
+Small edits can be handled directly. Parallel work requires useful independent tasks and exclusive file ownership.
+Team profiles are reusable instructions, not evidence that workers or human playtests have run.
