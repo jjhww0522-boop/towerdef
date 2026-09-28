@@ -1,11 +1,14 @@
 import { createServer } from 'node:http';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
+import { closeSync, mkdirSync, openSync, unlinkSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { advancePractice, resumePractice } from './practice-clock.mjs';
 import { createProgressionStore, ProgressionError } from './progression.mjs';
+import { mobileServerConfig, progressionFilePath } from './mobile-server-config.mjs';
 import core from '../dist/server/core/index.js';
-import { publicState } from '../dist/server/protocol.js';
+import { publicState, publicContent } from '../dist/server/protocol.js';
 
 const { createGame, applyAction, content } = core;
 const staticFiles = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/battlefield.js': ['battlefield.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'] };
@@ -28,10 +31,14 @@ staticFiles['/assets/fonts/DoHyeon-Regular.ttf'] = ['assets/fonts/DoHyeon-Regula
 staticFiles['/assets/fonts/DoHyeon-OFL.txt'] = ['assets/fonts/DoHyeon-OFL.txt', 'text/plain'];
 staticFiles['/assets/fonts/OFL.txt'] = ['assets/fonts/OFL.txt', 'text/plain'];
 staticFiles['/shared/battle-geometry.js'] = ['../shared/battle-geometry.js', 'text/javascript'];
+staticFiles['/shared/upgrade-model.js'] = ['../shared/upgrade-model.js', 'text/javascript'];
 const snapshot = room => ({ ...publicState(room.game), playbackSpeed: room.speed });
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(value);
 
-export function createDevServer({ automaticTicks = true, progressionStore = createProgressionStore(), onRoomCreated = null, verifyEnginePurchase = null } = {}) {
+export function createDevServer({ automaticTicks = true, progressionStore = createProgressionStore(), onRoomCreated = null, verifyEnginePurchase = null, lanHost = null } = {}) {
+  const network = mobileServerConfig({ TOWERDEF_LAN_HOST: lanHost });
+  const serverInstanceId = randomUUID();
+  let ready = false;
   const rooms = new Map();
   const sessions = new Map();
   function settleRoom(room) {
@@ -42,11 +49,10 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
       }
       return;
     }
-    if (room.game.practice) return;
     for (const player of room.game.players) {
       const profileId = room.profileIds.get(player.id);
       if (!player.result || !profileId || room.settledProfiles.has(profileId)) continue;
-      progressionStore.recordResult(profileId, room.expeditionId, player.result);
+      progressionStore.recordResult(profileId, room.expeditionId, room.game.practice ? { ...player.result, practice: true } : player.result);
       room.settledProfiles.add(profileId);
     }
   }
@@ -60,9 +66,10 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
   };
   const server = createServer(async (request, response) => {
     try {
+      if (!ready) return send(response, 503, { error: 'server_starting' });
       const host = request.headers.host || '';
       const port = server.address().port;
-      if (host !== '127.0.0.1:' + port && host !== 'localhost:' + port) return send(response, 403, { error: 'host_not_allowed' });
+      if (!network.allowedHosts.some(allowed => host === allowed + ':' + port)) return send(response, 403, { error: 'host_not_allowed' });
       if (request.headers.origin && request.headers.origin !== 'http://' + host) return send(response, 403, { error: 'browser_origin_not_allowed' });
       const path = new URL(request.url, 'http://localhost').pathname;
       if (request.method === 'GET' && Object.hasOwn(staticFiles, path)) {
@@ -77,7 +84,7 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
       }
       if (request.method === 'GET' && path === '/favicon.ico') { response.writeHead(204); return response.end(); }
       if (request.method === 'GET' && path === '/health') return send(response, 200, { ok: true, mode: 'local-practice' });
-      if (request.method === 'GET' && path === '/content') return send(response, 200, content);
+      if (request.method === 'GET' && path === '/content') return send(response, 200, { ...publicContent(), serverInstanceId });
       let body = {};
       if (request.method === 'POST') {
         let raw = '';
@@ -123,6 +130,9 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
         return send(response, 200, progressionStore.refillEngines(profile.id, purchase));
       }
       if (request.method === 'POST' && path === '/session') {
+        if (body.expectedServerInstanceId !== undefined && body.expectedServerInstanceId !== serverInstanceId) {
+          return send(response, 409, { error: 'server_restarted' });
+        }
         const { roomId, playerId } = body;
         if (body.speed !== undefined && ![1, 3, 6].includes(body.speed)) return send(response, 400, { error: 'invalid_speed' });
         if (body.tutorial !== undefined && typeof body.tutorial !== 'boolean') return send(response, 400, { error: 'invalid_tutorial' });
@@ -212,7 +222,14 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
       else response.end();
     }
   });
+  // Never mutate profiles for a server that fails to bind. Recovery is synchronous
+  // and finishes before the event loop can accept the first request.
+  server.prependOnceListener('listening', () => {
+    try { progressionStore.migrateRoster(); progressionStore.recoverInterruptedExpeditions(); ready = true; }
+    catch (error) { server.close(); server.emit('error', error); }
+  });
   const timer = automaticTicks ? setInterval(() => {
+    if (!ready) return;
     const now = Date.now();
     for (const [roomId, room] of rooms) {
       advancePractice(room, [...sessions.values()].filter(session => session.roomId === roomId), now);
@@ -220,14 +237,50 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
     }
   }, 100) : null;
   server.on('close', () => { if (timer) clearInterval(timer); });
+  server.once('error', () => { if (timer && !ready) clearInterval(timer); });
   return server;
 }
 
+// The CLI owns one file writer. Lock before reading so a competing process cannot
+// load stale data or refund the live process's entries, even on a different port.
+export async function startDevServer({ config = mobileServerConfig(), filePath = progressionFilePath(), automaticTicks = true } = {}) {
+  mkdirSync(dirname(filePath), { recursive: true });
+  const lockPath = filePath + '.lock';
+  let descriptor;
+  try { descriptor = openSync(lockPath, 'wx', 0o600); }
+  catch (error) {
+    if (error.code === 'EEXIST') throw new Error('Profile store already in use: ' + lockPath + '. If the owner crashed, confirm it has stopped before removing this lock.');
+    throw error;
+  }
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true; closeSync(descriptor); unlinkSync(lockPath);
+  };
+  let server;
+  try {
+    writeFileSync(descriptor, JSON.stringify({ pid: process.pid, startedAt: Date.now() }));
+    server = createDevServer({ automaticTicks, progressionStore: createProgressionStore({ filePath }), lanHost: config.lanHost });
+    server.once('close', release);
+    await new Promise((resolve, reject) => {
+      const failed = error => { server.removeListener('listening', listening); reject(error); };
+      const listening = () => { server.removeListener('error', failed); resolve(); };
+      server.once('error', failed); server.once('listening', listening);
+      server.listen(config.port, config.bindHost);
+    });
+    return server;
+  } catch (error) {
+    if (server?.listening) server.close();
+    release();
+    throw error;
+  }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const port = Number(process.env.PORT || 7351);
-  const filePath = fileURLToPath(new URL('../.towerdef-data/profiles.json', import.meta.url));
-  createDevServer({ progressionStore: createProgressionStore({ filePath }) }).listen(port, '127.0.0.1', () => {
-    console.log('Towerdef local practice: http://127.0.0.1:' + port);
-    console.log('브라우저에서 위 주소를 열어 플레이하세요. 같은 방 코드로 최대 4명 접속. 종료: Ctrl+C');
-  });
+  const config = mobileServerConfig();
+  const server = await startDevServer({ config });
+  const shutdown = () => { server.close(); server.closeAllConnections(); };
+  process.once('SIGINT', shutdown); process.once('SIGTERM', shutdown);
+  console.log('Towerdef development server: http://' + config.bindHost + ':' + config.port);
+  console.log('브라우저에서 위 주소를 열어 플레이하세요. 같은 방 코드로 최대 4명 접속. 종료: Ctrl+C');
 }

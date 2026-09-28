@@ -11,11 +11,21 @@ function validateDefinition(content, validateStages = true) {
   const integer = value => Number.isSafeInteger(value) && value > 0;
   if (!object(content)) return ['content must be an object'];
   if (!text(content.version)) errors.push('version must be a nonempty string');
-  for (const section of ['units', 'recipes', 'stories', 'enemyArchetypes', 'encounters', ...(validateStages ? ['battlefields'] : [])]) {
+  for (const section of ['units', 'recipes', 'stories', 'enemyArchetypes', 'encounters', 'fieldMods', ...(validateStages ? ['battlefields'] : [])]) {
     if (!Array.isArray(content[section]) || !content[section].length) errors.push(section + ' must be a nonempty array');
   }
   if (!object(content.rules)) errors.push('rules must be an object');
   if (errors.length) return errors;
+
+  const modConditions = { tracker: 'controlled', scatter: 'secondary', opener: 'healthy' }, modIds = new Set();
+  for (const mod of content.fieldMods) {
+    if (!object(mod) || !Object.hasOwn(modConditions, mod.id) || modIds.has(mod.id)) { errors.push('fieldMods requires unique supported ids'); continue; }
+    modIds.add(mod.id);
+    if (!text(mod.name) || !text(mod.description)) errors.push('fieldMods needs name and description');
+    if (mod.condition !== modConditions[mod.id]) errors.push('fieldMods has invalid condition for ' + mod.id);
+    if (!positive(mod.bonus) || mod.bonus > 1) errors.push('fieldMods bonus must be finite and between zero and one');
+  }
+  if (modIds.size !== 3) errors.push('fieldMods must include tracker, scatter and opener');
 
   const units = new Map();
   const rarities = ['basic', 'elite', 'hero', 'legend'];
@@ -32,9 +42,9 @@ function validateDefinition(content, validateStages = true) {
     for (const tag of Object.keys(allowed)) if (!allowed[tag].includes(unit[tag])) errors.push(label + ' has invalid ' + tag);
     if (!positive(unit.attack)) errors.push(label + '.attack must be positive and finite');
     if (!positive(unit.attackRange)) errors.push(label + '.attackRange must be positive and finite');
-    if (!['fire', 'wind', 'frost', 'laser', 'electric'].includes(unit.element)) errors.push(label + ' has invalid element');
+    if (!['fire', 'water', 'wind', 'frost', 'laser', 'electric'].includes(unit.element)) errors.push(label + ' has invalid element');
     if (!integer(unit.attackIntervalTicks)) errors.push(label + '.attackIntervalTicks must be a positive integer');
-    if (unit.attackPattern !== undefined && !['bolt', 'blast', 'arc'].includes(unit.attackPattern)) errors.push(label + '.attackPattern must be bolt, blast or arc');
+    if (!['bolt', 'blast', 'arc'].includes(unit.attackPattern)) errors.push(label + '.attackPattern must be bolt, blast or arc');
   }
 
   const rules = content.rules;
@@ -99,18 +109,24 @@ function validateDefinition(content, validateStages = true) {
     else recipes.set(recipe.id, recipe);
     const result = units.get(recipe.result);
     if (!result) errors.push(label + ' unknown result: ' + recipe.result);
-    if (!Array.isArray(recipe.ingredients) || recipe.ingredients.length < 2 || recipe.ingredients.length > 3) errors.push(label + ' requires 2 or 3 ingredients');
+    if (!Array.isArray(recipe.ingredients) || recipe.ingredients.length !== 3) errors.push(label + ' requires 3 ingredients');
     if (Array.isArray(recipe.ingredients)) for (const id of recipe.ingredients) if (!units.has(id)) errors.push(label + ' unknown ingredient: ' + id);
-    if (!Number.isSafeInteger(recipe.unlockBattlefield) || recipe.unlockBattlefield < 0 || recipe.unlockBattlefield > 5) errors.push(label + ' invalid unlockBattlefield (expected 0..5)');
+    const future = recipe.unlockType === 'future';
+    if (!Number.isSafeInteger(recipe.unlockBattlefield) || recipe.unlockBattlefield < 0 || recipe.unlockBattlefield > (future ? 6 : 5)) errors.push(label + ' invalid unlockBattlefield');
+    if (future && recipe.unlockBattlefield !== 6) errors.push(label + ' future unlockBattlefield must be 6');
+    if (future && recipe.researchCost !== 0) errors.push(label + ' future unlock requires zero researchCost');
+    if (future && !text(recipe.unlockLabel)) errors.push(label + ' future unlockLabel is required');
     if (result) {
       if (result.rarity === 'basic') errors.push(label + ' recipe result cannot be basic');
-      if (recipe.unlockType !== undefined && !['clear', 'research'].includes(recipe.unlockType)) errors.push(label + ' invalid unlockType');
-      if (result.rarity !== 'legend' && recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear') errors.push(label + ' only legends can require research unlocks');
+      if (recipe.unlockType !== undefined && !['clear', 'research', 'future'].includes(recipe.unlockType)) errors.push(label + ' invalid unlockType');
+      if (result.rarity !== 'legend' && recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear' && !future) errors.push(label + ' only legends can require research unlocks');
       if (recipe.unlockBattlefield > 0 && recipe.unlockType === 'clear' && recipe.researchCost !== 0) errors.push(label + ' clear unlock requires zero researchCost');
-      if (recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear' && !integer(recipe.researchCost)) errors.push(label + ' researched recipe requires a positive researchCost');
+      if (recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear' && !future && !integer(recipe.researchCost)) errors.push(label + ' researched recipe requires a positive researchCost');
       if (recipe.unlockBattlefield === 0 && recipe.researchCost !== undefined) errors.push(label + ' initially available recipe cannot have a research unlock cost');
-      if (resultRecipes.has(recipe.result)) errors.push('duplicate recipe result: ' + recipe.result);
-      resultRecipes.set(recipe.result, recipe);
+      const paths = resultRecipes.get(recipe.result) || [];
+      if (Array.isArray(recipe.ingredients) && paths.some(path => Array.isArray(path.ingredients) && JSON.stringify(path.ingredients.slice().sort()) === JSON.stringify(recipe.ingredients.slice().sort()))) errors.push('duplicate recipe ingredients path: ' + recipe.result);
+      paths.push(recipe);
+      resultRecipes.set(recipe.result, paths);
     }
   }
 
@@ -120,27 +136,28 @@ function validateDefinition(content, validateStages = true) {
     if (visiting.has(id)) { errors.push('circular recipe dependency (cycle): ' + id); return; }
     if (visited.has(id)) return;
     visiting.add(id);
-    const recipe = resultRecipes.get(id);
-    if (recipe && Array.isArray(recipe.ingredients)) for (const ingredient of recipe.ingredients) visit(ingredient);
+    for (const recipe of resultRecipes.get(id) || []) {
+      if (Array.isArray(recipe.ingredients)) for (const ingredient of recipe.ingredients) visit(ingredient);
+    }
     visiting.delete(id);
     visited.add(id);
   }
   for (const id of units.keys()) visit(id);
   const reachable = new Set([...units.values()].filter(unit => unit.rarity === 'basic').map(unit => unit.id));
-  for (let unlock = 0; unlock <= 5; unlock++) {
+  for (let unlock = 0; unlock <= 6; unlock++) {
     let changed = true;
     while (changed) {
       changed = false;
       for (const recipe of recipes.values()) {
-        if (recipe.unlockBattlefield <= unlock && Array.isArray(recipe.ingredients) && recipe.ingredients.length >= 2 && recipe.ingredients.every(id => reachable.has(id)) && !reachable.has(recipe.result)) {
+        if (recipe.unlockBattlefield <= unlock && Array.isArray(recipe.ingredients) && recipe.ingredients.length === 3 && recipe.ingredients.every(id => reachable.has(id)) && !reachable.has(recipe.result)) {
           reachable.add(recipe.result); changed = true;
         }
       }
     }
     for (const unit of units.values()) {
-      const recipe = resultRecipes.get(unit.id);
-      if (unit.rarity !== 'basic' && !recipe) errors.push('missing recipe for ' + unit.id);
-      if ((unit.rarity === 'basic' || (recipe && recipe.unlockBattlefield <= unlock)) && !reachable.has(unit.id)) errors.push(unit.id + ' is not reachable from basic units at unlock ' + unlock);
+      const paths = resultRecipes.get(unit.id) || [];
+      if (unit.rarity !== 'basic' && !paths.length) errors.push('missing recipe for ' + unit.id);
+      if ((unit.rarity === 'basic' || paths.some(recipe => recipe.unlockBattlefield <= unlock)) && !reachable.has(unit.id)) errors.push(unit.id + ' is not reachable from basic units at unlock ' + unlock);
     }
   }
 

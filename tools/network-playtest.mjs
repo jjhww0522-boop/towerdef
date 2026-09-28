@@ -2,6 +2,7 @@ import { createDevServer } from './dev-server.mjs';
 import { request as httpRequest } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
+import { getUpgradeLevel } from '../shared/upgrade-model.js';
 
 const server = createDevServer({ automaticTicks: true });
 const startedAt = Date.now();
@@ -60,7 +61,7 @@ function materials(p, recipe) {
 function definition(unit) { return content.units.find(d => d.id === unit.definitionId); }
 function dps(p, unit) {
   const d = definition(unit);
-  return d.attack * (1 + [d.faction, d.troop, d.trait].reduce((sum, tag) => sum + p.upgrades[tag], 0) * content.rules.upgradeBonus) / d.attackIntervalTicks;
+  return d.attack * (1 + getUpgradeLevel(d, p.upgrades) * content.rules.upgradeBonus) / d.attackIntervalTicks;
 }
 function chooseAction(client, state) {
   const p = player(state, client);
@@ -72,10 +73,11 @@ function chooseAction(client, state) {
     if (p.units.length >= 8) {
       const value = tag => p.units.reduce((sum, u) => {
         const d = definition(u);
-        return sum + ([d.faction, d.troop, d.trait].includes(tag) ? d.attack / d.attackIntervalTicks : 0);
+        const upgraded = { ...p.upgrades, [tag]: p.upgrades[tag] + 1 };
+        return sum + (getUpgradeLevel(d, upgraded) - getUpgradeLevel(d, p.upgrades)) * d.attack / d.attackIntervalTicks;
       }, 0) / content.rules.upgradeCosts[p.upgrades[tag]];
       const tag = Object.keys(p.upgrades).filter(t => p.upgrades[t] < content.rules.maxUpgradeLevel).sort((a, b) => value(b) - value(a))[0];
-      if (tag && p.gold >= content.rules.upgradeCosts[p.upgrades[tag]]) return { type: 'upgrade', tag };
+      if (tag && value(tag) > 0 && p.gold >= content.rules.upgradeCosts[p.upgrades[tag]]) return { type: 'upgrade', tag };
     }
   }
   if (p.gold >= content.rules.summonCost && p.units.length < content.rules.maxUnits && p.summonCooldownRemainingTicks === 0) return { type: 'summon' };

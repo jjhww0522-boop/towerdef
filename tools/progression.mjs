@@ -9,6 +9,8 @@ export const ENGINE_REFILL_PRODUCT = 'engine_refill';
 
 const clone = value => JSON.parse(JSON.stringify(value));
 const hash = token => createHash('sha256').update(token).digest('hex');
+const RETIRED_RESEARCH_COSTS = { make_liu_bei: 60, make_cao_cao: 100, make_sun_quan: 160, make_orbital_ark: 240 };
+const ROSTER_MIGRATION = 'six-elements-v1';
 
 export class ProgressionError extends Error {
   constructor(code, status = 409) { super(code); this.code = code; this.status = status; }
@@ -18,6 +20,7 @@ export class ProgressionError extends Error {
 // a sibling file, then renamed, before its new balance is returned to a client.
 export function createProgressionStore({ filePath = null, content = core.content, now = Date.now } = {}) {
   const target = filePath ? resolve(filePath) : null;
+  const bootId = randomUUID();
   let data = { version: 1, profiles: {} }, writeNumber = 0;
   if (target && existsSync(target)) {
     data = JSON.parse(readFileSync(target, 'utf8'));
@@ -27,7 +30,7 @@ export function createProgressionStore({ filePath = null, content = core.content
   }
   const battlefields = () => content.battlefields || [{ id: 1 }];
   function unlockedRecipes(profile) {
-    const recipes = [...profile.unlockedRecipes];
+    const recipes = profile.unlockedRecipes.filter(id => content.recipes.some(recipe => recipe.id === id && recipe.unlockType !== 'future'));
     for (const recipe of content.recipes) {
       if (recipe.unlockType === 'clear' && recipe.unlockBattlefield > 0 && recipe.researchCost === 0 &&
           profile.clearedBattlefields.includes(recipe.unlockBattlefield) && !recipes.includes(recipe.id)) recipes.push(recipe.id);
@@ -49,11 +52,13 @@ export function createProgressionStore({ filePath = null, content = core.content
     tutorialCompleted: profile.tutorialCompleted === true,
     engines: { ...engineBalance(profile, timestamp), max: ENGINE_MAX, recoveryIntervalMs: ENGINE_RECOVERY_MS, serverTime: timestamp },
     researchCredits: profile.researchCredits,
+    rosterMigration: profile.rosterMigration?.refundedCredits > 0 ? { version: profile.rosterMigration.version, refundedCredits: profile.rosterMigration.refundedCredits } : null,
     unlockedRecipes: unlockedRecipes(profile),
     clearedBattlefields: [...profile.clearedBattlefields],
     unlockedBattlefields: battlefields().filter(field => field.id === 1 || profile.clearedBattlefields.includes(field.id - 1)).map(field => field.id),
     stats: { ...profile.stats },
-    lastResult: profile.lastResult ? clone(profile.lastResult) : null
+    lastResult: profile.lastResult ? clone(profile.lastResult) : null,
+    lastInterruption: profile.lastInterruption ? clone(profile.lastInterruption) : null
   });
   function commit(next) {
     if (target) {
@@ -79,12 +84,58 @@ export function createProgressionStore({ filePath = null, content = core.content
     if (!profile) throw new ProgressionError('profile_required', 401);
     return profile;
   }
+  // Content replacement retires old paid research, never maps it onto unrelated robots.
+  // Persist the refund receipt in the same atomic write as the balance and new unlocks.
+  function migrateRoster() {
+    if (!content.units?.some(unit => unit.id === 'guardian_s')) return 0;
+    const next = clone(data); let migrated = 0;
+    for (const profile of Object.values(next.profiles)) {
+      if (profile.rosterMigration?.version === ROSTER_MIGRATION) continue;
+      const retiredRecipes = [...new Set(profile.unlockedRecipes.filter(id => !content.recipes.some(recipe => recipe.id === id)))];
+      const refundedCredits = retiredRecipes.reduce((sum, id) => sum + (Object.hasOwn(RETIRED_RESEARCH_COSTS, id) ? RETIRED_RESEARCH_COSTS[id] : 0), 0);
+      profile.researchCredits += refundedCredits;
+      if (!Number.isSafeInteger(profile.researchCredits)) throw new Error('Research balance exceeds supported range.');
+      profile.unlockedRecipes = unlockedRecipes(profile);
+      profile.rosterMigration = { version: ROSTER_MIGRATION, retiredRecipes, refundedCredits };
+      migrated++;
+    }
+    if (migrated) commit(next);
+    return migrated;
+  }
   return {
+    migrateRoster,
+    // Called before server admission. Engine refunds require this explicit recovery call.
+    // Old engineEntries without this new ledger are deliberately not recoverable.
+    recoverInterruptedExpeditions() {
+      const next = clone(data), timestamp = now();
+      let recovered = 0;
+      for (const profile of Object.values(next.profiles)) {
+        for (const [expeditionId, entry] of Object.entries(profile.expeditions || {})) {
+          if (entry.status !== 'active' || typeof entry.bootId !== 'string' || entry.bootId === bootId) continue;
+          // A pre-existing reward receipt takes precedence over any stale active marker.
+          if (Object.hasOwn(profile.rewards, expeditionId)) {
+            entry.status = 'settled'; entry.settledAt = timestamp;
+            recovered++;
+            continue;
+          }
+          const engines = engineBalance(profile, timestamp);
+          const count = Math.min(ENGINE_MAX, engines.count + 1);
+          profile.engines = { count, nextRecoveryAt: count === ENGINE_MAX ? null : engines.nextRecoveryAt };
+          entry.status = 'aborted'; entry.abortedAt = timestamp; entry.reason = 'server_restart';
+          entry.enginesRefunded = count - engines.count;
+          profile.lastInterruption = { expeditionId, reason: entry.reason, at: timestamp, enginesRefunded: entry.enginesRefunded };
+          recovered++;
+        }
+      }
+      if (recovered) commit(next);
+      return recovered;
+    },
     createProfile() {
       const profileToken = randomBytes(32).toString('hex'), id = randomUUID();
       const profile = { id, tokenHash: hash(profileToken), tutorialCompleted: false, researchCredits: 0, unlockedRecipes: [], clearedBattlefields: [],
         stats: { expeditions: 0, clears: 0 }, lastResult: null, rewards: {},
         engines: { count: ENGINE_MAX, nextRecoveryAt: null }, engineEntries: {} };
+      if (content.units?.some(unit => unit.id === 'guardian_s')) profile.rosterMigration = { version: ROSTER_MIGRATION, retiredRecipes: [], refundedCredits: 0 };
       const next = clone(data); next.profiles[id] = profile; commit(next);
       return { profileToken, profile: view(profile) };
     },
@@ -112,6 +163,8 @@ export function createProgressionStore({ filePath = null, content = core.content
       updated.engines = { count: engines.count - 1, nextRecoveryAt: engines.nextRecoveryAt ?? timestamp + ENGINE_RECOVERY_MS };
       updated.engineEntries ||= {};
       updated.engineEntries[expeditionId] = timestamp;
+      updated.expeditions ||= {};
+      updated.expeditions[expeditionId] = { status: 'active', bootId, startedAt: timestamp };
       commit(next);
       return { applied: true, profile: view(updated) };
     },
@@ -138,7 +191,7 @@ export function createProgressionStore({ filePath = null, content = core.content
     research(profileId, recipeId) {
       const profile = requireProfile(profileId);
       const recipe = content.recipes.find(item => item.id === recipeId);
-      if (!recipe || recipe.unlockType === 'clear' || !(recipe.unlockBattlefield > 0) || !Number.isSafeInteger(recipe.researchCost) || recipe.researchCost <= 0) {
+      if (!recipe || ['clear', 'future'].includes(recipe.unlockType) || !(recipe.unlockBattlefield > 0) || !Number.isSafeInteger(recipe.researchCost) || recipe.researchCost <= 0) {
         throw new ProgressionError('recipe_not_researchable', 400);
       }
       if (profile.unlockedRecipes.includes(recipeId)) return { ok: true, alreadyUnlocked: true, profile: view(profile) };
@@ -154,7 +207,17 @@ export function createProgressionStore({ filePath = null, content = core.content
       const profile = requireProfile(profileId);
       if (typeof expeditionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(expeditionId)) throw new Error('Invalid authoritative expedition ID.');
       if (Object.hasOwn(profile.rewards, expeditionId)) return { applied: false, profile: view(profile) };
-      if (result?.practice === true || result?.tutorial === true) return { applied: false, profile: view(profile) };
+      const entry = profile.expeditions?.[expeditionId];
+      if (entry && entry.status !== 'active') return { applied: false, profile: view(profile) };
+      if (result?.practice === true || result?.tutorial === true) {
+        if (entry && ['cleared', 'defeated', 'left'].includes(result.status)) {
+          const next = clone(data), updated = next.profiles[profileId];
+          updated.expeditions[expeditionId] = { ...entry, status: 'settled', settledAt: now(), resultStatus: result.status };
+          commit(next);
+          return { applied: false, profile: view(updated) };
+        }
+        return { applied: false, profile: view(profile) };
+      }
       if (!result || !['cleared', 'defeated', 'left'].includes(result.status) || result.cleared !== (result.status === 'cleared') ||
           !Number.isSafeInteger(result.researchCredits) || result.researchCredits < 0 ||
           (result.status === 'left' && result.researchCredits !== 0) || !view(profile).unlockedBattlefields.includes(result.battlefieldId)) {
@@ -172,6 +235,7 @@ export function createProgressionStore({ filePath = null, content = core.content
       if (result.cleared) updated.stats.clears++;
       updated.lastResult = { ...clone(result), expeditionId };
       updated.rewards[expeditionId] = { researchCredits: result.researchCredits, battlefieldId: result.battlefieldId };
+      if (entry) updated.expeditions[expeditionId] = { ...entry, status: 'settled', settledAt: now(), resultStatus: result.status };
       commit(next);
       return { applied: true, profile: view(updated) };
     }

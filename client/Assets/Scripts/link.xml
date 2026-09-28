@@ -1,0 +1,4 @@
+<linker>
+  <!-- Json.NET constructs DTOs and persisted session records through reflection on IL2CPP. -->
+  <assembly fullname="TowerDef.Mobile" preserve="all" />
+</linker>

@@ -73,7 +73,7 @@ test('successful and rejected sequence replays retain their original result with
   let before = resources(game);
   assert.equal(applyAction(game, player.id, accepted).ok, true);
   assert.deepEqual(resources(game), before);
-  assert.equal(applyAction(game, player.id, { seq: 1, type: 'upgrade', tag: 'shu' }).error, 'SEQUENCE_REUSED');
+  assert.equal(applyAction(game, player.id, { seq: 1, type: 'upgrade', tag: 'fire' }).error, 'SEQUENCE_REUSED');
   const rejected = { seq: 2, type: 'summon' };
   assert.equal(applyAction(game, player.id, rejected).error, 'SUMMON_COOLDOWN');
   step(game, 4); before = resources(game);
@@ -93,7 +93,7 @@ test('combine, upgrade and sale work during cooldown without resetting or cleari
   assert.equal(player.nextSummonTick, deadline);
   const assembled = player.units.find(unit => unit.definitionId === recipe.result && !materials.some(material => material.id === unit.id));
   assert.ok(assembled);
-  assert.equal(applyAction(game, player.id, { seq: 3, type: 'upgrade', tag: 'shu' }).ok, true);
+  assert.equal(applyAction(game, player.id, { seq: 3, type: 'upgrade', tag: 'fire' }).ok, true);
   assert.equal(player.nextSummonTick, deadline);
   assert.equal(applyAction(game, player.id, { seq: 4, type: 'salvage', unitIds: [assembled.id] }).ok, true);
   assert.equal(player.nextSummonTick, deadline);

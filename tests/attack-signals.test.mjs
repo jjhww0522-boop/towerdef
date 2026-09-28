@@ -22,7 +22,7 @@ test('new and idle units have no attack signal, including after upgrade input', 
   assert.equal(unit.lastTargetId, null);
   assert.deepEqual(unit.lastAttackHits, []);
   for (let i = 0; i < 5; i++) tick(game);
-  assert.equal(applyAction(game, p.id, { seq: p.lastSeq + 1, type: 'upgrade', tag: 'shu' }).ok, true);
+  assert.equal(applyAction(game, p.id, { seq: p.lastSeq + 1, type: 'upgrade', tag: 'fire' }).ok, true);
   assert.equal(unit.lastAttackTick, null);
   assert.equal(unit.lastTargetId, null);
   assert.equal(unit.attackCooldownTicks, 0);

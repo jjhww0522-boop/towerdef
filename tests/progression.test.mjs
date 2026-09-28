@@ -25,6 +25,7 @@ test('profiles start empty and only an opaque bearer authenticates them', () => 
   assert.equal(store.authenticate(created.profileToken).id, created.profile.id);
   assert.equal(created.profile.tokenHash, undefined);
   assert.equal(created.profile.rewards, undefined);
+  assert.equal(created.profile.rosterMigration, null);
   created.profile.researchCredits = 9999;
   created.profile.unlockedRecipes.push('ultimate');
   assert.equal(store.getProfile(created.profile.id).researchCredits, 0);
@@ -192,4 +193,60 @@ test('failed durable writes commit neither a stage unlock nor tutorial completio
   assert.equal(store.recordResult(profile.id, 'clear', result()).applied, true);
   assert.deepEqual(store.getProfile(profile.id).unlockedRecipes, ['clear-one-a', 'clear-one-b']);
   assert.equal(store.completeTutorial(profile.id).applied, true);
+});
+
+test('six-element roster refunds retired research exactly once and preserves campaign, tutorial and engine history', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'towerdef-roster-migration-')), filePath = join(directory, 'profiles.json');
+  t.after(async () => { await rm(filePath, { force: true }); await rmdir(directory); });
+  const retired = [['make_liu_bei', 60], ['make_cao_cao', 100], ['make_sun_quan', 160], ['make_orbital_ark', 240]];
+  const oldContent = { battlefields: content.battlefields, recipes: retired.map(([id, researchCost]) => ({ id, unlockBattlefield: 1, researchCost })) };
+  let store = createProgressionStore({ filePath, content: oldContent, now: () => 1000 });
+  const account = store.createProfile(), id = account.profile.id;
+  store.recordResult(id, 'first', result({ researchCredits: 1000 }));
+  store.recordResult(id, 'second', result({ battlefieldId: 2, researchCredits: 80 }));
+  for (const [recipeId] of retired) store.research(id, recipeId);
+  store.completeTutorial(id); store.consumeEngine(id, 'spent');
+  const before = store.getProfile(id);
+  const newContent = { ...content, units: [{ id: 'guardian_s' }], recipes: [
+    { id: 'make_fire_2', unlockBattlefield: 0 },
+    { id: 'make_fire_3', unlockBattlefield: 2, unlockType: 'clear', researchCost: 0 },
+    { id: 'make_fire_4', unlockBattlefield: 6, unlockType: 'future', researchCost: 0 }
+  ] };
+  store = createProgressionStore({ filePath, content: newContent, now: () => 1000 });
+  const beforeMigration = await readFile(filePath, 'utf8'), backup = filePath + '.backup';
+  await rename(filePath, backup); await mkdir(filePath);
+  try { assert.throws(() => store.migrateRoster()); }
+  finally { await rmdir(filePath); await rename(backup, filePath); }
+  assert.equal(store.getProfile(id).researchCredits, before.researchCredits, 'failed persistence cannot publish a refund');
+  assert.equal(store.getProfile(id).rosterMigration, null);
+  assert.equal(await readFile(filePath, 'utf8'), beforeMigration);
+  assert.equal(store.migrateRoster(), 1);
+  const migrated = store.authenticate(account.profileToken);
+  assert.equal(migrated.researchCredits, before.researchCredits + 560);
+  assert.deepEqual(migrated.rosterMigration, { version: 'six-elements-v1', refundedCredits: 560 });
+  assert.deepEqual(migrated.unlockedRecipes, ['make_fire_3']);
+  for (const key of ['tutorialCompleted', 'clearedBattlefields', 'stats', 'engines', 'lastResult']) assert.deepEqual(migrated[key], before[key]);
+  assert.equal(store.consumeEngine(id, 'spent').applied, false);
+  assert.equal(store.recordResult(id, 'first', result()).applied, false);
+  const persisted = await readFile(filePath, 'utf8');
+  const archived = JSON.parse(persisted).profiles[id];
+  assert.deepEqual(archived.rosterMigration.retiredRecipes.sort(), retired.map(([recipeId]) => recipeId).sort());
+  assert.equal(archived.rosterMigration.refundedCredits, 560);
+  store = createProgressionStore({ filePath, content: newContent, now: () => 1000 });
+  assert.equal(store.migrateRoster(), 0);
+  assert.deepEqual(store.getProfile(id), migrated);
+  assert.equal(await readFile(filePath, 'utf8'), persisted, 'a repeated load must not reapply or rewrite a completed migration');
+});
+
+test('future recipes cannot be loaded or bought even with a forged unlock or positive cost', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'towerdef-future-recipe-')), filePath = join(directory, 'profiles.json');
+  t.after(async () => { await rm(filePath, { force: true }); await rmdir(directory); });
+  const futureContent = { ...content, recipes: [...content.recipes, { id: 'future', unlockBattlefield: 2, unlockType: 'future', researchCost: 1 }] };
+  let store = createProgressionStore({ filePath, content: futureContent });
+  const { profile } = store.createProfile();
+  store.recordResult(profile.id, 'one', result()); store.recordResult(profile.id, 'two', result({ battlefieldId: 2 }));
+  assert.throws(() => store.research(profile.id, 'future'), /recipe_not_researchable/);
+  const raw = JSON.parse(await readFile(filePath, 'utf8')); raw.profiles[profile.id].unlockedRecipes.push('future');
+  await writeFile(filePath, JSON.stringify(raw)); store = createProgressionStore({ filePath, content: futureContent });
+  assert.ok(!store.getProfile(profile.id).unlockedRecipes.includes('future'));
 });

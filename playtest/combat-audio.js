@@ -69,6 +69,9 @@ export function createCombatAudio(context) {
         emit({ from: 170, to: 68, duration: .13, volume: .027 });
         emit({ noise: true, cutoff: 1200, duration: .13, volume: .034, delay: .012 });
         emit({ from: 1600, to: 470, duration: .025, volume: .009, waveform: 'triangle' });
+      } else if (event.element === 'water') {
+        emit({ noise: true, cutoff: 1700, duration: .16, volume: .024, attack: .012 });
+        emit({ from: 540, to: 185, duration: .085, volume: .014, waveform: 'triangle' });
       } else if (event.element === 'wind') {
         emit({ noise: true, cutoff: 760, duration: .23, volume: .033, attack: .024 });
         emit({ from: 140, to: 65, duration: .2, volume: .017 });

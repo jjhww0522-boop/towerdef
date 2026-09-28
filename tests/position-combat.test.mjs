@@ -5,7 +5,7 @@ import { publicState } from '../dist/server/protocol.js';
 import { unitPoint, enemyPoint, distanceSquared, projectPoint } from '../shared/battle-geometry.js';
 import { recipeMaterials } from '../playtest/evolution-model.mjs';
 
-function setup(definitionId = 'shu_guard', slot = 2) {
+function setup(definitionId = 'fire_1', slot = 2) {
   const game = createGame({ playerIds: ['one', 'two'], seed: 15 });
   game.rules.spawnIntervalTicks = game.rules.minSpawnIntervalTicks = 99999;
   game.rules.summonCooldownTicks = 0; // Isolate placement/range; real summon timing has separate tests.
@@ -87,7 +87,7 @@ test('fire waits for a target in range and can skip an older unreachable enemy',
 });
 
 test('laser reaches farther than fire and damages only one enemy', () => {
-  const { game, player, unit } = setup('wei_archer');
+  const { game, player, unit } = setup('laser_1');
   const targets = [enemy(game, player, .6), enemy(game, player, .61)];
   tick(game);
   assert.equal(unit.lastAttackHits.length, 1);
@@ -98,7 +98,7 @@ test('laser reaches farther than fire and damages only one enemy', () => {
 
 test('frost slows normal enemies and bosses for exactly the configured duration', () => {
   for (const boss of [false, true]) {
-    const { game, player } = setup('wei_guard');
+    const { game, player } = setup('frost_1');
     const target = enemy(game, player, .2, boss);
     tick(game);
     assert.equal(target.slowUntilTick, game.tick + game.rules.frostSlowTicks);
@@ -114,7 +114,7 @@ test('frost slows normal enemies and bosses for exactly the configured duration'
 });
 
 test('multiple frost hits refresh duration without multiplying the slowdown', () => {
-  const { game, player, unit } = setup('wei_guard');
+  const { game, player, unit } = setup('frost_1');
   player.units.push({ ...unit, id: game.nextEntityId++, slot: 4 });
   const target = enemy(game, player, .2);
   tick(game);

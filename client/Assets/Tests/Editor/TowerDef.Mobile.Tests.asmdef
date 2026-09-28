@@ -1,0 +1,6 @@
+{
+  "name": "TowerDef.Mobile.Tests",
+  "references": ["TowerDef.Mobile"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

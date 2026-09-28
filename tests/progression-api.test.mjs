@@ -30,7 +30,7 @@ function finish(room) {
   game.tick = game.rules.waveTicks * game.rules.totalWaves + 1;
   game.wave = game.rules.totalWaves;
   player.investmentActions = 3; player.kills = 80;
-  player.units = [{ id: game.nextEntityId++, definitionId: 'shu_guard', slot: 0, dispatched: false,
+  player.units = [{ id: game.nextEntityId++, definitionId: 'fire_1', slot: 0, dispatched: false,
     attackCooldownTicks: 0, lastAttackTick: null, lastTargetId: null, investedGold: game.rules.summonCost }];
   player.enemies = [{ id: game.nextEntityId++, hp: 1, maxHp: game.rules.bossHp, progress: 0, boss: true }];
   core.tick(game);
@@ -40,9 +40,9 @@ function finish(room) {
 test('profile and research endpoints authenticate authority and never accept client balances', async t => {
   const { request } = await serve(t);
   assert.equal((await request('/profile')).status, 401);
-  assert.equal((await request('/research', { recipeId: 'make_liu_bei' })).status, 401);
+  assert.equal((await request('/research', { recipeId: 'make_fire_4' })).status, 401);
   assert.equal((await request('/profile', {}, undefined, 'https://elsewhere.example')).status, 403);
-  const created = await request('/profile', { researchCredits: 9000, unlockedRecipes: ['make_liu_bei'], clearedBattlefields: [1, 2, 3], tutorialCompleted: true });
+  const created = await request('/profile', { researchCredits: 9000, unlockedRecipes: ['make_fire_4'], clearedBattlefields: [1, 2, 3], tutorialCompleted: true });
   assert.equal(created.status, 200);
   assert.equal(created.body.profile.researchCredits, 0);
   assert.equal(created.body.profile.tutorialCompleted, false);
@@ -51,7 +51,7 @@ test('profile and research endpoints authenticate authority and never accept cli
   const token = created.body.profileToken;
   const automatic = core.content.recipes.find(recipe => recipe.unlockType === 'clear');
   assert.equal((await request('/research', { recipeId: automatic.id }, token)).body.error, 'recipe_not_researchable');
-  assert.equal((await request('/research', { recipeId: 'make_liu_bei', researchCredits: 9000 }, token)).body.error, 'research_prerequisite');
+  assert.equal((await request('/research', { recipeId: 'make_fire_4', researchCredits: 9000 }, token)).body.error, 'recipe_not_researchable');
   assert.equal((await request('/research', { recipeId: 'not-a-recipe' }, token)).status, 400);
   const current = (await request('/profile', undefined, token)).body.profile;
   assert.equal(current.researchCredits, 0);
@@ -65,7 +65,7 @@ test('stage gates use server profiles and existing room stage; reward accounts c
   assert.equal((await request('/session', { roomId: 'locked', playerId: 'one', battlefieldId: 2, profileToken: one.profileToken })).body.error, 'battlefield_locked');
   assert.equal((await request('/session', { roomId: 'invalid', playerId: 'one', battlefieldId: 0, profileToken: one.profileToken })).body.error, 'invalid_battlefield');
   const first = (await request('/session', { roomId: 'home', playerId: 'one', battlefieldId: 1,
-    profileToken: one.profileToken, unlockedRecipes: ['make_liu_bei'], researchCredits: 9000 })).body;
+    profileToken: one.profileToken, unlockedRecipes: ['make_fire_4'], researchCredits: 9000 })).body;
   assert.equal(first.state.practice, false);
   assert.deepEqual(first.state.players[0].unlockedRecipes, []);
   assert.equal((await request('/session', { roomId: 'home', playerId: 'duplicate', profileToken: one.profileToken })).body.error, 'profile_already_in_room');
@@ -82,7 +82,7 @@ test('stage gates use server profiles and existing room stage; reward accounts c
   assert.equal((await request('/state', undefined, first.token)).status, 401, 'recovering a seat revokes its old session');
 });
 
-test('real stage clears grant recipes, paid research deploys once, and receipts survive profile-server restart', async t => {
+test('real stage clears grant recipes while future research stays locked and receipts survive profile-server restart', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'towerdef-progression-api-'));
   const filePath = join(directory, 'profiles.json');
   t.after(async () => { await rm(filePath, { force: true }); await rmdir(directory); });
@@ -114,13 +114,12 @@ test('real stage clears grant recipes, paid research deploys once, and receipts 
     assert.equal(resumed.body.profile.researchCredits, expectedCredits);
     assert.equal((await request('/profile', undefined, account.profileToken)).body.profile.researchCredits, expectedCredits);
     assert.equal((await request('/research', { recipeId: automaticThrough(battlefieldId)[0] }, account.profileToken)).body.error, 'recipe_not_researchable');
-    if (battlefieldId < 3) assert.equal((await request('/research', { recipeId: 'make_liu_bei' }, account.profileToken)).body.error, 'research_prerequisite');
+    assert.equal((await request('/research', { recipeId: 'make_fire_4' }, account.profileToken)).body.error, 'recipe_not_researchable');
   }
-  const purchases = await Promise.all(Array.from({ length: 4 }, () => request('/research', { recipeId: 'make_liu_bei' }, account.profileToken)));
-  assert.ok(purchases.every(response => response.status === 200));
-  assert.equal(purchases.filter(response => !response.body.alreadyUnlocked).length, 1);
-  assert.ok(purchases.every(response => response.body.profile.researchCredits === 180));
-  const expectedRecipes = [...automaticThrough(3), 'make_liu_bei'];
+  const purchases = await Promise.all(Array.from({ length: 4 }, () => request('/research', { recipeId: 'make_fire_4' }, account.profileToken)));
+  assert.ok(purchases.every(response => response.status === 400 && response.body.error === 'recipe_not_researchable'));
+  assert.equal(store.getProfile(account.profile.id).researchCredits, 240);
+  const expectedRecipes = automaticThrough(3);
   const deployed = (await request('/session', { roomId: 'deployed', playerId: 'one', battlefieldId: 4, profileToken: account.profileToken })).body;
   assert.equal(deployed.state.battlefieldId, 4);
   assert.deepEqual(deployed.state.players[0].unlockedRecipes, expectedRecipes);
@@ -130,11 +129,28 @@ test('real stage clears grant recipes, paid research deploys once, and receipts 
   const restarted = await serve(t, { progressionStore: restartedStore });
   assert.equal((await restarted.request('/state', undefined, deployed.token)).status, 401, 'active rooms are explicitly ephemeral');
   const profile = (await restarted.request('/profile', undefined, account.profileToken)).body.profile;
-  assert.equal(profile.researchCredits, 180);
+  assert.equal(profile.researchCredits, 240);
   assert.equal(profile.stats.clears, 3);
   assert.deepEqual(profile.unlockedRecipes, expectedRecipes);
   assert.equal(restartedStore.recordResult(profile.id, firstState.expeditionId, firstState.players[0].result).applied, false);
-  assert.equal((await restarted.request('/research', { recipeId: 'make_liu_bei' }, account.profileToken)).body.profile.researchCredits, 180);
+  assert.equal((await restarted.request('/research', { recipeId: 'make_fire_4' }, account.profileToken)).body.error, 'recipe_not_researchable');
+  assert.equal(restartedStore.getProfile(profile.id).researchCredits, 240);
+});
+
+test('the research HTTP transaction remains atomic for an explicitly configured paid recipe', async t => {
+  const researchContent = { ...core.content, recipes: [...core.content.recipes,
+    { id: 'paid-test-blueprint', unlockBattlefield: 1, unlockType: 'research', researchCost: 60 }
+  ] };
+  const store = createProgressionStore({ content: researchContent });
+  const { request } = await serve(t, { progressionStore: store });
+  const account = (await request('/profile', {})).body;
+  assert.equal((await request('/research', { recipeId: 'paid-test-blueprint' }, account.profileToken)).body.error, 'research_prerequisite');
+  store.recordResult(account.profile.id, 'earned', { battlefieldId: 1, status: 'cleared', cleared: true, researchCredits: 100 });
+  const responses = await Promise.all(Array.from({ length: 4 }, () => request('/research', { recipeId: 'paid-test-blueprint' }, account.profileToken)));
+  assert.ok(responses.every(response => response.status === 200));
+  assert.equal(responses.filter(response => !response.body.alreadyUnlocked).length, 1);
+  assert.ok(responses.every(response => response.body.profile.researchCredits === 40));
+  assert.deepEqual(store.getProfile(account.profile.id).unlockedRecipes, ['paid-test-blueprint']);
 });
 test('accelerated and explicitly marked practice cannot grant credits or planet eligibility', async t => {
   let room;

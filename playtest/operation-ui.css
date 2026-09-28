@@ -63,3 +63,25 @@
  .canvas-wrap>.side-column .co-op-summary strong{font-size:11px;white-space:nowrap}
 }
 #game[data-tutorial=false] #next-wave{display:none}
+
+/* Field modifications share the robot inspector dock, without blocking support. */
+.field-mod-toggle{position:absolute;top:92px;left:max(12px,env(safe-area-inset-left));z-index:4;min-height:44px;width:142px;padding:6px 8px;background:#172d34ed;border:1px solid #859d98;border-radius:9px;color:#e0eee5;font-size:11px;text-align:center}
+.field-mod-toggle[data-available=true]{background:#e8cd8b;color:#17242b;border-color:#f6e2ad;font-weight:700}
+.canvas-wrap>.field-mod-dialog{position:absolute;inset:auto max(12px,env(safe-area-inset-right)) calc(196px + env(safe-area-inset-bottom)) auto;width:min(400px,calc(100% - 24px));height:min(230px,30dvh);max-height:30dvh;margin:0;box-sizing:border-box;padding:10px;border:1px solid #8ca393;border-radius:12px;background:#142731f5;color:#edf1e4;z-index:8;text-align:left;overflow:hidden}
+.field-mod-dialog[open]{display:flex;flex-direction:column;gap:4px}
+.field-mod-dialog .dialog-heading{flex:none;min-height:44px;margin:0;gap:8px;justify-content:space-between}
+.field-mod-dialog h2{font-size:16px;margin:0}.field-mod-dialog .icon-button{width:44px;min-width:44px;height:44px;min-height:44px}
+.field-mod-scroll{overflow:auto;overscroll-behavior:contain;min-height:0;flex:1;padding-right:3px}
+.field-mod-scroll>p{font-size:11px;line-height:1.6;margin:4px 0;color:#c3d8d1}
+#field-mod-current{font-size:13px;color:#efd89e;font-weight:700}
+.field-mod-option{display:flex;align-items:center;gap:8px;border-top:1px solid #64827866;padding:10px 0}
+.field-mod-option>div{flex:1;min-width:0}.field-mod-option h3{margin:0 0 4px;font-size:13px;color:#f0e4c8}.field-mod-option h3 span{color:#d9c186;font-size:11px}
+.field-mod-option p{font-size:12px;line-height:1.5;margin:3px 0}.field-mod-option small{display:block;color:#b1c7c9;font-size:11px;line-height:1.5}
+.field-mod-option button{min-width:56px;min-height:44px;padding:8px;flex:none}.field-mod-option.current{border-left:3px solid #c4d99c;padding-left:8px}
+.field-mod-stats{border-top:1px solid #64827866;color:#c3d8d1;font-size:11px;line-height:1.6}.field-mod-stats p{margin:6px 0}
+.canvas-wrap:has(.field-mod-dialog[open]) .radio-message{visibility:hidden}
+@media(max-height:500px){
+ .field-mod-toggle{top:30px;left:392px;width:142px}
+ .canvas-wrap:has(#boss-hud:not([hidden])) .field-mod-toggle{left:162px}
+ .canvas-wrap>.field-mod-dialog{inset:auto auto calc(78px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));width:min(480px,calc(100% - 168px));height:min(140px,36dvh);max-height:36dvh;padding:6px 10px}
+}

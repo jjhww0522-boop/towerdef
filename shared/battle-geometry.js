@@ -42,13 +42,13 @@ function openLayout(width, height, routes, slots, facility) {
 const layouts = {
   0: { width: 420, height: 220, rotateInPortrait: true,
     routes: [route([[0, 0], [420, 0], [420, 220], [0, 220]], true)],
-    slots: [{ x: 80, y: 90 }, { x: 210, y: 140 }, { x: 340, y: 90 }], facility: null },
+    slots: [{ x: 80, y: 90 }, { x: 210, y: 140 }, { x: 340, y: 65 }, { x: 340, y: 155 }], facility: null },
   1: { width: BOARD_WIDTH, height: BOARD_HEIGHT, rotateInPortrait: true,
     routes: [route([[0, 0], [420, 0], [420, 220], [0, 220]], true)],
     slots: grid(5, 2, 50, 65, 80, 90), facility: null },
-  2: openLayout(600, 1440, [route([[300, 0], [300, 1360]])],
+  2: { ...openLayout(600, 1440, [route([[300, 0], [300, 1360]])],
     rows([180, 420], [120, 360, 600, 840, 1080, 1320]),
-    { x: 300, y: 1420 }),
+    { x: 300, y: 1420 }), rotateInLandscape: true },
   3: openLayout(1640, 800, [route([[0, 400], [1550, 400]])],
     rows([90, 330, 570, 810, 1050, 1290, 1530], [280, 520]),
     { x: 1620, y: 400 }),
@@ -92,6 +92,7 @@ export function distanceSquared(a, b) {
 export function projectPoint(point, road, portrait, battlefieldId = 1) {
   const layout = getBattlefieldLayout(battlefieldId), rotate = portrait && layout.rotateInPortrait;
   const x = point.x / layout.width, y = point.y / layout.height;
+  if (!portrait && layout.rotateInLandscape) return { x: road.left + y * (road.right - road.left), y: road.top + x * (road.bottom - road.top) };
   return { x: road.left + (rotate ? 1 - y : x) * (road.right - road.left),
     y: road.top + (rotate ? x : y) * (road.bottom - road.top) };
 }

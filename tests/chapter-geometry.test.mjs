@@ -76,13 +76,17 @@ test('chapter one has distinct loop, vertical, horizontal, opposing and cross ro
   assert.deepEqual(layouts[4].routes.map(route => route.points[0]), [{ x: 0, y: 720 }, { x: 1440, y: 720 }, { x: 720, y: 0 }, { x: 720, y: 1440 }]);
 });
 
-test('open routes retain their ingress direction after rotation; stage one keeps its introductory loop rotation', () => {
+test('mining rotates only its display into landscape while other open routes retain their direction', () => {
   const road = { left: 10, right: 210, top: 30, bottom: 430 };
-  for (const id of [2, 3, 4, 5]) for (const point of getBattlefieldLayout(id).routes.flatMap(route => route.points)) {
+  for (const id of [3, 4, 5]) for (const point of getBattlefieldLayout(id).routes.flatMap(route => route.points)) {
     assert.deepEqual(projectPoint(point, road, true, id), projectPoint(point, road, false, id));
   }
   assert.deepEqual(projectPoint({ x: 0, y: 0 }, road, true), { x: 210, y: 30 });
   assert.deepEqual(projectPoint({ x: 0, y: 0 }, road, false), { x: 10, y: 30 });
+  assert.deepEqual(projectPoint({ x: 300, y: 0 }, road, true, 2), { x: 110, y: 30 });
+  assert.deepEqual(projectPoint({ x: 300, y: 0 }, road, false, 2), { x: 10, y: 230 });
+  assert.equal(getBattlefieldLayout(2).routes[0].length, 1360, 'display rotation preserves combat distance');
+  assert.ok(projectPoint({ x: 300, y: 1420 }, road, false, 2).x > 200, 'facility stays at the right exit');
 });
 test('each map fills its actual slots and combines at the chosen anchor without changing summon rules', () => {
   for (const stage of content.battlefields) {
@@ -95,17 +99,18 @@ test('each map fills its actual slots and combines at the chosen anchor without 
     ready(game, player);
     assert.deepEqual(player.units.map(unit => unit.slot).sort((a, b) => a - b), Array.from({ length: max }, (_, i) => i));
     assert.equal(applyAction(game, player.id, { seq: max + 1, type: 'summon' }).error, 'UNIT_CAP');
-    const recipe = content.recipes[0], anchor = player.units.find(unit => unit.slot === max - 1), other = player.units.find(unit => unit.slot === 0);
-    anchor.definitionId = recipe.ingredients[0]; other.definitionId = recipe.ingredients[1];
-    assert.equal(applyAction(game, player.id, { seq: max + 2, type: 'combine', recipeId: recipe.id, unitIds: [anchor.id, other.id] }).ok, true);
+    const recipe = content.recipes[0], anchor = player.units.find(unit => unit.slot === max - 1), other = player.units.find(unit => unit.slot === 0), third = player.units.find(unit => unit.slot === 1);
+    [anchor, other, third].forEach((unit, i) => { unit.definitionId = recipe.ingredients[i]; });
+    assert.equal(applyAction(game, player.id, { seq: max + 2, type: 'combine', recipeId: recipe.id, unitIds: [anchor.id, other.id, third.id] }).ok, true);
     assert.equal(player.units.at(-1).slot, max - 1);
     assert.equal(applyAction(game, player.id, { seq: max + 3, type: 'summon' }).ok, true);
-    assert.equal(player.units.at(-1).slot, 0, 'only the consumed material slot was freed');
+    assert.ok([0, 1].includes(player.units.at(-1).slot), 'summon chooses one of the two consumed material slots');
+    assert.equal(player.units.length, max - 1);
   }
 });
 
 test('server range checks use the selected map rather than the default rectangle', () => {
-  const range = content.units.find(unit => unit.id === 'shu_guard').attackRange;
+  const range = content.units.find(unit => unit.id === 'fire_1').attackRange;
   for (const id of [2, 3, 4, 5]) for (const expectedHit of [true, false]) {
     let sample;
     for (let slot = 0; slot < Math.min(SLOT_COUNT, getBattlefieldLayout(id).slots.length) && !sample; slot++) {
@@ -122,7 +127,7 @@ test('server range checks use the selected map rather than the default rectangle
     assert.ok(sample, `map ${id} needs a distinguishable range boundary`);
     const game = create(id), player = game.players[0];
     applyAction(game, player.id, { seq: 1, type: 'summon' });
-    Object.assign(player.units[0], { definitionId: 'shu_guard', slot: sample.slot });
+    Object.assign(player.units[0], { definitionId: 'fire_1', slot: sample.slot });
     const target = { id: game.nextEntityId++, hp: 10000, maxHp: 10000, boss: false, progress: sample.progress - game.rules.enemyProgressPerTick };
     player.enemies.push(target); tick(game);
     assert.equal(target.hp < target.maxHp, expectedHit, `map ${id}, slot ${sample.slot}`);
@@ -147,7 +152,7 @@ test('new stages spawn a single boss at ten and fifteen minutes and defend their
     const bossPoint = enemyPoint(boss.progress, id, boss.routeIndex);
     const slot = getBattlefieldLayout(id).slots.findIndex(point => distanceSquared(point, bossPoint) < 500 ** 2);
     assert.ok(slot >= 0);
-    Object.assign(player.units[0], { definitionId: 'wei_archer', slot });
+    Object.assign(player.units[0], { definitionId: 'laser_1', slot });
     tick(game); assert.equal(player.status, 'cleared');
     assert.equal(game.players[1].status, 'active', 'one lane clear never clears a teammate');
   }

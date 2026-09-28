@@ -25,7 +25,8 @@ function finishCounterattack(game) {
 function fill(game) {
   const units = opening(game);
   accepted(game, 'tutorial_next', { unitIds: [units.anchor.id] });
-  return { ...units, sale: draw(game) };
+  const second = draw(game); assert.equal(game.tutorial.step, 'fill');
+  return { ...units, second, sale: draw(game) };
 }
 function materials(game) {
   const units = fill(game); accepted(game, 'salvage', { unitIds: [units.sale.id] });
@@ -33,9 +34,9 @@ function materials(game) {
 }
 function ready(game) {
   const units = materials(game);
-  accepted(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [units.anchor.id, units.coil.id] });
+  accepted(game, 'combine', { recipeId: 'make_laser_2', unitIds: [units.anchor.id, units.second.id, units.coil.id] });
   finishCounterattack(game);
-  return { ...units, result: player(game).units.find(unit => unit.definitionId === 'cheng_yu') };
+  return { ...units, result: player(game).units.find(unit => unit.definitionId === 'laser_2') };
 }
 function actionState(game) {
   const p = player(game);
@@ -49,10 +50,10 @@ function rejected(game, type, extra = {}, error = 'TUTORIAL_ACTION_REQUIRED') {
   assert.deepEqual(actionState(game), before, 'rejected action leaves lesson, resources and robots unchanged');
 }
 
-test('tutorial creates isolated solo practice with three slots and no campaign unlocks', () => {
+test('tutorial creates isolated solo practice with four slots and no campaign unlocks', () => {
   const originalRules = structuredClone(content.rules), game = create();
   assert.equal(game.battlefieldId, 0); assert.equal(game.practice, true);
-  assert.equal(game.rules.maxUnits, 3); assert.deepEqual(game.stories, []);
+  assert.equal(game.rules.maxUnits, 4); assert.deepEqual(game.stories, []);
   assert.equal(player(game).facilityHp, null);
   assert.deepEqual(game.tutorial, { step: 'intro', drawCount: 0, anchorUnitId: null, saleUnitId: null, skirmishAtTick: null, bossAtTick: null });
   assert.deepEqual(publicState(game).tutorial, game.tutorial);
@@ -63,7 +64,7 @@ test('tutorial creates isolated solo practice with three slots and no campaign u
 });
 
 test('tutorial advances only at its checkpoint and validates the inspected robot', () => {
-  const game = create(); rejected(game, 'summon'); rejected(game, 'upgrade', { tag: 'wei' });
+  const game = create(); rejected(game, 'summon'); rejected(game, 'upgrade', { tag: 'frost' });
   accepted(game, 'tutorial_next'); assert.equal(game.tutorial.step, 'summon');
   rejected(game, 'tutorial_next'); const anchor = draw(game);
   assert.equal(game.tutorial.step, 'summon'); draw(game);
@@ -73,7 +74,7 @@ test('tutorial advances only at its checkpoint and validates the inspected robot
   rejected(game, 'tutorial_next', { unitIds: [anchor.id + 100] });
   rejected(game, 'tutorial_next', { unitIds: [anchor.id, anchor.id] });
   accepted(game, 'tutorial_next', { unitIds: [anchor.id] }); assert.equal(game.tutorial.step, 'fill');
-  rejected(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [anchor.id] });
+  rejected(game, 'combine', { recipeId: 'make_laser_2', unitIds: [anchor.id] });
   rejected(game, 'dispatch', { unitIds: [anchor.id] });
 });
 
@@ -83,39 +84,41 @@ test('guided summons enforce cooldown without consuming resources or the next sc
   rejected(game, 'summon', {}, 'SUMMON_COOLDOWN');
   while (game.tick < player(game).nextSummonTick - 1) tick(game);
   rejected(game, 'summon', {}, 'SUMMON_COOLDOWN'); tick(game); accepted(game, 'summon');
-  assert.equal(player(game).units.at(-1).definitionId, 'wei_guard'); assert.equal(game.tutorial.drawCount, 2);
+  assert.equal(player(game).units.at(-1).definitionId, 'frost_1'); assert.equal(game.tutorial.drawCount, 2);
 });
 
 test('fixed draws teach the real unit cap, protect ingredients and reuse the sold slot without RNG', () => {
   for (const seed of [0, 1, 42, 98765]) {
     const game = create(seed), rng = [game.rngState, game.placementRngState];
-    const { anchor, support, sale } = fill(game), p = player(game);
-    assert.deepEqual(p.units.map(unit => unit.definitionId), ['wei_archer', 'wei_guard', 'wu_archer']);
-    assert.deepEqual(p.units.map(unit => unit.slot), [0, 1, 2]); assert.equal(game.tutorial.saleUnitId, sale.id);
+    const { anchor, support, second, sale } = fill(game), p = player(game);
+    assert.deepEqual(p.units.map(unit => unit.definitionId), ['laser_1', 'frost_1', 'laser_1', 'fire_1']);
+    assert.deepEqual(p.units.map(unit => unit.slot), [0, 1, 2, 3]); assert.equal(game.tutorial.saleUnitId, sale.id);
     rejected(game, 'summon', {}, 'UNIT_CAP'); rejected(game, 'salvage', { unitIds: [anchor.id] });
     rejected(game, 'salvage', { unitIds: [support.id] });
-    rejected(game, 'salvage', { unitIds: [sale.id, support.id] }); rejected(game, 'upgrade', { tag: 'wei' });
+    rejected(game, 'salvage', { unitIds: [second.id] });
+    rejected(game, 'salvage', { unitIds: [sale.id, support.id] }); rejected(game, 'upgrade', { tag: 'frost' });
     const gold = p.gold, refund = Math.floor(sale.investedGold * game.rules.salvageRefundRatio);
     accepted(game, 'salvage', { unitIds: [sale.id] });
-    assert.equal(p.gold, gold + refund); assert.equal(p.units.length, 2);
+    assert.equal(p.gold, gold + refund); assert.equal(p.units.length, 3);
     assert.equal(game.tutorial.step, 'replacement'); assert.ok(!p.units.some(unit => unit.id === sale.id));
     const coil = draw(game);
-    assert.equal(coil.definitionId, 'wu_guard'); assert.equal(coil.slot, sale.slot);
-    assert.equal(game.tutorial.step, 'combine'); assert.equal(game.tutorial.drawCount, 4);
+    assert.equal(coil.definitionId, 'laser_1'); assert.equal(coil.slot, sale.slot);
+    assert.equal(game.tutorial.step, 'combine'); assert.equal(game.tutorial.drawCount, 5);
     assert.deepEqual([game.rngState, game.placementRngState], rng);
   }
 });
 
 test('only the chosen recipe and anchor order complete the assembly lesson', () => {
-  const game = create(), { anchor, support, coil } = materials(game);
-  rejected(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [coil.id, anchor.id] });
-  rejected(game, 'combine', { recipeId: 'make_ma_liang', unitIds: [anchor.id, coil.id] });
-  rejected(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [anchor.id, support.id] }, 'INVALID_INGREDIENTS');
-  accepted(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [anchor.id, coil.id] });
-  const result = player(game).units.find(unit => unit.definitionId === 'cheng_yu');
+  const game = create(), { anchor, support, second, coil } = materials(game);
+  rejected(game, 'combine', { recipeId: 'make_laser_2', unitIds: [coil.id, anchor.id, second.id] });
+  rejected(game, 'combine', { recipeId: 'make_frost_2', unitIds: [anchor.id, second.id, coil.id] });
+  rejected(game, 'combine', { recipeId: 'make_laser_2', unitIds: [anchor.id, support.id] }, 'INVALID_INGREDIENTS');
+  rejected(game, 'combine', { recipeId: 'make_laser_2', unitIds: [anchor.id, support.id, coil.id] }, 'INVALID_INGREDIENTS');
+  accepted(game, 'combine', { recipeId: 'make_laser_2', unitIds: [anchor.id, second.id, coil.id] });
+  const result = player(game).units.find(unit => unit.definitionId === 'laser_2');
   assert.ok(result); assert.equal(result.slot, anchor.slot);
-  assert.equal(result.investedGold, anchor.investedGold + coil.investedGold);
-  assert.deepEqual(player(game).units.map(unit => unit.definitionId).sort(), ['cheng_yu', 'wei_guard']);
+  assert.equal(result.investedGold, anchor.investedGold + second.investedGold + coil.investedGold);
+  assert.deepEqual(player(game).units.map(unit => unit.definitionId).sort(), ['frost_1', 'laser_2']);
   assert.equal(game.tutorial.step, 'counterattack'); assert.equal(game.tutorial.bossAtTick, null);
   assert.ok(player(game).enemies.length > 0); rejected(game, 'tutorial_next');
 });
@@ -130,9 +133,9 @@ test('retransmitted summon, sale, combine and ready packets never repeat lesson 
   }
   repeat('summon'); const anchor = player(game).units[0];
   draw(game); for (let i = 0; i < 80; i++) tick(game);
-  accepted(game, 'tutorial_next', { unitIds: [anchor.id] }); const sale = draw(game);
+  accepted(game, 'tutorial_next', { unitIds: [anchor.id] }); const second = draw(game), sale = draw(game);
   repeat('salvage', { unitIds: [sale.id] }); const coil = draw(game);
-  const combined = repeat('combine', { recipeId: 'make_cheng_yu', unitIds: [anchor.id, coil.id] });
+  const combined = repeat('combine', { recipeId: 'make_laser_2', unitIds: [anchor.id, second.id, coil.id] });
   assert.deepEqual(applyAction(game, 'p', { seq: combined.seq, type: 'tutorial_next' }), { ok: false, error: 'SEQUENCE_REUSED' });
   assert.equal(game.tutorial.bossAtTick, null);
   finishCounterattack(game);
@@ -176,11 +179,11 @@ test('readiness starts an eight-second boss countdown after an arbitrarily long 
   assert.equal(publicState(game).bossRemainingTicks, game.rules.bossTicks);
 });
 
-test('all three tutorial positions cover every boss-route segment with the lens assembly', () => {
-  const layout = getBattlefieldLayout(0), lens = content.units.find(unit => unit.id === 'cheng_yu');
-  assert.equal(layout.width, 420); assert.equal(layout.height, 220); assert.equal(layout.slots.length, 3);
-  assert.equal(new Set(layout.slots.map(point => [point.x, point.y].join(','))).size, 3);
-  for (let slot = 0; slot < 3; slot++) {
+test('all four tutorial positions cover every boss-route segment with the lens assembly', () => {
+  const layout = getBattlefieldLayout(0), lens = content.units.find(unit => unit.id === 'laser_2');
+  assert.equal(layout.width, 420); assert.equal(layout.height, 220); assert.equal(layout.slots.length, 4);
+  assert.equal(new Set(layout.slots.map(point => [point.x, point.y].join(','))).size, 4);
+  for (let slot = 0; slot < 4; slot++) {
     assert.deepEqual(unitPoint(slot, 0), layout.slots[slot]);
     for (const route of layout.routes) for (const point of route.points) {
       assert.ok(distanceSquared(unitPoint(slot, 0), point) <= lens.attackRange ** 2, 'vertices and their straight connecting segments stay in range');
@@ -246,13 +249,13 @@ test('two starter robots fight a real wave before surviving enemies motivate ass
 });
 
 test('assembly resumes the same enemies with stronger real damage and unlocks the boss only after their deaths', () => {
-  const game = create(), { anchor, coil } = materials(game), p = player(game);
+  const game = create(), { anchor, second, coil } = materials(game), p = player(game);
   const oldEnemies = p.enemies.map(enemy => enemy.id), oldDamage = Math.max(...anchor.lastAttackHits.map(hit => hit.damage));
   assert.ok(oldDamage > 0, 'record the starter robot’s actual attack before comparing');
-  accepted(game, 'combine', { recipeId: 'make_cheng_yu', unitIds: [anchor.id, coil.id] });
+  accepted(game, 'combine', { recipeId: 'make_laser_2', unitIds: [anchor.id, second.id, coil.id] });
   assert.deepEqual(p.enemies.map(enemy => enemy.id), oldEnemies);
   assert.equal(publicState(game).combatPaused, false); rejected(game, 'tutorial_next');
-  const lens = p.units.find(unit => unit.definitionId === 'cheng_yu'); let greatestHit = 0;
+  const lens = p.units.find(unit => unit.definitionId === 'laser_2'); let greatestHit = 0;
   for (let i = 0; i < 600 && game.tutorial.step === 'counterattack'; i++) {
     tick(game); if (lens.lastAttackTick === game.tick) greatestHit = Math.max(greatestHit, ...lens.lastAttackHits.map(hit => hit.damage));
   }

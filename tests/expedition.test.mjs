@@ -56,12 +56,12 @@ test('mining transitions into evacuation at the selected planet deadline and sto
   }
 });
 
-test('deep mining increases enemy strength, arrival pressure and wave income without changing summon odds', () => {
+test('deep mining increases enemy strength and arrival pressure while keeping early wave income predictable', () => {
   const early = create({ battlefieldId: 2 }), late = create({ battlefieldId: 2 });
   early.tick = early.rules.waveTicks - 1; late.tick = late.rules.waveTicks * (late.rules.totalWaves - 2) - 1;
   const earlyGold = early.players[0].gold, lateGold = late.players[0].gold;
   tick(early); tick(late);
-  assert.ok(late.players[0].gold - lateGold > early.players[0].gold - earlyGold);
+  assert.equal(late.players[0].gold - lateGold, early.players[0].gold - earlyGold);
   early.players.forEach(p => p.enemies = []); late.players.forEach(p => p.enemies = []);
   for (let i = 0; i < 120; i++) { tick(early); tick(late); }
   assert.ok(late.players[0].enemies.length > early.players[0].enemies.length);
@@ -69,8 +69,8 @@ test('deep mining increases enemy strength, arrival pressure and wave income wit
   assert.deepEqual(late.rules.summonWeights, content.rules.summonWeights);
 });
 
-test('researched blueprint accepts exact ingredients but cannot bypass ownership or material requirements', () => {
-  const recipe = content.recipes.find(r => r.id === 'make_liu_bei');
+test('unlocked blueprint accepts exact ingredients but cannot bypass ownership or material requirements', () => {
+  const recipe = content.recipes.find(r => r.id === 'make_fire_3');
   const locked = create(), owner = locked.players[0];
   const lockedUnits = recipe.ingredients.map(id => give(locked, owner, id));
   assert.equal(act(locked, owner, { type: 'combine', recipeId: recipe.id, unitIds: lockedUnits.map(u => u.id) }).error, 'RECIPE_LOCKED');
@@ -86,10 +86,11 @@ test('researched blueprint accepts exact ingredients but cannot bypass ownership
   assert.deepEqual(player.units.map(u => u.definitionId), [recipe.result]);
 });
 
-test('high-tier clear reward stays locked until earned and ultimate still needs researched materials', () => {
-  const free = content.recipes.find(r => r.result === 'salvage_colossus');
-  const ultimate = content.recipes.find(r => r.result === 'orbital_ark');
-  assert.equal(free.unlockBattlefield, 4); assert.equal(free.unlockType, 'clear'); assert.equal(free.researchCost, 0);
+test('future high tiers stay locked in normal play and explicitly granted test blueprints still require materials', () => {
+  const free = content.recipes.find(r => r.result === 'wind_4');
+  const ultimate = content.recipes.find(r => r.result === 'guardian_s');
+  assert.equal(free.unlockBattlefield, 6); assert.equal(free.unlockType, 'future'); assert.equal(free.researchCost, 0);
+  assert.equal(ultimate.unlockType, 'future');
   assert.equal(content.units.find(u => u.id === ultimate.result).tier, 'ultimate');
   assert.ok(ultimate.ingredients.every(id => content.recipes.some(r => r.result === id && r.unlockBattlefield > 0)));
   const game = create(), player = game.players[0];
@@ -102,7 +103,7 @@ test('high-tier clear reward stays locked until earned and ultimate still needs 
   const parts = ultimate.ingredients.map(id => give(research, builder, id, 240));
   assert.equal(act(research, builder, { type: 'combine', recipeId: ultimate.id, unitIds: parts.map(u => u.id) }).ok, true);
   assert.equal(builder.units.length, 1);
-  assert.equal(builder.units[0].definitionId, 'orbital_ark');
+  assert.equal(builder.units[0].definitionId, 'guardian_s');
   assert.equal(builder.units[0].investedGold, 720);
 });
 
@@ -116,15 +117,15 @@ test('salvage refunds only invested cost fraction, is idempotent and rejects for
   assert.equal(applyAction(game, player.id, action).ok, true);
   assert.equal(player.gold, original + 7);
   assert.equal(player.units.length, 0);
-  const a = give(game, player, 'shu_guard'), b = give(game, player, 'shu_rider');
-  const other = give(game, game.players[1], 'shu_guard');
+  const a = give(game, player, 'fire_1'), b = give(game, player, 'fire_1'), c = give(game, player, 'fire_1');
+  const other = give(game, game.players[1], 'fire_1');
   for (const unitIds of [[other.id], [a.id, b.id], [a.id, a.id]]) assert.equal(act(game, player, { type: 'salvage', unitIds }).error, 'INVALID_UNITS');
   a.dispatched = true;
   assert.equal(act(game, player, { type: 'salvage', unitIds: [a.id] }).error, 'INVALID_UNITS');
-  assert.equal(player.units.length, 2);
+  assert.equal(player.units.length, 3);
   a.dispatched = false;
-  assert.equal(act(game, player, { type: 'combine', recipeId: 'make_guan_ping', unitIds: [a.id, b.id] }).ok, true);
-  assert.equal(publicState(game).players[0].units[0].salvageGold, 14);
+  assert.equal(act(game, player, { type: 'combine', recipeId: 'make_fire_2', unitIds: [a.id, b.id, c.id] }).ok, true);
+  assert.equal(publicState(game).players[0].units[0].salvageGold, 21);
 });
 
 test('partial research rewards require real combat and investment; leave, practice and idle cannot farm them', () => {
@@ -154,7 +155,7 @@ test('evacuation clear freezes a single result and grants its bonus only to the 
   game.tick = game.rules.waveTicks * game.rules.totalWaves;
   player.enemies = [enemy(game, 1, true)];
   const point = enemyPoint(0, game.battlefieldId);
-  Object.assign(player.units[0], { definitionId: 'wei_archer', slot: getBattlefieldLayout(game.battlefieldId).slots.findIndex(slot => distanceSquared(slot, point) < 500 ** 2) });
+  Object.assign(player.units[0], { definitionId: 'laser_1', slot: getBattlefieldLayout(game.battlefieldId).slots.findIndex(slot => distanceSquared(slot, point) < 500 ** 2) });
   tick(game);
   assert.equal(player.status, 'cleared');
   assert.equal(player.result.researchCredits, 120);
@@ -171,7 +172,7 @@ test('evacuation clear freezes a single result and grants its bonus only to the 
 test('late-planet story retains personal lanes, reserved slots and equal active-player rewards', () => {
   const game = create({ battlefieldId: 3 }), owner = game.players[0], peer = game.players[1];
   game.tick = (game.stories[1].wave - 1) * game.rules.waveTicks - 1; tick(game);
-  const unit = give(game, owner, 'salvage_colossus');
+  const unit = give(game, owner, 'wind_4');
   const target = enemy(game); owner.enemies = [target];
   assert.equal(act(game, owner, { type: 'dispatch', unitIds: [unit.id] }).ok, true);
   const before = game.players.map(p => p.gold);

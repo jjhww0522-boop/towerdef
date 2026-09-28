@@ -1,0 +1,479 @@
+{
+  "recordedAt": "2026-09-27T02:26:11.651Z",
+  "scope": "client/Assets/Resources/MobileArt",
+  "method": "Filesystem bytes; PNG IHDR dimensions; SHA-256 of encoded PNG. No export, import, Unity runtime or device measurement.",
+  "total": {
+    "fileCount": 206,
+    "pngBytes": 2675163,
+    "rawRgba8PixelBytes": 65208320,
+    "uniqueFileHashes": 155,
+    "dimensions": {
+      "512x512": 16,
+      "256x256": 183,
+      "128x128": 7
+    }
+  },
+  "boss": {
+    "fileCount": 16,
+    "pngBytes": 486689,
+    "rawRgba8PixelBytes": 16777216,
+    "uniqueFileHashes": 11,
+    "dimensions": {
+      "512x512": 16
+    },
+    "exactDuplicatePngBytes": 149573,
+    "uniquePngBytes": 337116,
+    "shareOfTotalPngBytes": 0.18192872733362417
+  },
+  "groups": {
+    "Units": {
+      "fileCount": 112,
+      "pngBytes": 1398536,
+      "rawRgba8PixelBytes": 29360128,
+      "uniqueFileHashes": 93,
+      "dimensions": {
+        "256x256": 112
+      }
+    },
+    "Enemies": {
+      "fileCount": 80,
+      "pngBytes": 1148745,
+      "rawRgba8PixelBytes": 33554432,
+      "uniqueFileHashes": 55,
+      "dimensions": {
+        "512x512": 16,
+        "256x256": 64
+      }
+    },
+    "Portraits": {
+      "fileCount": 7,
+      "pngBytes": 85908,
+      "rawRgba8PixelBytes": 1835008,
+      "uniqueFileHashes": 7,
+      "dimensions": {
+        "256x256": 7
+      }
+    },
+    "Icons": {
+      "fileCount": 7,
+      "pngBytes": 41974,
+      "rawRgba8PixelBytes": 458752,
+      "uniqueFileHashes": 7,
+      "dimensions": {
+        "128x128": 7
+      }
+    }
+  },
+  "bossFiles": [
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/destroy_00.png",
+      "bytes": 31455,
+      "width": 512,
+      "height": 512,
+      "sha256": "4bbeb81f5bd9fb08641a199fd6f1c74a877590fd47c535e452feafb05dda4f76"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/destroy_01.png",
+      "bytes": 35883,
+      "width": 512,
+      "height": 512,
+      "sha256": "b5995eed32ae1251bfd2e89dfcd2521a0993cd7deb59f01118a83bef0cb2c0c0"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/destroy_02.png",
+      "bytes": 31513,
+      "width": 512,
+      "height": 512,
+      "sha256": "431828f132fcadb15ef7f202a098e2c3920c4568581e37926e82b15104a405db"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/destroy_03.png",
+      "bytes": 25497,
+      "width": 512,
+      "height": 512,
+      "sha256": "06ab2f63917c058d281b211f498b824cacee1af3dc077c14cd79242535d36840"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/hit_00.png",
+      "bytes": 31707,
+      "width": 512,
+      "height": 512,
+      "sha256": "de91f98786e8873851f9e514240700c40122505bc0e6cb6c30af31bc70fd71e8"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/hit_01.png",
+      "bytes": 31664,
+      "width": 512,
+      "height": 512,
+      "sha256": "1759e46d3c32b5ae496a0e2023eba7c9c69239ef544243fa37a6fe45aa63b373"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/hit_02.png",
+      "bytes": 29905,
+      "width": 512,
+      "height": 512,
+      "sha256": "09579e9ee484a6da5e558412f9f5e3c6f82a6ca0fd558464228c094d94f2ddfc"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/hit_03.png",
+      "bytes": 29914,
+      "width": 512,
+      "height": 512,
+      "sha256": "e29a8ab0faa24acb0c2a84386919df505491be716038297850d6a2af22f55972"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/move_00.png",
+      "bytes": 29914,
+      "width": 512,
+      "height": 512,
+      "sha256": "e29a8ab0faa24acb0c2a84386919df505491be716038297850d6a2af22f55972"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/move_01.png",
+      "bytes": 29951,
+      "width": 512,
+      "height": 512,
+      "sha256": "31a649407e1c47ae5e9574eee801bda717b06c612d6627207bcfe62bd6549a18"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/move_02.png",
+      "bytes": 29914,
+      "width": 512,
+      "height": 512,
+      "sha256": "e29a8ab0faa24acb0c2a84386919df505491be716038297850d6a2af22f55972"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/move_03.png",
+      "bytes": 29712,
+      "width": 512,
+      "height": 512,
+      "sha256": "d7cd66bc1a00e99626988f235a48ef47d291a25bf8e27547a5e941f693f4fc35"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/stop_00.png",
+      "bytes": 29915,
+      "width": 512,
+      "height": 512,
+      "sha256": "8221752b74a5297a34c03d2364b6e734a6852cbd290b8502a593eda7215c8da0"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/stop_01.png",
+      "bytes": 29915,
+      "width": 512,
+      "height": 512,
+      "sha256": "8221752b74a5297a34c03d2364b6e734a6852cbd290b8502a593eda7215c8da0"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/stop_02.png",
+      "bytes": 29915,
+      "width": 512,
+      "height": 512,
+      "sha256": "8221752b74a5297a34c03d2364b6e734a6852cbd290b8502a593eda7215c8da0"
+    },
+    {
+      "path": "client/Assets/Resources/MobileArt/Enemies/boss/stop_03.png",
+      "bytes": 29915,
+      "width": 512,
+      "height": 512,
+      "sha256": "8221752b74a5297a34c03d2364b6e734a6852cbd290b8502a593eda7215c8da0"
+    }
+  ],
+  "duplicateGroups": [
+    {
+      "hash": "e29a8ab0faa24acb0c2a84386919df505491be716038297850d6a2af22f55972",
+      "bytesEach": 29914,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/boss/hit_03.png",
+        "client/Assets/Resources/MobileArt/Enemies/boss/move_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/boss/move_02.png"
+      ],
+      "avoidableCopiedPngBytes": 59828
+    },
+    {
+      "hash": "8221752b74a5297a34c03d2364b6e734a6852cbd290b8502a593eda7215c8da0",
+      "bytesEach": 29915,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/boss/stop_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/boss/stop_01.png",
+        "client/Assets/Resources/MobileArt/Enemies/boss/stop_02.png",
+        "client/Assets/Resources/MobileArt/Enemies/boss/stop_03.png"
+      ],
+      "avoidableCopiedPngBytes": 89745
+    },
+    {
+      "hash": "f11fbea905e012342325240faee6b22e608871ec88a74e41321c483a57921b9d",
+      "bytesEach": 9473,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/grunt/hit_03.png",
+        "client/Assets/Resources/MobileArt/Enemies/grunt/move_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/grunt/move_02.png"
+      ],
+      "avoidableCopiedPngBytes": 18946
+    },
+    {
+      "hash": "771fd844e23532b4d643472e4dd187c9bf97a39d6792bc05f45d8bec1d544415",
+      "bytesEach": 9473,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/grunt/stop_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/grunt/stop_01.png",
+        "client/Assets/Resources/MobileArt/Enemies/grunt/stop_02.png",
+        "client/Assets/Resources/MobileArt/Enemies/grunt/stop_03.png"
+      ],
+      "avoidableCopiedPngBytes": 28419
+    },
+    {
+      "hash": "a8bce01dd1224b13a4897709eb3b4535c7e83654cfd923436a7af2c4ff11d115",
+      "bytesEach": 10643,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/runner/hit_03.png",
+        "client/Assets/Resources/MobileArt/Enemies/runner/move_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/runner/move_02.png"
+      ],
+      "avoidableCopiedPngBytes": 21286
+    },
+    {
+      "hash": "6a0a739e38377a101b530e891adbd5e0179c6a2a2bae3b5d29b2dda0f3367005",
+      "bytesEach": 10660,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/runner/stop_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/runner/stop_01.png",
+        "client/Assets/Resources/MobileArt/Enemies/runner/stop_02.png",
+        "client/Assets/Resources/MobileArt/Enemies/runner/stop_03.png"
+      ],
+      "avoidableCopiedPngBytes": 31980
+    },
+    {
+      "hash": "f84afbe1118b7046528dc31114ba9e4a411d689b4622c95251b6082ec1cb8c3c",
+      "bytesEach": 8533,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/siege/hit_03.png",
+        "client/Assets/Resources/MobileArt/Enemies/siege/move_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/siege/move_02.png"
+      ],
+      "avoidableCopiedPngBytes": 17066
+    },
+    {
+      "hash": "7a4ac0eb981cb8e75a3cdcc992445dc05b8188e33102b3f2b714da63efa3ec02",
+      "bytesEach": 8539,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/siege/stop_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/siege/stop_01.png",
+        "client/Assets/Resources/MobileArt/Enemies/siege/stop_02.png",
+        "client/Assets/Resources/MobileArt/Enemies/siege/stop_03.png"
+      ],
+      "avoidableCopiedPngBytes": 25617
+    },
+    {
+      "hash": "8013a7dc872fc8fac6f2797aed515e72a947192b8fc336d31c7f091fe1500f55",
+      "bytesEach": 11619,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/swarm/hit_03.png",
+        "client/Assets/Resources/MobileArt/Enemies/swarm/move_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/swarm/move_02.png"
+      ],
+      "avoidableCopiedPngBytes": 23238
+    },
+    {
+      "hash": "ba52f8b661be7cc5df9c57ca3c378fab15eec225b4fb8e3b5604790aa0157d6f",
+      "bytesEach": 11638,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Enemies/swarm/stop_00.png",
+        "client/Assets/Resources/MobileArt/Enemies/swarm/stop_01.png",
+        "client/Assets/Resources/MobileArt/Enemies/swarm/stop_02.png",
+        "client/Assets/Resources/MobileArt/Enemies/swarm/stop_03.png"
+      ],
+      "avoidableCopiedPngBytes": 34914
+    },
+    {
+      "hash": "cf51297f3487f7979117df19842ce03269339251c2b8912be4c04c982b35241d",
+      "bytesEach": 12340,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Portraits/guan_ping.png",
+        "client/Assets/Resources/MobileArt/Units/guan_ping/idle_00.png",
+        "client/Assets/Resources/MobileArt/Units/guan_ping/prepare_00.png",
+        "client/Assets/Resources/MobileArt/Units/guan_ping/recover_03.png"
+      ],
+      "avoidableCopiedPngBytes": 37020
+    },
+    {
+      "hash": "23e2d14ec963d469001fcd64a23d5be74d8739e799d3f52ab1fb073e48862a1d",
+      "bytesEach": 15436,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Portraits/shu_archer.png",
+        "client/Assets/Resources/MobileArt/Units/shu_archer/idle_00.png",
+        "client/Assets/Resources/MobileArt/Units/shu_archer/prepare_00.png"
+      ],
+      "avoidableCopiedPngBytes": 30872
+    },
+    {
+      "hash": "0a7a0176a42fb8eb5f78f78e15e8f01729feb3c01352c6e8cf6ba5ad0a88f4a3",
+      "bytesEach": 11583,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Portraits/shu_guard.png",
+        "client/Assets/Resources/MobileArt/Units/shu_guard/idle_00.png",
+        "client/Assets/Resources/MobileArt/Units/shu_guard/prepare_00.png",
+        "client/Assets/Resources/MobileArt/Units/shu_guard/recover_03.png"
+      ],
+      "avoidableCopiedPngBytes": 34749
+    },
+    {
+      "hash": "2717524539019443a905661bd37fbb88cb980a128c1eb933547fc47bc0e73b6f",
+      "bytesEach": 10878,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Portraits/wei_archer.png",
+        "client/Assets/Resources/MobileArt/Units/wei_archer/idle_00.png",
+        "client/Assets/Resources/MobileArt/Units/wei_archer/prepare_00.png",
+        "client/Assets/Resources/MobileArt/Units/wei_archer/recover_03.png"
+      ],
+      "avoidableCopiedPngBytes": 32634
+    },
+    {
+      "hash": "522dd448c7580de32b3b2f3238467c0962bf6b34a914d6b9cabd276335ceff63",
+      "bytesEach": 10427,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Portraits/wei_guard.png",
+        "client/Assets/Resources/MobileArt/Units/wei_guard/idle_00.png",
+        "client/Assets/Resources/MobileArt/Units/wei_guard/prepare_00.png",
+        "client/Assets/Resources/MobileArt/Units/wei_guard/recover_03.png"
+      ],
+      "avoidableCopiedPngBytes": 31281
+    },
+    {
+      "hash": "9d87bcc5d07a1eb11e8e2cd88b52bdce864b44e65e3d1e1d4ade8670cdb5bdd9",
+      "bytesEach": 11337,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Portraits/wu_guard.png",
+        "client/Assets/Resources/MobileArt/Units/wu_guard/idle_00.png",
+        "client/Assets/Resources/MobileArt/Units/wu_guard/prepare_00.png",
+        "client/Assets/Resources/MobileArt/Units/wu_guard/recover_03.png"
+      ],
+      "avoidableCopiedPngBytes": 34011
+    },
+    {
+      "hash": "651141639037cb672f3244479e3880e58ca4148102c602cead0629228f1f2202",
+      "bytesEach": 13907,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Portraits/zhang_fei.png",
+        "client/Assets/Resources/MobileArt/Units/zhang_fei/idle_00.png",
+        "client/Assets/Resources/MobileArt/Units/zhang_fei/prepare_00.png",
+        "client/Assets/Resources/MobileArt/Units/zhang_fei/recover_03.png"
+      ],
+      "avoidableCopiedPngBytes": 41721
+    },
+    {
+      "hash": "bbfe18724db3a44da69ee3986fbdb6c82df04ec1e5448fa3221b85aef7da500e",
+      "bytesEach": 12333,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Units/guan_ping/fire_03.png",
+        "client/Assets/Resources/MobileArt/Units/guan_ping/recover_02.png"
+      ],
+      "avoidableCopiedPngBytes": 12333
+    },
+    {
+      "hash": "3bd9d67be05e341800f7d39e874bdd21feef4b19e1a0fe1b732da7feac55b4fb",
+      "bytesEach": 11573,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Units/shu_guard/fire_03.png",
+        "client/Assets/Resources/MobileArt/Units/shu_guard/recover_02.png"
+      ],
+      "avoidableCopiedPngBytes": 11573
+    },
+    {
+      "hash": "c1f2ba1ea81c6bb88c6eff82957f79b9ead8f2354220d1d9355fb5ffc11927e7",
+      "bytesEach": 10870,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Units/wei_archer/fire_03.png",
+        "client/Assets/Resources/MobileArt/Units/wei_archer/recover_02.png"
+      ],
+      "avoidableCopiedPngBytes": 10870
+    },
+    {
+      "hash": "e1d087f64f28ec2895541a11d5eb9acb1b3daef96d2cc1a1e638c2235712be7c",
+      "bytesEach": 10370,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Units/wei_guard/fire_03.png",
+        "client/Assets/Resources/MobileArt/Units/wei_guard/recover_02.png"
+      ],
+      "avoidableCopiedPngBytes": 10370
+    },
+    {
+      "hash": "0ba120951328b054a98ff35134197a9bcece6c6a0129b2f7be94e28c3cc21e91",
+      "bytesEach": 11343,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Units/wu_guard/fire_03.png",
+        "client/Assets/Resources/MobileArt/Units/wu_guard/recover_02.png"
+      ],
+      "avoidableCopiedPngBytes": 11343
+    },
+    {
+      "hash": "e31efbc67206e405c9b303041cb5a7e89aed48c64a99227d03fdaab0ae36e7fb",
+      "bytesEach": 13884,
+      "paths": [
+        "client/Assets/Resources/MobileArt/Units/zhang_fei/fire_03.png",
+        "client/Assets/Resources/MobileArt/Units/zhang_fei/recover_02.png"
+      ],
+      "avoidableCopiedPngBytes": 13884
+    }
+  ],
+  "sameByteFiles": {
+    "avoidableCopiedPngBytes": 663700,
+    "note": "Potential physical-file saving only after explicit shared-path/state remapping. Identical bytes do not prove importer/build deduplication.",
+    "uniquePngBytes": 2011463,
+    "allUniqueRawRgba8PixelBytes": 47906816
+  },
+  "scenarios": {
+    "boss16At512AndAlly16At256": {
+      "rawRgba8PixelBytes": 20971520,
+      "note": "Illustrative uncompressed pixel payload, not actual GPU residency or IPA size; excludes mips/metadata/overlays."
+    },
+    "shared16At512": {
+      "rawRgba8PixelBytes": 16777216,
+      "pixelReductionVsSeparate": 0.2,
+      "note": "One shared image set displayed at two scales. Additional attacks and boss overlays still add unique art."
+    },
+    "shared16At256": {
+      "rawRgba8PixelBytes": 4194304,
+      "pixelReductionVsSeparate": 0.8,
+      "note": "Requires acceptable enlarged boss quality; a quality tradeoff, not a measured recommendation."
+    }
+  },
+  "currentCode": {
+    "source": "assets/mobile-art/source.mjs: enemySvg siege/boss share code branch, unitSvg separate; all exports are flattened full images",
+    "export": "tools/export-mobile-art.mjs: exportSprite writes per-path PNG/meta, stable GUID derived from path; no alias/dedup or SpriteAtlas currently",
+    "native": "NativeBattlefield.Sprite caches Resources.Load<Sprite> by path; Bind clears tokens on observed-player change but retains sprite dictionary; no explicit texture unload",
+    "web": "casual-art.js uses generated SVG data URLs with separate unit/enemy keys; Battlefield caches per-unit-id/pose Images and 192x192 canvas raster surfaces; Resources PNG not used"
+  },
+  "limitations": [
+    "PNG disk bytes are not Unity imported/build/GPU memory bytes.",
+    "RGBA8 payload figures assume uncompressed 4 bytes/pixel and no mipmaps.",
+    "No Unity Editor, iPhone, Profiler, Memory Profiler, or built IPA measured.",
+    "Identical-file groups can include static animation frames; changing the asset mapping is necessary before deleting copied outputs."
+  ],
+  "sources": [
+    {
+      "url": "https://docs.unity.com/en-us/engine/6000.3/manual/unity2d/sprite/atlas/sprite-atlas-reference",
+      "purpose": "Atlas read/write and compression settings need target-build verification."
+    },
+    {
+      "url": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Resources.UnloadUnusedAssets.html",
+      "purpose": "Reachable asset references determine unused-asset unloading."
+    }
+  ],
+  "proposedSmallImplementationPlan": [
+    {
+      "step": 1,
+      "change": "Add canonical frame aliases to the export contract, deduplicate proven identical PNG frames and portraits, resolve aliases before Resources.Load; do not flatten a second copy.",
+      "acceptance": "All 206 logical references resolve; 155 encoded-unique images today; identical animation timing/pivot. Expected source PNG reduction 663700 bytes, not yet implemented."
+    },
+    {
+      "step": 2,
+      "change": "Pilot one appliance family only. Shared body sprite/parts referenced by allied high-tier and boss. Boss has large physical armor silhouette, asymmetric salvage arm, hazard badge, slower gait; ally has exposed clean core and compact weapon. Keep separate real event-driven attack/damage overlays.",
+      "acceptance": "Same canonical body path/Sprite object for both roles; no second 512/256 full-body export; correct side identification at board size, selected/range controls unobscured. New overlay cost must be measured."
+    },
+    {
+      "step": 3,
+      "change": "Verify native imported texture formats, first boss cold-load frame time, repeated boss/allied appearances and leaving battle in Unity Profiler/Memory Profiler, compare actual iOS build texture payload. Consider a small shared-family atlas only after base sharing.",
+      "acceptance": "Report before/after build texture bytes, unique textures, resident texture memory and frame time on the same iPhone; no claim from PNG totals alone."
+    }
+  ]
+}

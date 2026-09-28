@@ -62,7 +62,7 @@ try {
     const room = rooms.at(-1), before = await page.locator('#battlefield').boundingBox();
     const token = await page.evaluate(() => JSON.parse(localStorage.getItem('td.profile')).token);
     const account = store.authenticate(token), initial = store.getProfile(account.id);
-    assert.equal(initial.engines.count,5); assert.equal(room.game.rules.maxUnits,3);
+    assert.equal(initial.engines.count,5); assert.equal(room.game.rules.maxUnits,4);
     tick(room,2000); await page.waitForTimeout(250);
     assert.equal(room.game.players[0].enemies.length,0);
     await visibleText(page,'#tutorial-title'); await visibleText(page,'#tutorial-description');
@@ -70,7 +70,7 @@ try {
     await action(page,'#tutorial-next'); await page.locator('#summon-btn:enabled').waitFor();
     await action(page,'#summon-btn');
     const anchor = room.game.players[0].units[0];
-    assert.equal(anchor.definitionId,'wei_archer');
+    assert.equal(anchor.definitionId,'laser_1');
     assert.equal(room.game.tutorial.step,'summon');
     assert.equal(await page.locator('#summon-btn').isDisabled(),true);
     tick(room,6); await page.waitForTimeout(350);
@@ -87,12 +87,15 @@ try {
     assert.deepEqual(room.game.players[0].enemies.map(e=>[e.id,e.hp,e.progress]),frozen);
     assert.equal(await page.evaluate(()=>window.tutorialField.combatPaused),true);
     await tapRobot(page,anchor.id); await page.locator('#unit-dialog[open]').waitFor();
-    assert.match(await page.locator('.assembly-status').first().innerText(),/코일봇.*부족/);
+    assert.match(await page.locator('.assembly-status').first().innerText(),/레이저 포인터.*부족/);
     await stable(page,before,'unit inspection'); await tapRobot(page,anchor.id);
     await page.screenshot({path:`artifacts/tutorial-${viewport.width}-inspect.png`});
     await action(page,'#tutorial-next'); await page.locator('#summon-btn:enabled').waitFor();
+    await action(page,'#summon-btn');
+    assert.equal(room.game.tutorial.step,'fill');
+    tick(room,7); await page.locator('#summon-btn:enabled').waitFor();
     await action(page,'#summon-btn'); await page.locator('#tutorial-guide[data-step=sell]').waitFor();
-    assert.equal(room.game.players[0].units.length,3);
+    assert.equal(room.game.players[0].units.length,4);
     assert.equal(await page.locator('#summon-btn').isDisabled(),true);
     pass(`${viewport.width}: two draws, real opening combat, safe reading pause and 0.7s cooldown`);
     // Reload must resume the same mandatory sale, with no extra engine or reroll.
@@ -106,7 +109,7 @@ try {
     assert.equal(await page.locator('#unit-inspection-dialog').isVisible(),false,'sale needs no management screen');
     assert.equal(await page.locator('[data-close=sale-dialog]').evaluate(el=>el===document.activeElement),true);
     assert.match(await page.locator('#sale-description').innerText(),/사라지고/);
-    assert.equal(await page.locator('#sale-unit-name').innerText(),'점화봇');
+    assert.equal(await page.locator('#sale-unit-name').innerText(),'라이터');
     await page.locator('[data-close=sale-dialog]').tap(); await page.locator('#sale-dialog').waitFor({state:'hidden'});
     assert.deepEqual(saleState(),beforeSale,'cancelling never sends a sale');
     await page.locator('#sell-unit').tap(); await page.keyboard.press('Escape');
@@ -116,15 +119,15 @@ try {
     await action(page,'#confirm-sale'); await page.locator('#tutorial-guide[data-step=replacement]').waitFor();
     tick(room,7); await page.locator('#summon-btn:enabled').waitFor(); await action(page,'#summon-btn');
     await page.locator('#tutorial-guide[data-step=combine]').waitFor();
-    const coil = room.game.players[0].units.find(u=>u.definitionId==='wu_guard');
+    const coil = room.game.players[0].units.find(u=>u.definitionId==='laser_1' && u.id!==anchor.id);
     await tapRobot(page,coil.id);
-    assert.equal(await page.locator('[data-evolve-recipe=make_cheng_yu]').isDisabled(),true,'tutorial must not offer a rejected non-anchor combination');
-    assert.match(await page.locator('#evolution-panel .assembly-status').innerText(),/처음 렌즈봇/);
+    assert.equal(await page.locator('[data-evolve-recipe=make_laser_2]').isDisabled(),true,'tutorial must not offer a rejected non-anchor combination');
+    assert.match(await page.locator('#evolution-panel .assembly-status').innerText(),/처음 레이저 포인터/);
     await page.locator('[data-close=unit-dialog]').tap();
     await tapRobot(page,anchor.id);
-    await page.locator('[data-evolve-recipe=make_cheng_yu]:enabled').waitFor(); await tapRobot(page,anchor.id);
+    await page.locator('[data-evolve-recipe=make_laser_2]:enabled').waitFor(); await tapRobot(page,anchor.id);
     await page.screenshot({path:`artifacts/tutorial-${viewport.width}-combine.png`});
-    await action(page,'[data-evolve-recipe=make_cheng_yu]');
+    await action(page,'[data-evolve-recipe=make_laser_2]');
     await page.locator('#tutorial-guide[data-step=counterattack]').waitFor();
     assert.equal(await page.evaluate(()=>window.tutorialField.combatPaused),false);
     tick(room,10); await page.waitForTimeout(300);
@@ -133,7 +136,7 @@ try {
     assert.equal(room.game.players[0].enemies.length,0);
     assert.equal(room.game.players[0].kills,3);
     await page.locator('#tutorial-guide[data-step=boss_ready]').waitFor();
-    assert.equal(room.game.players[0].units.find(u=>u.definitionId==='cheng_yu').slot,anchor.slot);
+    assert.equal(room.game.players[0].units.find(u=>u.definitionId==='laser_2').slot,anchor.slot);
     await stable(page,before,'sale and combination');
     pass(`${viewport.width}: resume, actual sale and anchored combination`);
     await action(page,'#tutorial-next'); assert.equal(room.game.tutorial.bossAtTick,room.game.tick+80);
@@ -149,8 +152,8 @@ try {
     await page.locator('#result-lobby').tap(); await page.locator('#stage-screen:not([hidden])').waitFor();
     await page.locator('#stage-back').tap(); assert.match(await page.locator('#tutorial-start').innerText(),/다시/);
     await page.locator('#research-btn').tap();
-    assert.equal(await page.locator('[data-research-recipe]').count(),4);
-    assert.equal(await page.locator('.unlock-state').count(),11);
+    assert.equal(await page.locator('[data-research-recipe]').count(),0);
+    assert.equal(await page.locator('.unlock-state').count(),18);
     await page.locator('[data-close=research-dialog]').tap();
     await page.locator('#tutorial-start').tap(); await page.locator('#tutorial-guide[data-step=intro]').waitFor();
     await page.locator('#leave-btn').tap(); await page.locator('#home-screen:not([hidden])').waitFor();

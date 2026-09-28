@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createGame, applyAction, tick, content, getUnitAttack } from '../dist/server/core/index.js';
 import { publicState } from '../dist/server/protocol.js';
 
-function setup(definitionId = 'shu_guard', slot = 3) {
+function setup(definitionId = 'fire_1', slot = 3) {
   const game = createGame({ playerIds: ['one', 'two'], seed: 9 });
   game.rules.spawnIntervalTicks = game.rules.minSpawnIntervalTicks = 99999;
   const player = game.players[0];
@@ -21,7 +21,7 @@ function addEnemy(game, player, progress, hp = 10000, boss = false) {
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
 
 test('default bolt damages only the oldest enemy and publishes its real position and damage', () => {
-  const { game, player, unit } = setup('shu_guard', 2);
+  const { game, player, unit } = setup('fire_1', 2);
   const oldest = addEnemy(game, player, 0.2), next = addEnemy(game, player, 0.21);
   assert.deepEqual(unit.lastAttackHits, []);
   tick(game);
@@ -32,8 +32,8 @@ test('default bolt damages only the oldest enemy and publishes its real position
 });
 
 test('blast uses circular proximity, the closest two neighbors, and never hits another lane', () => {
-  const { game, player, unit } = setup('han_dang', 0);
-  player.upgrades.wu = 2;
+  const { game, player, unit } = setup('wind_2', 0);
+  player.upgrades.wind = 2;
   const primary = addEnemy(game, player, 0.99);
   const farther = addEnemy(game, player, 0.04);
   const nearest = addEnemy(game, player, 0.98), acrossSeam = addEnemy(game, player, 0.015);
@@ -48,12 +48,12 @@ test('blast uses circular proximity, the closest two neighbors, and never hits a
 });
 
 test('blast stops at its radius while arc chains from each previous hit and caps at three targets', () => {
-  for (const definitionId of ['han_dang', 'lu_su']) {
+  for (const definitionId of ['wind_2', 'electric_2']) {
     const { game, player, unit } = setup(definitionId, 0);
     const enemies = [1 - 140 / 1280, 0, 140 / 1280, 280 / 1280].map(progress => addEnemy(game, player, progress));
     const damage = getUnitAttack(player, unit);
     tick(game);
-    if (definitionId === 'han_dang') {
+    if (definitionId === 'wind_2') {
       assert.equal(unit.lastAttackHits.length, 1);
       for (const enemy of enemies.slice(1)) assert.equal(enemy.hp, enemy.maxHp);
     } else {
@@ -67,7 +67,7 @@ test('blast stops at its radius while arc chains from each previous hit and caps
 });
 
 test('equal-distance chain candidates resolve by entity id and reproduce across copies', () => {
-  const { game, player, unit } = setup('lu_su');
+  const { game, player, unit } = setup('electric_2');
   const primary = addEnemy(game, player, 0.3);
   const first = addEnemy(game, player, 0.35), second = addEnemy(game, player, 0.35);
   player.enemies = [primary, second, first];
@@ -78,7 +78,7 @@ test('equal-distance chain candidates resolve by entity id and reproduce across 
 });
 
 test('multi-target kills clamp damage, award once per victim and retain positions after removal', () => {
-  const { game, player, unit } = setup('han_dang');
+  const { game, player, unit } = setup('wind_2');
   const victims = [0.3, 0.31, 0.32].map(progress => addEnemy(game, player, progress, 1));
   const gold = player.gold;
   tick(game);
@@ -98,7 +98,7 @@ test('multi-target kills clamp damage, award once per victim and retain position
 });
 
 test('a boss killed by splash clears only its owner after all simultaneous kills are counted', () => {
-  const { game, player, unit } = setup('salvage_colossus');
+  const { game, player, unit } = setup('wind_4');
   addEnemy(game, player, 0.3, 1);
   const boss = addEnemy(game, player, 0.31, 1, true);
   addEnemy(game, player, 0.32, 1);
@@ -113,7 +113,7 @@ test('a boss killed by splash clears only its owner after all simultaneous kills
 });
 
 test('story uses the same primary multiplier, isolates home enemies, and input replays emit no hits', () => {
-  for (const definitionId of ['shu_guard', 'han_dang', 'lu_su']) {
+  for (const definitionId of ['fire_1', 'wind_2', 'electric_2']) {
     const { game, player, unit } = setup(definitionId);
     const mission = game.stories[0];
     game.story = { wave: mission.wave, hp: 10000, maxHp: 10000, remainingTicks: 100, status: 'active' };
@@ -123,7 +123,7 @@ test('story uses the same primary multiplier, isolates home enemies, and input r
     assert.equal(applyAction(game, player.id, action).ok, true);
     assert.deepEqual(unit.lastAttackHits, []);
     assert.equal(unit.lastAttackTick, null);
-    const damage = getUnitAttack(player, unit) * (definitionId === 'han_dang' ? 0.8 : 1);
+    const damage = getUnitAttack(player, unit) * (definitionId === 'wind_2' ? 0.8 : 1);
     tick(game);
     close(game.story.maxHp - game.story.hp, damage);
     assert.equal(home.hp, home.maxHp);
@@ -135,7 +135,7 @@ test('story uses the same primary multiplier, isolates home enemies, and input r
   }
 });
 
-test('free legend and ultimate retain a primary damage-per-second gain over their recipe ingredients', () => {
+test('fourth-tier and common ultimate retain a primary damage-per-second gain over their recipe ingredients', () => {
   function primaryDps(definitionId) {
     const { game, player, unit } = setup(definitionId);
     addEnemy(game, player, 0.3, 100000);
@@ -143,7 +143,7 @@ test('free legend and ultimate retain a primary damage-per-second gain over thei
     const definition = content.units.find(unit => unit.id === definitionId);
     return unit.lastAttackHits[0].damage * game.rules.ticksPerSecond / definition.attackIntervalTicks;
   }
-  for (const id of ['salvage_colossus', 'orbital_ark']) {
+  for (const id of ['wind_4', 'guardian_s']) {
     const recipe = content.recipes.find(recipe => recipe.result === id);
     assert.ok(primaryDps(id) > recipe.ingredients.reduce((sum, ingredient) => sum + primaryDps(ingredient), 0));
   }

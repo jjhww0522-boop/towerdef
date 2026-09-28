@@ -63,7 +63,7 @@ try {
         for (let t = 0; t < game.rules.summonCooldownTicks; t++) core.tick(game);
         assert.equal(core.applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' }).ok, true);
       }
-      player.units.forEach((unit, i) => { unit.definitionId = ['cheng_yu', 'cao_ren', 'cheng_pu'][i % 3]; });
+      player.units.forEach((unit, i) => { unit.definitionId = ['laser_2', 'frost_2', 'water_2'][i % 3]; });
       player.enemies = ['grunt', 'runner', 'plated', 'swarm'].map((archetype, i) => ({ id: game.nextEntityId++, archetype,
         hp: 400, maxHp: 400, progress: .05 + i * .12, routeIndex: 0, boss: false, stunnedUntilTick: 0 }));
       await page.waitForFunction(() => document.querySelectorAll('#roster [data-unit-id]').length === 6);
@@ -112,7 +112,7 @@ try {
       assert.equal(await page.locator('#boss-label').innerText(), '거대 회수기');
       await capture('boss');
       const boss = player.enemies.find(enemy => enemy.boss); boss.hp = 1; boss.progress = .4;
-      player.units.forEach(unit => { unit.definitionId = 'cheng_yu'; unit.cooldown = 0; });
+      player.units.forEach(unit => { unit.definitionId = 'laser_2'; unit.cooldown = 0; });
       for (let t = 0; t < 300 && player.status === 'active'; t++) core.tick(game);
       assert.equal(player.status, 'cleared');
       await page.locator('#result-dialog[open]').waitFor();
@@ -136,7 +136,7 @@ try {
           for (let t = 0; t < miningGame.rules.summonCooldownTicks; t++) core.tick(miningGame);
           assert.equal(core.applyAction(miningGame, miner.id, { seq: miner.lastSeq + 1, type: 'summon' }).ok, true);
         }
-        miner.units.forEach(unit => { unit.definitionId = 'cheng_yu'; });
+        miner.units.forEach(unit => { unit.definitionId = 'laser_2'; });
         const target = miner.units.find(unit => unit.slot === 11);
         await page.waitForFunction(id => window.operationField?.units.has(id), target.id);
         const point = await page.evaluate(id => {

@@ -21,7 +21,12 @@
     "simulate": "npm run build && node tools/simulate.mjs",
     "test:tutorial": "node tools/tutorial-browser-check.mjs",
     "test:operation": "npm run build && node tools/operation-browser-check.mjs",
-    "simulate:combat": "npm run build && node tools/simulate.mjs --combat"
+    "simulate:combat": "npm run build && node tools/simulate.mjs --combat",
+    "test:field-mods": "npm run build && node tools/field-mods-browser-check.mjs",
+    "simulate:field-mods": "npm run build && node tools/field-mods-audit.mjs",
+    "test:mobile-contract": "npm run build && node tools/check-mobile-contract.mjs",
+    "mobile:preflight": "node tools/mobile-preflight.mjs",
+    "assets:mobile": "node tools/export-mobile-art.mjs"
   },
   "devDependencies": {
     "agent-browser": "0.38.1",

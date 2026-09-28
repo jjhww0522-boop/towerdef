@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { getBattlefieldLayout, unitPoint, enemyPoint, projectPoint } from '../shared/battle-geometry.js';
+import { battlefieldRoad } from '../playtest/battlefield.js';
 
 const artSource = readFileSync('playtest/casual-art.js', 'utf8').replaceAll('export function ', 'function ');
 const geometrySource = readFileSync('shared/battle-geometry.js', 'utf8').replaceAll('export ', '');
 const source = geometrySource + '\n' + artSource + '\n' + readFileSync('playtest/battlefield.js', 'utf8')
   .replace(/^import .*casual-art.js';/m, '')
   .replace(/^import .*battle-geometry.js';/m, '')
+  .replace('export const battlefieldRoad', 'const battlefieldRoad')
   .replace('export class Battlefield', 'class Battlefield') + '\nglobalThis.Battlefield = Battlefield;';
 const definitions = new Map([['archer', {
   id: 'archer', name: '궁수', faction: 'shu', troop: 'archer', rarity: 'basic', attackIntervalTicks: 10
@@ -311,7 +313,7 @@ test('a full high-tier formation draws rank markers without per-unit text raster
 
 test('the lighter extinguishes into an open recovery pose between confirmed shots, then rests', () => {
   const r = renderer();
-  const lighter = { ...r.definitions.get('archer'), id: 'wu_archer', element: 'fire' };
+  const lighter = { ...r.definitions.get('archer'), id: 'fire_1', element: 'fire' };
   r.definitions.set('archer', lighter);
   r.update(lane(null));
   r.update(lane(2), { at: 1600 });
@@ -335,7 +337,7 @@ test('the lighter extinguishes into an open recovery pose between confirmed shot
 
 test('only the representative lighter adds a cached recovery frame', async () => {
   const r = renderer(false, 'bolt', true);
-  const lighter = { ...r.definitions.get('archer'), id: 'wu_archer', element: 'fire' };
+  const lighter = { ...r.definitions.get('archer'), id: 'fire_1', element: 'fire' };
   r.definitions.set('archer', lighter); r.update(lane(null));
   await Promise.resolve();
   assert.equal(r.rasterizations.length, 16, 'twelve enemy frames plus four lighter poses');
@@ -348,7 +350,7 @@ test('only the representative lighter adds a cached recovery frame', async () =>
 test('acknowledged summons land while combines stay at the selected slot and both finish promptly', () => {
   for (const kind of ['summon', 'combine']) {
     const r = renderer();
-    r.definitions.set('archer', { ...r.definitions.get('archer'), id: 'wu_archer', element: 'fire' });
+    r.definitions.set('archer', { ...r.definitions.get('archer'), id: 'fire_1', element: 'fire' });
     r.update(lane(null));
     const snapshot = lane(null), result = { ...snapshot.units[0], id: 3, slot: 7 };
     snapshot.units = [result];
@@ -392,7 +394,7 @@ test('all five maps project the authoritative path and slots in both orientation
     const snapshot = lane(null); snapshot.units[0].slot = layout.slots.length - 1;
     r.update(snapshot);
     const w = r.view.worldWidth, h = r.view.worldHeight;
-    const road = { left: w * .12, right: w * .84, top: h * (portrait ? .22 : .27), bottom: h * .8 };
+    const road = battlefieldRoad(w, h, battlefieldId);
     for (let index = 0; index < layout.slots.length; index++) {
       const expected = projectPoint(unitPoint(index, battlefieldId), road, portrait, battlefieldId), actual = r.view.position(index);
       assert.ok(Math.abs(actual.x - expected.x) < 1e-8 && Math.abs(actual.y - expected.y) < 1e-8);
@@ -483,7 +485,7 @@ test('crowded open maps keep each robot selectable in short landscape viewports'
     const snapshot = lane(null, { alive: false });
     snapshot.units = getBattlefieldLayout(battlefieldId).slots.map((_, slot) => ({ ...snapshot.units[0], id: slot + 1, slot }));
     for (const rarity of ['basic', 'legend']) {
-      r.definitions.get('archer').rarity = rarity; r.view.battlefieldId = 5; r.update(snapshot); r.view.draw(2000);
+      r.definitions.get('archer').rarity = rarity; r.view.battlefieldId = battlefieldId; r.update(snapshot); r.view.draw(2000);
       const height = r.view.unitHeight(r.definitions.get('archer'));
       for (const view of r.view.units.values()) {
         r.listeners.click({ clientX: view.x * r.view.scale + r.view.ox, clientY: (view.y - height * .47) * r.view.scale + r.view.oy });
@@ -491,6 +493,48 @@ test('crowded open maps keep each robot selectable in short landscape viewports'
       }
     }
   }
+});
+
+test('mining landscape uses six separated columns and portrait hit effects track the staggered enemy center', () => {
+  const landscape = renderer(false); landscape.view.battlefieldId = 2; landscape.update(lane(null));
+  const left = landscape.view.position(0), right = landscape.view.position(10);
+  assert.ok(right.x - left.x > 500);
+  assert.equal(left.y, right.y);
+  assert.ok(landscape.view.position(1).y > left.y);
+  assert.ok(landscape.view.unitHeight(landscape.definitions.get('archer')) >= 70);
+  const arrival = lane(20, { alive: false });
+  arrival.units[0].lastAttackHits = [{ targetId: 8, progress: 1, routeIndex: 0, damage: 17 }];
+  landscape.update(arrival);
+  const arrivedCenter = landscape.view.enemyPosition({ id: 8, progress: 1, routeIndex: 0, attackingFacility: true });
+  const arrivedImpact = landscape.view.effects.find(effect => effect.type === 'impact');
+  assert.equal(arrivedImpact.x, arrivedCenter.x);
+  assert.equal(arrivedImpact.y, arrivedCenter.y - 18, 'removed arrival hit keeps the displayed facility center');
+  const portrait = renderer(true); portrait.view.battlefieldId = 2;
+  portrait.update(lane(null, { alive: false }));
+  const attack = lane(20, { alive: false });
+  attack.units[0].lastAttackHits = [{ targetId: 8, progress: .4, routeIndex: 0, damage: 17 }];
+  portrait.update(attack);
+  const displayed = portrait.view.enemyPosition({ id: 8, progress: .4, routeIndex: 0 });
+  const center = portrait.view.path(.4), effect = portrait.view.effects.find(effect => effect.type === 'impact');
+  assert.equal(displayed.x - center.x, 18);
+  assert.equal(displayed.y, center.y, 'stagger never advances progress');
+  assert.equal(effect.x, displayed.x); assert.equal(effect.y, displayed.y - 18);
+  assert.equal(portrait.view.enemyPosition({ id: 8, progress: .4 }).x, displayed.x, 'same enemy remains stable across snapshots');
+});
+
+test('mining rotates on the actual canvas aspect even below the old 600px breakpoint', () => {
+  const r = renderer(true); r.view.battlefieldId = 2;
+  for (const bounds of [{ width: 390, height: 800 }, { width: 568, height: 276 }, { width: 390, height: 800 }]) {
+    r.bounds(bounds); r.update(lane(null));
+    assert.equal(r.view.worldWidth, bounds.width > bounds.height ? 1000 : 600);
+    const road = battlefieldRoad(r.view.worldWidth, r.view.worldHeight, 2);
+    assert.ok(road.bottom > road.top, 'the route never inverts');
+    assert.equal(r.view.units.get(1).unit.slot, 0);
+    if (bounds.width > bounds.height) assert.equal(r.view.position(0).y, r.view.position(10).y);
+    else assert.equal(r.view.position(0).x, r.view.position(10).x);
+  }
+  const cramped = battlefieldRoad(600, 338, 2);
+  assert.ok(cramped.bottom - cramped.top >= 90, 'short canvases retain a positive readable field');
 });
 
 test('authoritative enemy roles choose their own silhouettes and stun stops limb animation only', () => {

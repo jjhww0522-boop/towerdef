@@ -20,7 +20,7 @@ function robot(game, id, slot) {
 test('route cycling is player-local, fixed at spawn and independent of summon RNG and other departures', () => {
   for (const id of [4, 5]) {
     const a = create(id), b = create(id), routes = getBattlefieldLayout(id).routes.length;
-    robot(b, 'wei_archer', 0).dispatched = true;
+    robot(b, 'laser_1', 0).dispatched = true;
     applyAction(b, 'peer', { seq: 1, type: 'leave' });
     const before = [a.rngState, a.placementRngState, b.rngState, b.placementRngState];
     const spawnCount = 12, ticks = spawnCount * a.rules.spawnIntervalTicks;
@@ -62,7 +62,7 @@ test('each open route has a bounded travel window and every entrance attacks the
 });
 
 test('primary targeting and hit telemetry use the fixed enemy route, including after death', () => {
-  const game = create(4), player = game.players[0], unit = robot(game, 'shu_guard', 1);
+  const game = create(4), player = game.players[0], unit = robot(game, 'fire_1', 1);
   const left = target(game, player, 0, .3, 1), right = target(game, player, 1, .3, 1);
   tick(game);
   assert.equal(left.hp, 0); assert.equal(right.hp, 1);
@@ -74,7 +74,7 @@ test('primary targeting and hit telemetry use the fixed enemy route, including a
 });
 
 test('blast and arc do not connect distant entrances merely because progress matches', () => {
-  for (const definitionId of ['han_dang', 'lu_su']) {
+  for (const definitionId of ['wind_2', 'electric_2']) {
     const game = create(4), player = game.players[0], unit = robot(game, definitionId, 0);
     const primary = target(game, player, 0, .1), far = target(game, player, 1, .1), near = target(game, player, 0, .12);
     tick(game);
@@ -84,11 +84,11 @@ test('blast and arc do not connect distant entrances merely because progress mat
 });
 
 test('arc can cross nearby entrances at the facility using world distance; blast keeps its smaller reach', () => {
-  for (const definitionId of ['han_dang', 'lu_su']) {
+  for (const definitionId of ['wind_2', 'electric_2']) {
     const game = create(5), player = game.players[0], unit = robot(game, definitionId, 0);
     const left = target(game, player, 0, .99), right = target(game, player, 1, .99), top = target(game, player, 2, .99);
     tick(game);
-    assert.deepEqual(unit.lastAttackHits.map(hit => hit.targetId), definitionId === 'lu_su' ? [left.id, top.id, right.id] : [left.id]);
+    assert.deepEqual(unit.lastAttackHits.map(hit => hit.targetId), definitionId === 'electric_2' ? [left.id, top.id, right.id] : [left.id]);
     for (const hit of unit.lastAttackHits) assert.equal(hit.routeIndex, player.enemies.find(enemy => enemy.id === hit.targetId).routeIndex);
   }
 });

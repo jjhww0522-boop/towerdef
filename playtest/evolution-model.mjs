@@ -1,3 +1,5 @@
+import { getUpgradeLevel } from '../shared/upgrade-model.js';
+
 // Display/selection helpers only. The server validates every submitted recipe.
 export function recipeMaterials(recipe, units, focusedId = null, unlockedRecipes = []) {
   const available = units.filter(unit => !unit.dispatched), counts = new Map(), ids = [];
@@ -23,7 +25,7 @@ export function evolutionOptions(content, player, focusedId) {
 }
 
 export function theoreticalDps(definition, player, rules) {
-  const bonus = [definition.faction, definition.troop, definition.trait].reduce((sum, tag) => sum + player.upgrades[tag], 0) * rules.upgradeBonus;
+  const bonus = getUpgradeLevel(definition, player.upgrades) * rules.upgradeBonus;
   const primaryMultiplier = definition.attackPattern === 'blast' ? .8 : 1;
   return definition.attack * primaryMultiplier * (1 + bonus) * rules.ticksPerSecond / definition.attackIntervalTicks;
 }

@@ -1,11 +1,12 @@
 import contentData from '../../shared/content.json';
 import { unitPoint, enemyPoint, distanceSquared, getBattlefieldLayout } from '../../shared/battle-geometry';
+import { upgradeKeys, getUpgradeLevel } from '../../shared/upgrade-model';
 
 export const content = contentData;
-export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave' | 'tutorial_next' | 'tactic';
+export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave' | 'tutorial_next' | 'tactic' | 'choose_mod';
 export type Tactic = 'overdrive' | 'emp';
 export type EnemyArchetype = 'grunt' | 'runner' | 'plated' | 'swarm' | 'boss';
-export interface Action { seq: number; type: ActionType; recipeId?: string; tag?: string; unitIds?: number[]; tactic?: Tactic }
+export interface Action { seq: number; type: ActionType; recipeId?: string; tag?: string; unitIds?: number[]; tactic?: Tactic; offerId?: string; modId?: string }
 export interface ActionResult { ok: boolean; error?: string }
 export interface AttackHit { targetId: number | string; progress?: number; routeIndex?: number; damage: number; boss?: boolean }
 export interface Unit {
@@ -19,6 +20,14 @@ export interface BattleStats {
   kills: number; damageDealt: number; facilityDamageTaken: number; biggestHit: number; peakEnemies: number;
   tacticsUsed: { overdrive: number; emp: number };
 }
+export interface FieldModSelection {
+  activeId: string | null;
+  history: { offerId: 'survey' | 'retune'; modId: string; tick: number }[];
+  stats: { modId: string; hits: number; bonusDamage: number }[];
+}
+export interface FieldModView extends FieldModSelection {
+  offerId: 'survey' | 'retune' | null; available: boolean; nextOfferTick: number | null; optionIds: string[];
+}
 export interface Encounter {
   wave: number; label: string; description: string; archetype: EnemyArchetype; count: number;
   startTick: number; spawnIntervalTicks: number; routeCount: number;
@@ -29,6 +38,7 @@ export interface ExpeditionResult {
   wave: number; kills: number; elapsedTicks: number; miningProgress: number;
   reason: 'overcrowded' | 'boss_timeout' | 'facility_destroyed' | null;
   battleStats: BattleStats;
+  fieldMod?: FieldModView | null;
 }
 export interface Player {
   id: string; gold: number; status: 'active' | 'defeated' | 'cleared' | 'left';
@@ -40,6 +50,7 @@ export interface Player {
   unlockedRecipes: string[]; kills: number; investmentActions: number; result: ExpeditionResult | null;
   nextTacticTick: number; overdriveUntilTick: number; lastTacticTick: number | null; lastTactic: Tactic | null;
   battleStats: BattleStats;
+  fieldMod: FieldModSelection | null;
 }
 export interface Story { wave: number; hp: number; maxHp: number; remainingTicks: number; status: 'active' | 'success' | 'failed' }
 export interface Tutorial {
@@ -54,7 +65,7 @@ export interface GameState {
   objective: typeof content.battlefields[number]['objective'];
 }
 
-const tags = ['shu', 'wei', 'wu', 'infantry', 'archer', 'cavalry', 'might', 'strategy', 'command'];
+const tags = upgradeKeys;
 const fail = (error: string): ActionResult => ({ ok: false, error });
 const playerById = (game: GameState, id: string): Player | undefined => game.players.filter(p => p.id === id)[0];
 const definition = (id: string) => content.units.filter(u => u.id === id)[0];
@@ -68,7 +79,7 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
   const battlefield = content.battlefields.filter(b => b.id === (options.tutorial ? 1 : battlefieldId))[0];
   if (!battlefield) throw new Error('Unknown battlefield');
   const rules: Rules = { ...content.rules, ...battlefield.rules };
-  if (options.tutorial) Object.assign(rules, { maxUnits: 3, startingGold: 100, waveTicks: 80,
+  if (options.tutorial) Object.assign(rules, { maxUnits: 4, startingGold: 100, waveTicks: 80,
     totalWaves: 1, enemyBaseHp: 120,
     bossTicks: 600, bossHp: 720, waveGold: 0, waveGoldGrowth: 0 });
   const ids: string[] = [];
@@ -83,6 +94,7 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
       units: [], enemies: [], enemySpawnCount: 0, upgrades, disconnectedAtTick: null, overcrowdedTicks: 0, defeatReason: null,
       facilityHp: battlefield.objective.kind === 'overcrowd' ? null : battlefield.objective.facilityHp, lastFacilityHitTick: null,
       nextTacticTick: 0, overdriveUntilTick: 0, lastTacticTick: null, lastTactic: null,
+      fieldMod: options.tutorial ? null : { activeId: null, history: [], stats: content.fieldMods.map(mod => ({ modId: mod.id, hits: 0, bonusDamage: 0 })) },
       battleStats: { kills: 0, damageDealt: 0, facilityDamageTaken: 0, biggestHit: 0, peakEnemies: 0, tacticsUsed: { overdrive: 0, emp: 0 } },
       lastActionKey: '', lastActionResult: { ok: false }, unlockedRecipes, kills: 0, investmentActions: 0, result: null };
   });
@@ -96,6 +108,23 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
 
 export function tutorialCombatPaused(game: GameState): boolean {
   return !!game.tutorial && ['skirmish', 'counterattack', 'boss'].indexOf(game.tutorial.step) < 0;
+}
+
+export function fieldModView(game: GameState, player: Player): FieldModView | null {
+  if (game.tutorial || !player.fieldMod) return null;
+  const duration = game.rules.waveTicks * game.rules.totalWaves;
+  const surveyAt = Math.floor(duration / 3), retuneAt = Math.floor(duration * 2 / 3);
+  const currentTick = player.result ? player.result.elapsedTicks : game.tick;
+  const offerId = currentTick >= retuneAt ? 'retune' : currentTick >= surveyAt ? 'survey' : null;
+  return {
+    activeId: player.fieldMod.activeId, offerId,
+    available: game.status === 'playing' && player.status === 'active' && player.connected && offerId !== null &&
+      !player.fieldMod.history.some(choice => choice.offerId === offerId),
+    nextOfferTick: currentTick < surveyAt ? surveyAt : currentTick < retuneAt ? retuneAt : null,
+    optionIds: content.fieldMods.map(mod => mod.id),
+    history: player.fieldMod.history.map(choice => ({ ...choice })),
+    stats: player.fieldMod.stats.map(stat => ({ ...stat }))
+  };
 }
 
 function encounterDefinition(wave: number) {
@@ -156,7 +185,7 @@ function newUnit(game: GameState, definitionId: string, slot: number, investedGo
 
 export function getUnitAttack(player: Player, unit: Unit, rules: Rules = content.rules): number {
   const d = definition(unit.definitionId);
-  return d.attack * (1 + (player.upgrades[d.faction] + player.upgrades[d.troop] + player.upgrades[d.trait]) * rules.upgradeBonus);
+  return d.attack * (1 + getUpgradeLevel(d, player.upgrades) * rules.upgradeBonus);
 }
 
 function selectedUnits(player: Player, ids: number[] | undefined, rules: Rules): Unit[] | null {
@@ -177,11 +206,13 @@ function retire(game: GameState, player: Player, status: 'defeated' | 'cleared' 
   const progress = expeditionProgress(game);
   const milestones = Math.min(3, Math.floor(progress.miningProgress * 4), Math.floor(player.kills / 20));
   const eligible = !game.practice && status !== 'left' && player.investmentActions >= 3 && player.kills >= 10;
+  const fieldMod = fieldModView(game, player);
+  if (fieldMod) fieldMod.available = false;
   player.result = {
     battlefieldId: game.battlefieldId, status, cleared: status === 'cleared',
     researchCredits: eligible ? game.battlefieldId * (milestones * 5 + (status === 'cleared' ? 25 : 0)) : 0,
     wave: game.wave, kills: player.kills, elapsedTicks: game.tick, miningProgress: progress.miningProgress, reason,
-    battleStats: { ...player.battleStats, tacticsUsed: { ...player.battleStats.tacticsUsed } }
+    battleStats: { ...player.battleStats, tacticsUsed: { ...player.battleStats.tacticsUsed } }, fieldMod
   };
   if (game.tutorial && status === 'cleared') game.tutorial.step = 'complete';
   player.status = status;
@@ -211,10 +242,20 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
     const allowed = action.type === 'leave' ||
       action.type === 'summon' && ['summon', 'fill', 'sell', 'replacement'].indexOf(tutorial.step) >= 0 ||
       action.type === 'salvage' && tutorial.step === 'sell' && action.unitIds && action.unitIds.length === 1 && action.unitIds[0] === tutorial.saleUnitId ||
-      action.type === 'combine' && tutorial.step === 'combine' && action.recipeId === 'make_cheng_yu' && action.unitIds && action.unitIds[0] === tutorial.anchorUnitId;
+      action.type === 'combine' && tutorial.step === 'combine' && action.recipeId === 'make_laser_2' && action.unitIds && action.unitIds[0] === tutorial.anchorUnitId;
     if (!allowed) return fail('TUTORIAL_ACTION_REQUIRED');
   }
   switch (action.type) {
+    case 'choose_mod': {
+      const offer = fieldModView(game, player);
+      if (!content.fieldMods.some(mod => mod.id === action.modId)) return fail('UNKNOWN_FIELD_MOD');
+      if (!offer || offer.offerId === null) return fail('MOD_NOT_AVAILABLE');
+      if (action.offerId !== offer.offerId) return fail('STALE_MOD_OFFER');
+      if (!offer.available) return fail('MOD_ALREADY_CHOSEN');
+      player.fieldMod!.activeId = action.modId!;
+      player.fieldMod!.history.push({ offerId: offer.offerId, modId: action.modId!, tick: game.tick });
+      return { ok: true };
+    }
     case 'tactic': {
       if (action.tactic !== 'overdrive' && action.tactic !== 'emp') return fail('UNKNOWN_TACTIC');
       if (game.tick < player.nextTacticTick) return fail('TACTIC_COOLDOWN');
@@ -236,7 +277,7 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
       if (player.gold < rules.summonCost) return fail('INSUFFICIENT_GOLD');
       if (game.tick < player.nextSummonTick) return fail('SUMMON_COOLDOWN');
       let unit;
-      if (tutorial) unit = definition(['wei_archer', 'wei_guard', 'wu_archer', 'wu_guard'][tutorial.drawCount]);
+      if (tutorial) unit = definition(['laser_1', 'frost_1', 'laser_1', 'fire_1', 'laser_1'][tutorial.drawCount]);
       else {
         const roll = random(game) * 10000;
         let rarity = rules.summonRarities[2];
@@ -257,8 +298,8 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
         tutorial.drawCount++;
         if (tutorial.drawCount === 1) tutorial.anchorUnitId = created.id;
         else if (tutorial.drawCount === 2) { tutorial.step = 'skirmish'; tutorial.skirmishAtTick = game.tick; }
-        else if (tutorial.drawCount === 3) { tutorial.saleUnitId = created.id; tutorial.step = 'sell'; }
-        else if (tutorial.drawCount === 4) tutorial.step = 'combine';
+        else if (tutorial.drawCount === 4) { tutorial.saleUnitId = created.id; tutorial.step = 'sell'; }
+        else if (tutorial.drawCount === 5) tutorial.step = 'combine';
       }
       player.nextSummonTick = game.tick + rules.summonCooldownTicks;
       return { ok: true };
@@ -315,7 +356,7 @@ export function applyAction(game: GameState, playerId: string, action: Action): 
   const player = playerById(game, playerId);
   if (!player) return fail('UNKNOWN_PLAYER');
   if (!action || !safeInteger(action.seq) || typeof action.type !== 'string') return fail('INVALID_ACTION');
-  const key = JSON.stringify([action.type, action.recipeId, action.tag, action.unitIds, action.tactic]);
+  const key = JSON.stringify([action.type, action.recipeId, action.tag, action.unitIds, action.tactic, action.offerId, action.modId]);
   if (action.seq === player.lastSeq) return key === player.lastActionKey ? player.lastActionResult : fail('SEQUENCE_REUSED');
   if (action.seq < player.lastSeq) return fail('STALE_SEQUENCE');
   if (game.status !== 'playing' || player.status !== 'active') return fail('NOT_ACTIVE');
@@ -478,10 +519,20 @@ export function tick(game: GameState): void {
         if (!primary) return;
         u.lastTargetId = primary.id;
         const targets = attackTargets(p.enemies, primary, pattern, game.battlefieldId);
-        targets.forEach(target => {
+        targets.forEach((target, hitIndex) => {
           const enemy = target.enemy;
           const boost = p.overdriveUntilTick >= game.tick ? rules.overdriveMultiplier : 1;
-          const applied = Math.min(enemy.hp, damage * target.multiplier * boost);
+          const baseDamage = damage * target.multiplier * boost;
+          const mod = p.fieldMod && content.fieldMods.filter(item => item.id === p.fieldMod!.activeId)[0];
+          const qualifies = mod && (mod.condition === 'controlled' && ((enemy.slowUntilTick || 0) >= game.tick || (enemy.stunnedUntilTick || 0) >= game.tick) ||
+            mod.condition === 'secondary' && hitIndex > 0 && (pattern === 'blast' || pattern === 'arc') ||
+            mod.condition === 'healthy' && enemy.hp >= enemy.maxHp * 0.8);
+          const applied = Math.min(enemy.hp, baseDamage * (qualifies ? 1 + mod!.bonus : 1));
+          const extra = applied - Math.min(enemy.hp, baseDamage);
+          if (extra > 0 && p.fieldMod) {
+            const stat = p.fieldMod.stats.filter(item => item.modId === mod!.id)[0];
+            stat.hits++; stat.bonusDamage += extra;
+          }
           enemy.hp = Math.max(0, enemy.hp - applied);
           p.battleStats.damageDealt += applied;
           p.battleStats.biggestHit = Math.max(p.battleStats.biggestHit, applied);

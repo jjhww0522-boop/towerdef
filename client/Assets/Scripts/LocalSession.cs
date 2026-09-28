@@ -1,227 +1,481 @@
 using System;
 using System.Collections;
+using System.Security.Cryptography;
 using System.Text;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
 namespace TowerDef
 {
+    // Profile credentials and current expedition credentials are separate. All spending is server-authoritative.
     public sealed class LocalSession : MonoBehaviour
     {
         public string ServerUrl = "http://127.0.0.1:7351";
-        public string RoomId = "practice-1";
-        public string PlayerId;
         public Content Content { get; private set; }
+        public Profile Profile { get; private set; }
         public GameState State { get; private set; }
-        public string Notice { get; private set; } = "서버를 실행한 뒤 연습방에 연결하세요.";
+        public string Notice { get; private set; } = "개발 서버 주소를 입력하세요.";
         public bool Busy { get; private set; }
         public bool Connected { get; private set; }
-        public bool HasPendingAction => pending != null;
-        public event System.Action<GameState> Snapshot;
+        public bool Ready => Content != null && Profile != null && !storageFailed;
+        public bool HasPendingAction => ledger.Pending != null;
+        public bool HasSavedSession => !string.IsNullOrEmpty(saved.battleToken) || saved.entry != null;
+        public string PlayerId => saved.playerId;
+        public string RoomId => saved.roomId;
 
-        string token, sessionKey;
-        ActionRequest pending;
+        public event Action<GameState> Snapshot;
+        public event Action Changed;
+        readonly ActionLedger ledger = new ActionLedger();
+        SavedSession saved = new SavedSession();
+        string storageKey, lastError;
         float nextPoll;
-        bool sessionEstablished;
+        bool paused, storageFailed, pollBusy;
+        [Serializable]
+        sealed class SavedSession
+        {
+            public string profileToken, playerId, roomId, battleToken;
+            public ActionRequest pending;
+            public SessionRequest entry;
+        }
 
         void Awake()
         {
-            PlayerId = PlayerPrefs.GetString("towerdef.playerId", "");
-            if (string.IsNullOrEmpty(PlayerId))
-            {
-                PlayerId = "player-" + Guid.NewGuid().ToString("N").Substring(0, 6);
-                PlayerPrefs.SetString("towerdef.playerId", PlayerId);
-            }
-            Application.runInBackground = true;
+            ServerUrl = PlayerPrefs.GetString("td.mobile.server", ServerUrl);
+            Application.runInBackground = false;
         }
 
         void Update()
         {
-            if (sessionEstablished && !Busy && Time.unscaledTime >= nextPoll)
+            if (!paused && !Busy && !pollBusy && Connected && State != null && Time.unscaledTime >= nextPoll)
                 StartCoroutine(Poll());
         }
 
-        public Player Me()
+        public Player Me() => State == null ? null : Array.Find(State.players, p => p.id == saved.playerId);
+        void Notify()
         {
-            if (State?.players == null) return null;
-            foreach (var player in State.players) if (player.id == PlayerId) return player;
-            return null;
+            Changed?.Invoke();
+        }
+
+        bool Persist()
+        {
+            saved.pending = ledger.Pending;
+            try
+            {
+                SecretStore.Set(storageKey, JsonConvert.SerializeObject(saved));
+                return true;
+            }
+            catch (Exception)
+            {
+                storageFailed = true;
+                Connected = false;
+                Notice = "보안 저장 오류. 기기 잠금을 해제하고 다시 연결하세요.";
+                Notify();
+                return false;
+            }
         }
 
         public void Connect()
         {
-            if (Busy) return;
+            if (Busy)
+                return;
             ServerUrl = ServerUrl.Trim().TrimEnd('/');
-            RoomId = RoomId.Trim();
-            PlayerId = PlayerId.Trim();
-            if (!Uri.TryCreate(ServerUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != "http" && uri.Scheme != "https") || RoomId.Length == 0 || PlayerId.Length == 0)
-            { Notice = "서버 주소, 방 이름, 참가자 ID를 확인하세요."; return; }
-            var key = "towerdef.session." + ServerUrl + "/" + RoomId + "/" + PlayerId;
-            if (sessionKey != key)
+            if (!Uri.TryCreate(ServerUrl, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
             {
-                pending = null;
-                State = null;
-                sessionKey = key;
-                token = PlayerPrefs.GetString(key, "");
+                Notice = "http 또는 https 서버 주소를 확인하세요.";
+                Notify();
+                return;
             }
-            sessionEstablished = false;
-            StartCoroutine(Join());
+
+            StartCoroutine(Bootstrap());
         }
 
-        public void LeaveRoom()
-        {
-            if (!Busy) StartCoroutine(LeaveAndReset());
-        }
-
-        IEnumerator LeaveAndReset()
-        {
-            sessionEstablished = false;
-            if (Connected && Me() != null && Me().status == "active" && pending == null)
-            {
-                pending = new ActionRequest { seq = Me().lastSeq + 1, type = "leave" };
-                yield return Submit();
-            }
-            Connected = false;
-            State = null;
-            pending = null;
-            Notice = "방 설정입니다. 새 연습은 새 방 이름으로 시작하세요.";
-        }
-
-        IEnumerator Join()
+        IEnumerator Bootstrap()
         {
             Busy = true;
-            Notice = "콘텐츠와 참가 정보를 확인하고 있습니다…";
-            using (var request = MakeRequest("/content", "GET"))
+            Connected = false;
+            State = null;
+            Content = null;
+            Profile = null;
+            storageFailed = false;
+            using (var sha = SHA256.Create())
+                storageKey = "td.mobile." + BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(ServerUrl))).Replace("-", "");
+            bool loaded = true;
+            try
             {
-                yield return request.SendWebRequest();
-                if (!Succeeded(request)) { Busy = false; yield break; }
-                Content = Parse<Content>(request.downloadHandler.text);
+                var raw = SecretStore.Get(storageKey);
+                saved = string.IsNullOrEmpty(raw) ? new SavedSession() : JsonConvert.DeserializeObject<SavedSession>(raw);
+                if (saved == null)
+                    throw new InvalidOperationException();
+                ledger.Restore(saved.pending);
             }
-            if (Content?.units == null || Content.recipes == null || Content.rules?.upgradeCosts == null || Content.rules.upgradeCosts.Length < Content.rules.maxUpgradeLevel)
-            { Notice = "서버 콘텐츠 형식이 올바르지 않습니다."; Busy = false; yield break; }
-            var body = new SessionRequest { roomId = RoomId, playerId = PlayerId, contentVersion = Content.version };
-            using (var request = MakeRequest("/session", "POST", JsonUtility.ToJson(body)))
+            catch (Exception)
             {
-                yield return request.SendWebRequest();
-                if (!Succeeded(request)) { Busy = false; yield break; }
-                var response = Parse<SessionResponse>(request.downloadHandler.text);
-                if (response?.state == null || string.IsNullOrEmpty(response.token))
-                { Notice = "참가 응답을 읽지 못했습니다."; Busy = false; yield break; }
-                if (token != response.token) { State = null; pending = null; }
-                token = response.token;
-                PlayerPrefs.SetString(sessionKey, token);
-                PlayerPrefs.SetString("towerdef.playerId", PlayerId);
+                loaded = false;
+                storageFailed = true;
+                Notice = "보안 저장을 읽지 못했습니다. 계정을 새로 만들지 않았습니다.";
+            }
+
+            if (!loaded)
+            {
+                Busy = false;
+                Notify();
+                yield break;
+            }
+
+            yield return Request<Content>("/content", null, null, c => Content = c);
+            if (Content == null)
+            {
+                Busy = false;
+                Notify();
+                yield break;
+            }
+
+            if (string.IsNullOrEmpty(saved.profileToken))
+                yield return Request<ProfileResponse>("/profile", new object (), null, r =>
+                {
+                    saved.profileToken = r.profileToken;
+                    Profile = r.profile;
+                    if (string.IsNullOrEmpty(saved.playerId))
+                        saved.playerId = "mobile-" + Guid.NewGuid().ToString("N").Substring(0, 10);
+                    Persist();
+                });
+            else
+                yield return RefreshProfile();
+            if (Ready)
+            {
+                PlayerPrefs.SetString("td.mobile.server", ServerUrl);
                 PlayerPrefs.Save();
-                sessionEstablished = true;
-                Accept(response.state);
-                if (Connected) Notice = "연습방 연결됨 · 영구 보상 없음";
+                Notice = HasSavedSession ? "저장된 원정이 있어요. 이어하기를 선택하세요." : "연결되었습니다. 기동 훈련은 무료입니다.";
             }
+
             Busy = false;
-            nextPoll = Time.unscaledTime + .2f;
+            Notify();
+        }
+
+        IEnumerator RefreshProfile()
+        {
+            yield return Request<ProfileResponse>("/profile", null, saved.profileToken, r => Profile = r.profile);
+        }
+
+        public void StartExpedition(int battlefieldId, bool tutorial, string room = null)
+        {
+            if (Busy || !Ready || HasSavedSession || ledger.Pending != null)
+                return;
+            StartCoroutine(Join(battlefieldId, tutorial, room ?? ("mobile-" + Guid.NewGuid().ToString("N").Substring(0, 12))));
+        }
+
+        IEnumerator Join(int battlefieldId, bool tutorial, string room)
+        {
+            Busy = true;
+            Notice = "원정 참가를 확인합니다…";
+            Notify();
+            // Save the entry identity before transmission. A lost response can retry this same room without creating another expedition.
+            saved.roomId = room;
+            var request = saved.entry ?? new SessionRequest
+            {
+                roomId = room,
+                playerId = saved.playerId,
+                profileToken = saved.profileToken,
+                contentVersion = Content.version,
+                expectedServerInstanceId = Content.serverInstanceId,
+                battlefieldId = battlefieldId,
+                tutorial = tutorial
+            };
+            saved.entry = request;
+            if (!Persist())
+            {
+                Busy = false;
+                yield break;
+            }
+
+            bool restarted = false;
+            yield return Request<SessionResponse>("/session", request, null, r =>
+            {
+                saved.battleToken = r.token;
+                saved.entry = null;
+                Profile = r.profile ?? Profile;
+                if (!string.IsNullOrEmpty(r.profileToken))
+                    saved.profileToken = r.profileToken;
+                if (Persist())
+                    Accept(r.state);
+            }, code =>
+            {
+                if (code >= 400 && code < 500)
+                {
+                    restarted = lastError == "server_restarted";
+                    saved.entry = null;
+                    if (restarted)
+                    {
+                        State = null;
+                        saved.battleToken = null;
+                        saved.roomId = null;
+                        Connected = false;
+                    }
+
+                    Persist();
+                }
+            });
+            if (restarted)
+            {
+                yield return RefreshProfile();
+                yield return Request<Content>("/content", null, null, c => Content = c);
+                Notice = "서버가 다시 시작되어 이전 입장을 중단했습니다. 새 출발을 직접 선택하세요.";
+            }
+
+            Busy = false;
+            Notify();
+        }
+
+        public void Resume()
+        {
+            if (Busy || pollBusy || !Ready || !HasSavedSession)
+                return;
+            if (saved.entry != null)
+            {
+                StartCoroutine(Join(saved.entry.battlefieldId, saved.entry.tutorial, saved.entry.roomId));
+                return;
+            }
+
+            Connected = true;
+            StartCoroutine(Poll());
         }
 
         IEnumerator Poll()
         {
-            Busy = true;
-            using (var request = MakeRequest("/state", "GET"))
+            pollBusy = true;
+            var requestedToken = saved.battleToken;
+            yield return Request<GameState>("/state", null, requestedToken, s =>
             {
-                yield return request.SendWebRequest();
-                if (Succeeded(request))
+                if (saved.battleToken == requestedToken)
+                    Accept(s);
+            }, code =>
+            {
+                if (saved.battleToken != requestedToken)
+                    return;
+                Connected = false;
+                if (code == 401 || code == 403)
                 {
-                    var state = Parse<GameState>(request.downloadHandler.text);
-                    if (state != null) Accept(state);
+                    State = null;
+                    saved.battleToken = null;
+                    saved.roomId = null;
+                    ledger.Clear();
+                    Persist();
                 }
+            });
+            if (!Connected)
+            {
+                yield return RefreshProfile();
+                Notice = Profile?.lastInterruption != null ? "서버 중단으로 원정이 종료되었습니다. 엔진 반환 " + Profile.lastInterruption.enginesRefunded + "개. 새 출발은 직접 선택하세요." : "원정을 확인하지 못했습니다. 이어하기로 다시 연결하세요.";
             }
-            nextPoll = Time.unscaledTime + (Connected ? .2f : 2f);
-            Busy = false;
+
+            nextPoll = Time.unscaledTime + .2f;
+            pollBusy = false;
+            Notify();
         }
 
-        public void Send(string type, string recipeId = null, string tag = null, int[] unitIds = null)
+        public void Send(string type, string recipeId = null, string tag = null, int[] unitIds = null, string tactic = null, string offerId = null, string modId = null)
         {
-            if (Busy || !Connected || pending != null || Me() == null) return;
-            pending = new ActionRequest { seq = Me().lastSeq + 1, type = type, recipeId = recipeId, tag = tag, unitIds = unitIds };
-            StartCoroutine(Submit());
+            if (Busy || !Connected || storageFailed || ledger.Pending != null || Me() == null)
+                return;
+            ledger.Begin(new ActionRequest { seq = Me().lastSeq + 1, type = type, recipeId = recipeId, tag = tag, unitIds = unitIds, tactic = tactic, offerId = offerId, modId = modId });
+            if (Persist())
+                StartCoroutine(Submit());
         }
 
         public void RetryPending()
         {
-            if (!Busy && sessionEstablished && pending != null) StartCoroutine(Submit());
+            if (!Busy && Ready && HasSavedSession && ledger.Pending != null)
+                StartCoroutine(Submit());
         }
 
         IEnumerator Submit()
         {
             Busy = true;
-            using (var request = MakeRequest("/action", "POST", JsonUtility.ToJson(pending)))
+            var action = ledger.Pending;
+            yield return Request<ActionResponse>("/action", action, saved.battleToken, r =>
             {
-                yield return request.SendWebRequest();
-                // An ambiguous transport failure keeps the exact sequence and payload for retry.
-                if (request.result == UnityWebRequest.Result.Success)
+                if (!Accept(r.state))
+                    return;
+                Profile = r.profile ?? Profile;
+                if (Me().lastSeq >= action.seq)
                 {
-                    var response = Parse<ActionResponse>(request.downloadHandler.text);
-                    if (response?.state != null)
-                    {
-                        Accept(response.state);
-                        pending = null;
-                        Notice = response.ok ? "행동이 반영되었습니다." : "요청 거절: " + response.error;
-                    }
-                    else Notice = "행동 응답을 읽지 못했습니다. 같은 요청을 재시도하세요.";
+                    ledger.Clear();
+                    Persist();
                 }
-                else Succeeded(request);
-            }
+
+                Notice = r.ok ? "반영 완료" : "요청을 적용하지 못했습니다: " + ErrorCopy(r.error);
+            });
             Busy = false;
             nextPoll = Time.unscaledTime + .2f;
+            Notify();
         }
 
-        UnityWebRequest MakeRequest(string path, string method, string body = null)
+        public void ReturnHome()
         {
-            var request = new UnityWebRequest(ServerUrl + path, method) { downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
-            if (body != null)
-            {
-                request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body));
-                request.SetRequestHeader("Content-Type", "application/json");
-            }
-            if (!string.IsNullOrEmpty(token)) request.SetRequestHeader("Authorization", "Bearer " + token);
-            return request;
-        }
-
-        bool Succeeded(UnityWebRequest request)
-        {
-            if (request.result == UnityWebRequest.Result.Success) return true;
-            Connected = false;
-            Notice = request.responseCode == 0
-                ? "서버 연결이 끊겼습니다. 자동 재연결 중…"
-                : "서버 오류 " + request.responseCode + ": " + request.downloadHandler.text;
-            if (request.responseCode == 401 || request.responseCode == 403)
-            {
-                sessionEstablished = false;
-                Notice += " · 서버 재시작 시 새 참가자 ID로 접속하세요.";
-            }
-            return false;
-        }
-
-        T Parse<T>(string json) where T : class
-        {
-            try { return JsonUtility.FromJson<T>(json); }
-            catch (ArgumentException) { Notice = "서버 응답을 읽지 못했습니다."; return null; }
-        }
-
-        void Accept(GameState state)
-        {
-            if (state.protocolVersion != "1" || state.contentVersion != Content.version || state.players == null)
-            {
-                Notice = "클라이언트와 서버 버전이 다릅니다. 최신 파일로 다시 실행하세요.";
-                Connected = false;
-                sessionEstablished = false;
+            if (Busy || ledger.Pending != null)
                 return;
+            StartCoroutine(Leave());
+        }
+
+        IEnumerator Leave()
+        {
+            if (Me()?.status == "active")
+            {
+                Send("leave");
+                while (Busy)
+                    yield return null;
+                if (ledger.Pending != null || Me()?.status == "active")
+                    yield break;
             }
-            if (State != null && state.tick < State.tick) return;
-            bool recovering = !Connected;
+
+            Busy = true;
+            saved.battleToken = null;
+            saved.roomId = null;
+            saved.entry = null;
+            Connected = false;
+            State = null;
+            ledger.Clear();
+            Persist();
+            yield return RefreshProfile();
+            Busy = false;
+            Notify();
+        }
+
+        public void Research(string recipeId)
+        {
+            if (!Busy && Ready)
+                StartCoroutine(ResearchRoutine(recipeId));
+        }
+
+        IEnumerator ResearchRoutine(string recipeId)
+        {
+            Busy = true;
+            yield return Request<ProfileResponse>("/research", new { recipeId }, saved.profileToken, r => Profile = r.profile);
+            Busy = false;
+            Notify();
+        }
+
+        bool Accept(GameState state)
+        {
+            if (state == null || state.protocolVersion != "1" || state.contentVersion != Content.version)
+            {
+                Connected = false;
+                Notice = "콘텐츠 버전이 다릅니다. 앱과 서버를 같은 버전으로 맞추세요.";
+                return false;
+            }
+
+            var incomingPlayer = Array.Find(state.players, p => p.id == saved.playerId);
+            if (incomingPlayer == null)
+            {
+                Connected = false;
+                Notice = "내 참가 정보를 찾지 못했습니다.";
+                return false;
+            }
+
+            if (State != null && !MobileModel.IsMonotonic(State.tick, Me().lastSeq, state.tick, incomingPlayer.lastSeq))
+                return false;
             State = state;
+            Profile = state.profile ?? Profile;
             Connected = true;
-            if (pending != null && Me() != null && Me().lastSeq >= pending.seq) pending = null;
-            if (recovering) Notice = "연결 복구됨 · 현재 서버 상태를 표시합니다.";
+            if (ledger.Acknowledge(Me().lastSeq))
+                Persist();
+            Notice = state.combatPaused ? "훈련 설명 중 · 전투 잠시 멈춤" : "서버 연결됨";
             Snapshot?.Invoke(state);
+            return true;
+        }
+
+        IEnumerator Request<T>(string path, object body, string token, Action<T> success, Action<long> failure = null)
+            where T : class
+        {
+            using (var request = new UnityWebRequest(ServerUrl + path, body == null ? "GET" : "POST"))
+            {
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.timeout = 8;
+                if (body != null)
+                {
+                    request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body)));
+                    request.SetRequestHeader("Content-Type", "application/json");
+                }
+
+                if (!string.IsNullOrEmpty(token))
+                    request.SetRequestHeader("Authorization", "Bearer " + token);
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    lastError = null;
+                    try
+                    {
+                        lastError = JsonConvert.DeserializeObject<ProfileResponse>(request.downloadHandler.text)?.error;
+                    }
+                    catch (JsonException)
+                    {
+                    }
+
+                    Notice = request.responseCode == 0 ? "연결을 확인하세요. 요청 결과가 불확실하면 같은 요청을 재시도하세요." : "서버 요청 거절 (" + request.responseCode + ")";
+                    failure?.Invoke(request.responseCode);
+                    yield break;
+                }
+
+                T value = null;
+                try
+                {
+                    value = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
+                }
+                catch (JsonException)
+                {
+                    Notice = "서버 응답 형식을 확인하지 못했습니다.";
+                }
+
+                if (value != null)
+                    success(value);
+            }
+        }
+
+        void OnApplicationPause(bool value)
+        {
+            paused = value;
+            if (value)
+            {
+                if (storageKey != null)
+                    Persist();
+                Connected = false;
+            }
+            else if (Ready && HasSavedSession && !Busy)
+                Resume();
+        }
+
+        void OnApplicationFocus(bool value)
+        {
+            if (value && !paused && Ready && HasSavedSession && !Busy && !Connected)
+                Resume();
+        }
+
+        static string ErrorCopy(string code)
+        {
+            switch (code)
+            {
+                case "INSUFFICIENT_GOLD":
+                    return "고철이 부족해요";
+                case "RECIPE_LOCKED":
+                    return "아직 잠긴 조합이에요";
+                case "INVALID_INGREDIENTS":
+                    return "재료 상태가 바뀌었어요";
+                case "NOT_ACTIVE":
+                    return "원정이 종료됐어요";
+                case "NO_ACTIVE_STORY":
+                    return "진행 중인 스토리가 없어요";
+                case "STALE_MOD_OFFER":
+                    return "개조 기회가 바뀌었어요. 현재 선택지를 확인하세요";
+                case "MOD_NOT_AVAILABLE":
+                    return "현장개조 기회가 아직 열리지 않았어요";
+                case "MOD_ALREADY_CHOSEN":
+                    return "이번 개조 기회는 이미 사용했어요";
+                case "UNKNOWN_FIELD_MOD":
+                    return "개조 정보를 새로 확인해 주세요";
+                default:
+                    return "현재 상태에서는 실행할 수 없어요. 화면을 다시 확인하세요";
+            }
         }
     }
 }

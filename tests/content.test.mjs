@@ -69,7 +69,7 @@ test('validator rejects duplicate IDs, unknown tags, rarity and nonpositive stat
 test('validator rejects dangling recipe references and malformed recipes', () => {
   invalid(c => { c.recipes[0].ingredients[0] = 'missing'; }, /unknown ingredient/i);
   invalid(c => { c.recipes[0].result = 'missing'; }, /unknown result/i);
-  invalid(c => { c.recipes[0].ingredients = []; }, /2 or 3 ingredients/i);
+  invalid(c => { c.recipes[0].ingredients = []; }, /3 ingredients/i);
   invalid(c => { c.recipes[1].id = c.recipes[0].id; }, /duplicate recipe/i);
 });
 
@@ -83,10 +83,10 @@ test('validator detects self/circular requirements despite rare direct summons',
 
 test('validator requires initially available craft paths and valid legend unlocks', () => {
   invalid(c => { c.recipes[0].unlockBattlefield = 1; }, /unlock|initial/i);
-  invalid(c => { c.recipes[15].unlockBattlefield = 0; }, /unlock|legend/i);
-  invalid(c => { c.recipes[15].unlockBattlefield = 6; }, /unlock/i);
+  invalid(c => { c.recipes.find(r => r.unlockType === 'future').unlockBattlefield = 0; }, /unlock|future/i);
+  invalid(c => { c.recipes[0].unlockBattlefield = 6; }, /unlock/i);
   invalid(c => { c.recipes.splice(0, 1); }, /reachable|recipe/i);
-  invalid(c => { c.recipes[0].ingredients[0] = 'liu_bei'; }, /initial|reachable|cycle/i);
+  invalid(c => { c.recipes[0].ingredients[0] = 'guardian_s'; }, /initial|reachable|cycle/i);
 });
 
 test('validator rejects malformed probabilities, missing summon pools and upgrade costs', () => {
@@ -119,10 +119,12 @@ test('validator checks merged planet rules and every planet story schedule', () 
   invalid(c => { c.rules.salvageRefundRatio = 1; }, /salvageRefundRatio/i);
 });
 
-test('clear unlocks cost zero while researched recipes require a positive cost', () => {
+test('clear and future unlocks cost zero while researched recipes require a positive cost', () => {
   assert.deepEqual(validateContent(fixture()), []);
-  invalid(c => { c.recipes.find(r => r.unlockBattlefield > 0 && r.unlockType !== 'clear').researchCost = 0; }, /researchCost/i);
-  invalid(c => { c.recipes.find(r => r.result === 'salvage_colossus').researchCost = 1; }, /clear.*researchCost/i);
+  invalid(c => { const r = c.recipes.find(r => r.unlockType === 'future'); Object.assign(r, { unlockType: 'research', unlockBattlefield: 5 }); }, /researchCost/i);
+  invalid(c => { c.recipes.find(r => r.unlockType === 'clear').researchCost = 1; }, /clear.*researchCost/i);
+  invalid(c => { c.recipes.find(r => r.unlockType === 'future').researchCost = 1; }, /future.*researchCost/i);
+  invalid(c => { delete c.recipes.find(r => r.unlockType === 'future').unlockLabel; }, /future.*unlockLabel/i);
   invalid(c => { c.units[0].tier = 'ultimate'; }, /invalid tier/i);
 });
 
@@ -144,17 +146,25 @@ test('chapter stages require a shared planet, all five identifiers and the real 
   invalid(c => { c.battlefields[3].rules.maxUnits = 30; }, /maxUnits.*map slots/i);
 });
 
-test('five initial recipes cover every basic material and stage clears progressively add choices', () => {
+test('six initial recipes cover every basic material and stage two unlocks the next family tier', () => {
   const data = fixture(), basic = data.units.filter(unit => unit.rarity === 'basic').map(unit => unit.id).sort();
   const initial = data.recipes.filter(recipe => recipe.unlockBattlefield === 0);
-  assert.equal(initial.length, 5);
-  assert.deepEqual(initial.map(recipe => recipe.result).sort(), ['guan_ping', 'ma_liang', 'cao_ren', 'cheng_pu', 'cheng_yu'].sort());
+  assert.equal(initial.length, 6);
+  assert.deepEqual(initial.map(recipe => recipe.result).sort(), ['fire_2', 'water_2', 'frost_2', 'wind_2', 'electric_2', 'laser_2'].sort());
   assert.deepEqual([...new Set(initial.flatMap(recipe => recipe.ingredients))].sort(), basic);
-  assert.deepEqual(data.rules.summonWeights, [9300, 680, 20]);
+  assert.deepEqual(data.rules.summonWeights, [10000, 0, 0]);
   assert.equal(data.rules.summonCooldownTicks, 7);
-  assert.deepEqual([1, 2, 3, 4].map(id => data.recipes.filter(recipe => recipe.unlockType === 'clear' && recipe.unlockBattlefield === id).length), [4, 3, 3, 1]);
+  assert.deepEqual([1, 2, 3, 4].map(id => data.recipes.filter(recipe => recipe.unlockType === 'clear' && recipe.unlockBattlefield === id).length), [0, 6, 0, 0]);
   for (const recipe of data.recipes.filter(recipe => recipe.unlockType === 'clear')) assert.equal(recipe.researchCost, 0);
-  const research = data.recipes.filter(recipe => recipe.unlockBattlefield > 0 && recipe.unlockType !== 'clear');
-  assert.deepEqual(research.map(recipe => recipe.unlockBattlefield), [3, 4, 5, 5]);
-  assert.deepEqual(research.map(recipe => recipe.researchCost), [60, 100, 160, 240]);
+  const future = data.recipes.filter(recipe => recipe.unlockType === 'future');
+  assert.equal(future.length, 12);
+  assert.ok(future.every(recipe => recipe.unlockBattlefield === 6 && recipe.researchCost === 0));
+});
+
+test('separate ingredient paths may share one S result but every branch must be valid and acyclic', () => {
+  const data = fixture();
+  assert.equal(data.recipes.filter(recipe => recipe.result === 'guardian_s').length, 6);
+  assert.deepEqual(validateContent(data), []);
+  invalid(c => { c.recipes.find(r => r.id === 'make_guardian_s_fire').ingredients[0] = 'guardian_s'; }, /cycle|circular/i);
+  invalid(c => { const a = c.recipes.find(r => r.id === 'make_guardian_s_fire'); const b = c.recipes.find(r => r.id === 'make_guardian_s_water'); b.ingredients = [...a.ingredients]; }, /duplicate.*ingredients|duplicate.*path/i);
 });

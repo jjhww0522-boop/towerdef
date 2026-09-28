@@ -1,0 +1,6738 @@
+{
+  "version": "mobile-art-3.1-menacing-enemies",
+  "createdAt": "2026-09-28",
+  "contentVersion": "0.13.1-casual-pressure",
+  "scope": "Original rounded cartoon vectors: 25 friendly appliances and five hostile robots share web and native geometry. Enemies have dark visors, slanted eyes, jagged teeth and role-specific spiked armor. No external artwork or AI bitmap input.",
+  "sprite": {
+    "format": "RGBA PNG",
+    "size": 256,
+    "bossSize": 512,
+    "pivot": [
+      0.5,
+      0.09375
+    ],
+    "pixelsPerUnit": 128,
+    "framesPerState": 4,
+    "filter": "Bilinear",
+    "mipmaps": false
+  },
+  "units": [
+    {
+      "id": "fire_1",
+      "element": "fire",
+      "tier": 1,
+      "family": "lighter"
+    },
+    {
+      "id": "fire_2",
+      "element": "fire",
+      "tier": 2,
+      "family": "range"
+    },
+    {
+      "id": "fire_3",
+      "element": "fire",
+      "tier": 3,
+      "family": "flamethrower"
+    },
+    {
+      "id": "fire_4",
+      "element": "fire",
+      "tier": 4,
+      "family": "incinerator"
+    },
+    {
+      "id": "water_1",
+      "element": "water",
+      "tier": 1,
+      "family": "watergun"
+    },
+    {
+      "id": "water_2",
+      "element": "water",
+      "tier": 2,
+      "family": "hose"
+    },
+    {
+      "id": "water_3",
+      "element": "water",
+      "tier": 3,
+      "family": "washer"
+    },
+    {
+      "id": "water_4",
+      "element": "water",
+      "tier": 4,
+      "family": "firetruck"
+    },
+    {
+      "id": "frost_1",
+      "element": "frost",
+      "tier": 1,
+      "family": "fridge"
+    },
+    {
+      "id": "frost_2",
+      "element": "frost",
+      "tier": 2,
+      "family": "icemaker"
+    },
+    {
+      "id": "frost_3",
+      "element": "frost",
+      "tier": 3,
+      "family": "freezer"
+    },
+    {
+      "id": "frost_4",
+      "element": "frost",
+      "tier": 4,
+      "family": "coldstore"
+    },
+    {
+      "id": "wind_1",
+      "element": "wind",
+      "tier": 1,
+      "family": "handfan"
+    },
+    {
+      "id": "wind_2",
+      "element": "wind",
+      "tier": 2,
+      "family": "standfan"
+    },
+    {
+      "id": "wind_3",
+      "element": "wind",
+      "tier": 3,
+      "family": "blower"
+    },
+    {
+      "id": "wind_4",
+      "element": "wind",
+      "tier": 4,
+      "family": "jet"
+    },
+    {
+      "id": "electric_1",
+      "element": "electric",
+      "tier": 1,
+      "family": "battery"
+    },
+    {
+      "id": "electric_2",
+      "element": "electric",
+      "tier": 2,
+      "family": "swatter"
+    },
+    {
+      "id": "electric_3",
+      "element": "electric",
+      "tier": 3,
+      "family": "transformer"
+    },
+    {
+      "id": "electric_4",
+      "element": "electric",
+      "tier": 4,
+      "family": "powerplant"
+    },
+    {
+      "id": "laser_1",
+      "element": "laser",
+      "tier": 1,
+      "family": "pointer"
+    },
+    {
+      "id": "laser_2",
+      "element": "laser",
+      "tier": 2,
+      "family": "engraver"
+    },
+    {
+      "id": "laser_3",
+      "element": "laser",
+      "tier": 3,
+      "family": "cutter"
+    },
+    {
+      "id": "laser_4",
+      "element": "laser",
+      "tier": 4,
+      "family": "lasercannon"
+    },
+    {
+      "id": "guardian_s",
+      "element": "laser",
+      "tier": 5,
+      "family": "guardian"
+    }
+  ],
+  "unitStates": [
+    "idle",
+    "prepare",
+    "fire",
+    "recover"
+  ],
+  "enemyIds": [
+    "grunt",
+    "runner",
+    "siege",
+    "swarm",
+    "boss"
+  ],
+  "enemyStates": [
+    "move",
+    "hit",
+    "stop",
+    "destroy"
+  ],
+  "enemyAliases": {
+    "plated": "siege"
+  },
+  "unitClipSeconds": {
+    "idle": 0.8,
+    "prepare": 0.09,
+    "fire": 0.1,
+    "recover": 0.14
+  },
+  "enemyClipSeconds": {
+    "move": 0.4,
+    "hit": 0.12,
+    "stop": 0.8,
+    "destroy": 0.24
+  },
+  "framePath": "MobileArt/Units/{definitionId}/{state}_{00..03}",
+  "enemyPath": "MobileArt/Enemies/{role}/{state}_{00..03}",
+  "playback": "Idle/move/stop loop. prepare/fire/recover follow authoritative lastAttackTick/lastAttackHits. hit/destroy are presentation only; do not pause movement or compute damage. Do not replay old events on resume.",
+  "audioBudget": {
+    "maxVoices": 12,
+    "suggestedPerVoiceVolume": 0.2,
+    "warningPriority": true,
+    "muteRequired": true,
+    "discardOnPause": true
+  },
+  "effectBudget": {
+    "decorative": 48,
+    "importantReserved": 16,
+    "note": "Starting mobile budget, not measured device performance."
+  },
+  "audio": [
+    {
+      "id": "fire",
+      "resource": "MobileArt/Audio/fire",
+      "sha256": "7a27d721183075e01169d6b1e62685f21f321d9dc3324915789a158613e8b83f",
+      "seconds": 0.163875,
+      "peak": 0.299996942281723,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.299996942281723,
+        "frames": 7866
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "water",
+      "resource": "MobileArt/Audio/water",
+      "sha256": "81309dd4a12d675fd7cfa17126cfe711a0eb872c174569cc9bfbefbda29d0aea",
+      "seconds": 0.18204166666666666,
+      "peak": 0.29998779296875,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.29998779296875,
+        "frames": 8738
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "frost",
+      "resource": "MobileArt/Audio/frost",
+      "sha256": "53f3b05ae9dd177a99f4ee351c917df742f863f38d67cd9bfdb4c4702c9e6956",
+      "seconds": 0.13395833333333335,
+      "peak": 0.29998779296875,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.29998779296875,
+        "frames": 6430
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "wind",
+      "resource": "MobileArt/Audio/wind",
+      "sha256": "1a75ccf1b6e46d3f5960890eb04135920922c91daa7fec55c2c89185f0e080db",
+      "seconds": 0.2517916666666667,
+      "peak": 0.299996942281723,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.299996942281723,
+        "frames": 12086
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "electric",
+      "resource": "MobileArt/Audio/electric",
+      "sha256": "83ce85222fb4fbb13a0c4581161111eecdc37f4dff7ce34d79123addae034b02",
+      "seconds": 0.152,
+      "peak": 0.299996942281723,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.299996942281723,
+        "frames": 7296
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "laser",
+      "resource": "MobileArt/Audio/laser",
+      "sha256": "ba1a0bdefa99a1653bed4836c97154a2f5924e91e5b83a62c1bd84e502049027",
+      "seconds": 0.132,
+      "peak": 0.299996942281723,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.299996942281723,
+        "frames": 6336
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "assemble",
+      "resource": "MobileArt/Audio/assemble",
+      "sha256": "0196e8ebbd736d8cda5d4c2e650ca3dfb4713ab4c95a8617b8894b905e4f260b",
+      "seconds": 0.352,
+      "peak": 0.29998779296875,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.29998779296875,
+        "frames": 16896
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "warn",
+      "resource": "MobileArt/Audio/warn",
+      "sha256": "ccc833c46820b030e48cfdc84713744de946dc03e1ca1031f170c4b976857913",
+      "seconds": 0.362,
+      "peak": 0.29998779296875,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.29998779296875,
+        "frames": 17376
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "boss",
+      "resource": "MobileArt/Audio/boss",
+      "sha256": "850920c74bdf9e6cf9a9a1d6786e6b38c1c32a5a9ed47e22cee57ec8319980af",
+      "seconds": 0.362,
+      "peak": 0.29998779296875,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.29998779296875,
+        "frames": 17376
+      },
+      "source": "playtest/combat-audio.js"
+    },
+    {
+      "id": "victory",
+      "resource": "MobileArt/Audio/victory",
+      "sha256": "1f04e2124d365c38baec217d1bbc546d4426554e3e61bd9a2792d0b017cdfdcb",
+      "seconds": 0.56,
+      "peak": 0.299996942281723,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.299996942281723,
+        "frames": 26880
+      },
+      "source": "tools/export-mobile-art.mjs"
+    },
+    {
+      "id": "pulse",
+      "resource": "MobileArt/Audio/pulse",
+      "sha256": "59dd288b6d412919689cee3c675a317b940e3b299ad0828b9897eea88112a164",
+      "seconds": 0.382,
+      "peak": 0.29998779296875,
+      "decoded": {
+        "channels": 1,
+        "sampleRate": 48000,
+        "peak": 0.29998779296875,
+        "frames": 18336
+      },
+      "source": "playtest/combat-audio.js"
+    }
+  ],
+  "files": [
+    {
+      "path": "MobileArt/Units/fire_1/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/idle_00.svg",
+      "sha256": "cab4018ed68096e212a4e3fb82953a3450050d428802e55d8c583e506fe8492e",
+      "size": 256,
+      "bounds": [
+        60,
+        40,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/idle_01.svg",
+      "sha256": "da87a74a287fc84828400ca14353b69c35db2247e436eda575a427a8830a5c94",
+      "size": 256,
+      "bounds": [
+        60,
+        40,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/idle_02.svg",
+      "sha256": "f7f2489abcb8f164204629638718a58bfd414b217f992ed9525011b0917cbe42",
+      "size": 256,
+      "bounds": [
+        60,
+        39,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/idle_03.svg",
+      "sha256": "da87a74a287fc84828400ca14353b69c35db2247e436eda575a427a8830a5c94",
+      "size": 256,
+      "bounds": [
+        60,
+        40,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/prepare_00.svg",
+      "sha256": "3e8bcbaef1cf1e469a37ec389adb744cec764988a696d09f0b76d0b7232c2267",
+      "size": 256,
+      "bounds": [
+        51,
+        25,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/prepare_01.svg",
+      "sha256": "f263d9445d8301cedd2312c6796aa77d10b884bc632362b287b0357b3c247373",
+      "size": 256,
+      "bounds": [
+        51,
+        25,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/prepare_02.svg",
+      "sha256": "45b6d4ce047d7e6fda63b3206cc718268226f01342a8bd032d1e156511b11b76",
+      "size": 256,
+      "bounds": [
+        52,
+        25,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/prepare_03.svg",
+      "sha256": "4871b6577a0a89d3329e1d333d220a833f3b2d9601f07ff664c2f97dd1a78619",
+      "size": 256,
+      "bounds": [
+        52,
+        25,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/fire_00.svg",
+      "sha256": "f986b82f36e996e8b71ac048492460dadf84288417ccb4858f89e601efa23383",
+      "size": 256,
+      "bounds": [
+        28,
+        38,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/fire_01.svg",
+      "sha256": "38cc8a8bb52c1f4083fa70008ea6f80b7d47a0f668db8659ea8799962bdbc81f",
+      "size": 256,
+      "bounds": [
+        26,
+        38,
+        194,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/fire_02.svg",
+      "sha256": "7a14e8ad934a80f56bebbf86e4df2c47367320665db2f11bcdceb5610c8fe729",
+      "size": 256,
+      "bounds": [
+        27,
+        38,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/fire_03.svg",
+      "sha256": "f986b82f36e996e8b71ac048492460dadf84288417ccb4858f89e601efa23383",
+      "size": 256,
+      "bounds": [
+        28,
+        38,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/recover_00.svg",
+      "sha256": "987759aee9663545a0981523d372b2d97d90143eaf4300df1f05bd4627f4ce4c",
+      "size": 256,
+      "bounds": [
+        27,
+        63,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/recover_01.svg",
+      "sha256": "6c528f214b6cf5a405a55ac970c1606b757b6fea86d7e3b97384012c017db4cc",
+      "size": 256,
+      "bounds": [
+        27,
+        63,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/recover_02.svg",
+      "sha256": "7066d76e404ae2edaa2a331e3c4235a2ded91c822a34e1fe768aff126881257a",
+      "size": 256,
+      "bounds": [
+        28,
+        63,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_1/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_1/recover_03.svg",
+      "sha256": "7066d76e404ae2edaa2a331e3c4235a2ded91c822a34e1fe768aff126881257a",
+      "size": 256,
+      "bounds": [
+        28,
+        63,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/fire_1.png",
+      "source": "assets/mobile-art/svg/Portraits/fire_1.svg",
+      "sha256": "cab4018ed68096e212a4e3fb82953a3450050d428802e55d8c583e506fe8492e",
+      "size": 256,
+      "bounds": [
+        60,
+        40,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/fire_1.png",
+      "source": "assets/mobile-art/svg/Icons/fire_1.svg",
+      "sha256": "b521482c937800927f0ba3c85931b1b9fa6b5c8abcca2aae5c58bd7d7d85287e",
+      "size": 128,
+      "bounds": [
+        30,
+        20,
+        98,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/idle_00.svg",
+      "sha256": "638ec6dd7b6b9dac6e1a4bd6f8dd0af5c60fcd6bffcedaadfa266dbcf86fefbd",
+      "size": 256,
+      "bounds": [
+        55,
+        60,
+        202,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/idle_01.svg",
+      "sha256": "12127fee542c3a65f7f763a971e37ba166a37a6b820f1b8724fb4364fb982cd2",
+      "size": 256,
+      "bounds": [
+        55,
+        60,
+        202,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/idle_02.svg",
+      "sha256": "9488bbfc9a2925a20f1f9a9fb24a32dbc158bfc79b4954e5317993493aa2820d",
+      "size": 256,
+      "bounds": [
+        55,
+        60,
+        202,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/idle_03.svg",
+      "sha256": "12127fee542c3a65f7f763a971e37ba166a37a6b820f1b8724fb4364fb982cd2",
+      "size": 256,
+      "bounds": [
+        55,
+        60,
+        202,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/prepare_00.svg",
+      "sha256": "ce787f94674231d881a8340bb9cc6a59877fcf3b80d7a2954dae20aba6cfca28",
+      "size": 256,
+      "bounds": [
+        47,
+        68,
+        202,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/prepare_01.svg",
+      "sha256": "f33f7c947143c2e639e70efc33828e81c1a4a420ff43625a047928bad2f27e60",
+      "size": 256,
+      "bounds": [
+        47,
+        68,
+        203,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/prepare_02.svg",
+      "sha256": "9c13c63d29ce8b213d0c80496892f1e715a74bc46ebd16500b0041373362b4b3",
+      "size": 256,
+      "bounds": [
+        48,
+        68,
+        203,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/prepare_03.svg",
+      "sha256": "74d4b419319f70d9a74519e44270a9227cee3a9425a04d7790af52d921ee64aa",
+      "size": 256,
+      "bounds": [
+        48,
+        68,
+        203,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/fire_00.svg",
+      "sha256": "2db99df6790df94e94aae63a7d19ef48fe4122f43d82cab89a30227c0890f4a5",
+      "size": 256,
+      "bounds": [
+        54,
+        56,
+        198,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/fire_01.svg",
+      "sha256": "2111473139b3e8782bb00c714c93a99b88f47a4c5a07e711422de0cab6a4c56c",
+      "size": 256,
+      "bounds": [
+        52,
+        56,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/fire_02.svg",
+      "sha256": "c81821ad93cbfbd88f466314c9c221a25a40089a1c27b2938690f6345e3fd89e",
+      "size": 256,
+      "bounds": [
+        53,
+        56,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/fire_03.svg",
+      "sha256": "2db99df6790df94e94aae63a7d19ef48fe4122f43d82cab89a30227c0890f4a5",
+      "size": 256,
+      "bounds": [
+        54,
+        56,
+        198,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/recover_00.svg",
+      "sha256": "27c9f16b3b1ce7b1de1502bdbca8342429b55dd8297761d9d2fa7351a9700fb1",
+      "size": 256,
+      "bounds": [
+        54,
+        62,
+        203,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/recover_01.svg",
+      "sha256": "9012449c3634810324d284490d27f2fb359d74e94f6ca0a2f154a0d9d5debdf5",
+      "size": 256,
+      "bounds": [
+        55,
+        62,
+        203,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/recover_02.svg",
+      "sha256": "df40e07f309d0ced99f23d4eabb4f53082adab06d648add648bdf42a246d06aa",
+      "size": 256,
+      "bounds": [
+        55,
+        62,
+        204,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_2/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_2/recover_03.svg",
+      "sha256": "df40e07f309d0ced99f23d4eabb4f53082adab06d648add648bdf42a246d06aa",
+      "size": 256,
+      "bounds": [
+        55,
+        62,
+        204,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/fire_2.png",
+      "source": "assets/mobile-art/svg/Portraits/fire_2.svg",
+      "sha256": "638ec6dd7b6b9dac6e1a4bd6f8dd0af5c60fcd6bffcedaadfa266dbcf86fefbd",
+      "size": 256,
+      "bounds": [
+        55,
+        60,
+        202,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/fire_2.png",
+      "source": "assets/mobile-art/svg/Icons/fire_2.svg",
+      "sha256": "69dffe55e009f12f56a1796dc6cddf66470f7106e753a167b092789f2ec81718",
+      "size": 128,
+      "bounds": [
+        27,
+        30,
+        101,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/idle_00.svg",
+      "sha256": "fa06290f03295ad4dc0cfb14d23746ec6b762837bdd22eed0f4225e4c4ead28a",
+      "size": 256,
+      "bounds": [
+        41,
+        67,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/idle_01.svg",
+      "sha256": "a2ece335aa36f44e22b5dd37f9a21edea4bef7e17297fabe3e8a0871c37018e7",
+      "size": 256,
+      "bounds": [
+        41,
+        67,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/idle_02.svg",
+      "sha256": "7e813d9ada1993d77b4ec92909768584bbc342a90619409f5f9b4f658f26e28f",
+      "size": 256,
+      "bounds": [
+        41,
+        67,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/idle_03.svg",
+      "sha256": "a2ece335aa36f44e22b5dd37f9a21edea4bef7e17297fabe3e8a0871c37018e7",
+      "size": 256,
+      "bounds": [
+        41,
+        67,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/prepare_00.svg",
+      "sha256": "7c27e908a157d411095a18d85770d9712ce672a129c5cf25a4f3a9ddf7d8741e",
+      "size": 256,
+      "bounds": [
+        32,
+        78,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/prepare_01.svg",
+      "sha256": "f09737450653d4333baf676659a9dc55bc3aed81ac128393a7a0258169c5a220",
+      "size": 256,
+      "bounds": [
+        32,
+        78,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/prepare_02.svg",
+      "sha256": "84737a703afd380d11c9aec9bf6e97525f0e4d24ba9d81a63005e09ac85842d1",
+      "size": 256,
+      "bounds": [
+        32,
+        78,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/prepare_03.svg",
+      "sha256": "60a53c303891e8b63864b21c2e4a158303cb02a85a387f1b80dddf36f6a0b2d4",
+      "size": 256,
+      "bounds": [
+        33,
+        78,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/fire_00.svg",
+      "sha256": "3bcafad88e878c446565fd99874525e61de08b5019620e237d2a082588092ee5",
+      "size": 256,
+      "bounds": [
+        41,
+        61,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/fire_01.svg",
+      "sha256": "76b4a8a99a3283db8aa2f13abe3f9307627c4922829abe92de677e4e6b306e6f",
+      "size": 256,
+      "bounds": [
+        39,
+        61,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/fire_02.svg",
+      "sha256": "423ae40923bcaed9ea096a855962098ca985f08dce3b4b565cebb5b767e457c3",
+      "size": 256,
+      "bounds": [
+        40,
+        61,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/fire_03.svg",
+      "sha256": "3bcafad88e878c446565fd99874525e61de08b5019620e237d2a082588092ee5",
+      "size": 256,
+      "bounds": [
+        41,
+        61,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/recover_00.svg",
+      "sha256": "2ba9fa3626f897c4120c68095e04d781c2acd84ccd1b3483e9782355c129e22a",
+      "size": 256,
+      "bounds": [
+        40,
+        69,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/recover_01.svg",
+      "sha256": "e589498f9d36d6dddbd128cec5e311c92cf7662feb50e66169b5597f629c9c12",
+      "size": 256,
+      "bounds": [
+        40,
+        69,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/recover_02.svg",
+      "sha256": "d62a7ef8c1a24932e464c6127b6e62e8f24644f0f182b2b9d3ec77e81077f3d0",
+      "size": 256,
+      "bounds": [
+        41,
+        69,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_3/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_3/recover_03.svg",
+      "sha256": "d62a7ef8c1a24932e464c6127b6e62e8f24644f0f182b2b9d3ec77e81077f3d0",
+      "size": 256,
+      "bounds": [
+        41,
+        69,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/fire_3.png",
+      "source": "assets/mobile-art/svg/Portraits/fire_3.svg",
+      "sha256": "fa06290f03295ad4dc0cfb14d23746ec6b762837bdd22eed0f4225e4c4ead28a",
+      "size": 256,
+      "bounds": [
+        41,
+        67,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/fire_3.png",
+      "source": "assets/mobile-art/svg/Icons/fire_3.svg",
+      "sha256": "ea1785b5008cfced48b6d88baade5e6baefe60c098661418794e1f824d1f9055",
+      "size": 128,
+      "bounds": [
+        20,
+        33,
+        113,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/idle_00.svg",
+      "sha256": "c5ea43004e6f89b3d457a83c6330091deee64001a69e2f236e7a1d795688c0c0",
+      "size": 256,
+      "bounds": [
+        50,
+        39,
+        209,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/idle_01.svg",
+      "sha256": "221b24f02cc642e02016e8b869207f13488d88aab3882d2883928a353a3f8755",
+      "size": 256,
+      "bounds": [
+        50,
+        39,
+        209,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/idle_02.svg",
+      "sha256": "09acf3542862b3e8706cd0c98373e39b602e1cfb01029deb3ce52882e897df66",
+      "size": 256,
+      "bounds": [
+        50,
+        38,
+        209,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/idle_03.svg",
+      "sha256": "221b24f02cc642e02016e8b869207f13488d88aab3882d2883928a353a3f8755",
+      "size": 256,
+      "bounds": [
+        50,
+        39,
+        209,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/prepare_00.svg",
+      "sha256": "0dc1c718fb975ad4af880a29808c2ddecf880b2c73ba17c9d574506b6057463c",
+      "size": 256,
+      "bounds": [
+        42,
+        50,
+        210,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/prepare_01.svg",
+      "sha256": "b376941fbe5c08fcaa215030b8336ccbcc43256bafb11298c55109414cf9588e",
+      "size": 256,
+      "bounds": [
+        42,
+        50,
+        210,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/prepare_02.svg",
+      "sha256": "e08c8ef68c7ad1d53aeaa89dd5c14c3f1d76833b9a3dbd2e6d63d704f753e768",
+      "size": 256,
+      "bounds": [
+        43,
+        50,
+        210,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/prepare_03.svg",
+      "sha256": "f0c7001caa75c29c00f36eacd1319b0f46db41f79655e115fade24fe1ed4502d",
+      "size": 256,
+      "bounds": [
+        43,
+        50,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/fire_00.svg",
+      "sha256": "d19c68be21f2571ff83997a388191f23d9373c3734eea08260f7468071dd26fc",
+      "size": 256,
+      "bounds": [
+        50,
+        33,
+        205,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/fire_01.svg",
+      "sha256": "5ed3314485271f5210f0796b79452ae1c4cdd2068f3722b308caa51bc6c52867",
+      "size": 256,
+      "bounds": [
+        48,
+        33,
+        203,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/fire_02.svg",
+      "sha256": "a2dc321785465ceacfc429460efc6ca6cf1854af2c66bf4ef4aa45e4db1c7434",
+      "size": 256,
+      "bounds": [
+        49,
+        33,
+        204,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/fire_03.svg",
+      "sha256": "d19c68be21f2571ff83997a388191f23d9373c3734eea08260f7468071dd26fc",
+      "size": 256,
+      "bounds": [
+        50,
+        33,
+        205,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/recover_00.svg",
+      "sha256": "cf472e7b527943a1a80876f7ebc6d3fdb6a1387af9fcee015333e051a3c8347c",
+      "size": 256,
+      "bounds": [
+        49,
+        41,
+        210,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/recover_01.svg",
+      "sha256": "ed71216f4f3f00c6b4997c93399c94996fcda3769a20e9c24566f3c3d3b82a49",
+      "size": 256,
+      "bounds": [
+        50,
+        41,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/recover_02.svg",
+      "sha256": "17d6f29c63a2a4d93d751241d524874ad40bd8766e021a1daa8eb8e76e3c570c",
+      "size": 256,
+      "bounds": [
+        50,
+        41,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/fire_4/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/fire_4/recover_03.svg",
+      "sha256": "17d6f29c63a2a4d93d751241d524874ad40bd8766e021a1daa8eb8e76e3c570c",
+      "size": 256,
+      "bounds": [
+        50,
+        41,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/fire_4.png",
+      "source": "assets/mobile-art/svg/Portraits/fire_4.svg",
+      "sha256": "c5ea43004e6f89b3d457a83c6330091deee64001a69e2f236e7a1d795688c0c0",
+      "size": 256,
+      "bounds": [
+        50,
+        39,
+        209,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/fire_4.png",
+      "source": "assets/mobile-art/svg/Icons/fire_4.svg",
+      "sha256": "171b6c2f1733b0ec02a48f02269b71e0b94377388039dcde80d8898cef2ccaad",
+      "size": 128,
+      "bounds": [
+        25,
+        19,
+        104,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/water_1/idle_00.svg",
+      "sha256": "73836d7da0fd896b65d309244807794a1e3bc65ae2fdc7c00a2429799ba3df58",
+      "size": 256,
+      "bounds": [
+        53,
+        65,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/water_1/idle_01.svg",
+      "sha256": "72ad64c1254abb683d0c87bc7df26f06bdcfb733b7b1f89b48794f814e37efd3",
+      "size": 256,
+      "bounds": [
+        53,
+        65,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/water_1/idle_02.svg",
+      "sha256": "51dfb5314a264434155bdee87299bd8c19c7135e0bdb2596d89ae2224aafb28f",
+      "size": 256,
+      "bounds": [
+        53,
+        64,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/water_1/idle_03.svg",
+      "sha256": "72ad64c1254abb683d0c87bc7df26f06bdcfb733b7b1f89b48794f814e37efd3",
+      "size": 256,
+      "bounds": [
+        53,
+        65,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/water_1/prepare_00.svg",
+      "sha256": "e2d1778cff51c14f522d42daac701fb11f8852e3970f1ecd3a41c9a1d331a45d",
+      "size": 256,
+      "bounds": [
+        45,
+        72,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/water_1/prepare_01.svg",
+      "sha256": "d9cd2ce5ab9c18b96baab314ccb533602d3604e8b924dc43cda71b6aef5c71c6",
+      "size": 256,
+      "bounds": [
+        45,
+        72,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/water_1/prepare_02.svg",
+      "sha256": "465ade0a2fb1db142d41e7e130cf32e28ba55f9fe68a28e2c6d99a73c6e70fa5",
+      "size": 256,
+      "bounds": [
+        46,
+        72,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/water_1/prepare_03.svg",
+      "sha256": "8a786abc07e2b3703bedded299d65f83898fc17be30a01337e13586857fc8e3f",
+      "size": 256,
+      "bounds": [
+        46,
+        72,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/water_1/fire_00.svg",
+      "sha256": "d815ce332baa3d67eda86c7fa586f684cea4a81a1dd07f30c90c537ee1d01ed2",
+      "size": 256,
+      "bounds": [
+        53,
+        60,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/water_1/fire_01.svg",
+      "sha256": "8b6ede0687700658e5860997440494543c13e9531f5f5f4907964afa5dac29e2",
+      "size": 256,
+      "bounds": [
+        51,
+        60,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/water_1/fire_02.svg",
+      "sha256": "d1f8142b9a1715e4a93ef88763c088e446dba43f1f64ed4062ea0c1d19b1d728",
+      "size": 256,
+      "bounds": [
+        52,
+        60,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/water_1/fire_03.svg",
+      "sha256": "d815ce332baa3d67eda86c7fa586f684cea4a81a1dd07f30c90c537ee1d01ed2",
+      "size": 256,
+      "bounds": [
+        53,
+        60,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/water_1/recover_00.svg",
+      "sha256": "f996144d76cf49a46493dbd1c92dcbd2cba0720258957d877518387b14c68675",
+      "size": 256,
+      "bounds": [
+        52,
+        67,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/water_1/recover_01.svg",
+      "sha256": "e177606688933864e6ed722f01c0df9e081a01a27279a1a393930961d26a8ad8",
+      "size": 256,
+      "bounds": [
+        52,
+        67,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/water_1/recover_02.svg",
+      "sha256": "c96a715e14c663a3205d4e97777ac96a931e016a4dd46131f5c24aa7b5ddc9bd",
+      "size": 256,
+      "bounds": [
+        53,
+        67,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_1/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/water_1/recover_03.svg",
+      "sha256": "c96a715e14c663a3205d4e97777ac96a931e016a4dd46131f5c24aa7b5ddc9bd",
+      "size": 256,
+      "bounds": [
+        53,
+        67,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/water_1.png",
+      "source": "assets/mobile-art/svg/Portraits/water_1.svg",
+      "sha256": "73836d7da0fd896b65d309244807794a1e3bc65ae2fdc7c00a2429799ba3df58",
+      "size": 256,
+      "bounds": [
+        53,
+        65,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/water_1.png",
+      "source": "assets/mobile-art/svg/Icons/water_1.svg",
+      "sha256": "a6bf2a89555b9fa9d5fe27cb0dd0f8587316c89e70798b5055b9702728c043de",
+      "size": 128,
+      "bounds": [
+        26,
+        32,
+        113,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/water_2/idle_00.svg",
+      "sha256": "b92fc5b0d2a9ba3f756aa67799c978d0b31fc47c00f127aea877bee56fb05ee6",
+      "size": 256,
+      "bounds": [
+        60,
+        82,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/water_2/idle_01.svg",
+      "sha256": "79219eaa0f73ebc2a2b21c0716e9bd7352fa8d897f74163e92e34888bb2e575b",
+      "size": 256,
+      "bounds": [
+        60,
+        81,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/water_2/idle_02.svg",
+      "sha256": "75f433dd7791adc3bf9ba43f2a5be219203981a1a32cce6665efd1553b51a1e7",
+      "size": 256,
+      "bounds": [
+        60,
+        81,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/water_2/idle_03.svg",
+      "sha256": "79219eaa0f73ebc2a2b21c0716e9bd7352fa8d897f74163e92e34888bb2e575b",
+      "size": 256,
+      "bounds": [
+        60,
+        81,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/water_2/prepare_00.svg",
+      "sha256": "3de07c5ce065f188cc2da8594013efec9ef5f1d4ea65905a69e97946224930a3",
+      "size": 256,
+      "bounds": [
+        52,
+        88,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/water_2/prepare_01.svg",
+      "sha256": "abf00f03c94efe7a17bce7fec0b83e87a2d9d2f2629c3a6ff35c883546509950",
+      "size": 256,
+      "bounds": [
+        52,
+        88,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/water_2/prepare_02.svg",
+      "sha256": "7379ac927243eb7162e64fe84ee1350d94ef07ae79aa0c031ab88be34633e95f",
+      "size": 256,
+      "bounds": [
+        53,
+        88,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/water_2/prepare_03.svg",
+      "sha256": "fef5f8579eda9953cd57fdabd6b508bcfd4b67791616fef0b20c2174be54a93b",
+      "size": 256,
+      "bounds": [
+        53,
+        88,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/water_2/fire_00.svg",
+      "sha256": "86cb5d97c065f85649b249d59c47fdbf99e442a3aacc0cb775c898de6e932476",
+      "size": 256,
+      "bounds": [
+        59,
+        77,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/water_2/fire_01.svg",
+      "sha256": "a6c42f24e3a8883b849525d0b164647e6261b7c55943636ecb4b02241fadfb9b",
+      "size": 256,
+      "bounds": [
+        57,
+        77,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/water_2/fire_02.svg",
+      "sha256": "b3b92ce56670abaf3157e108cc70c1b434634c8ae75b59c0499b520679497fcc",
+      "size": 256,
+      "bounds": [
+        58,
+        77,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/water_2/fire_03.svg",
+      "sha256": "86cb5d97c065f85649b249d59c47fdbf99e442a3aacc0cb775c898de6e932476",
+      "size": 256,
+      "bounds": [
+        59,
+        77,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/water_2/recover_00.svg",
+      "sha256": "0f9b7f5c4e91c588dabc18d385097ce16dbe248b96f6296345732835c809ebb1",
+      "size": 256,
+      "bounds": [
+        59,
+        83,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/water_2/recover_01.svg",
+      "sha256": "b0d9e9864c105923d424f6e35dccbd90a9ab28af538a3451672709e528460f6e",
+      "size": 256,
+      "bounds": [
+        59,
+        83,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/water_2/recover_02.svg",
+      "sha256": "337daea88d115818e51e60119dc7878506312459c598202e0411a0ee87d5a6ff",
+      "size": 256,
+      "bounds": [
+        60,
+        83,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_2/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/water_2/recover_03.svg",
+      "sha256": "337daea88d115818e51e60119dc7878506312459c598202e0411a0ee87d5a6ff",
+      "size": 256,
+      "bounds": [
+        60,
+        83,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/water_2.png",
+      "source": "assets/mobile-art/svg/Portraits/water_2.svg",
+      "sha256": "b92fc5b0d2a9ba3f756aa67799c978d0b31fc47c00f127aea877bee56fb05ee6",
+      "size": 256,
+      "bounds": [
+        60,
+        82,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/water_2.png",
+      "source": "assets/mobile-art/svg/Icons/water_2.svg",
+      "sha256": "d85f80cb6296f1019f5917f916c323e794462041f5298353565e2141c6cd7e7b",
+      "size": 128,
+      "bounds": [
+        30,
+        41,
+        112,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/water_3/idle_00.svg",
+      "sha256": "a6ba1989f56be55127a4e9777e7730da0d6fd03e276b54723c92b9a7198a7ad6",
+      "size": 256,
+      "bounds": [
+        53,
+        43,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/water_3/idle_01.svg",
+      "sha256": "d00adf67c2ef1e9c236bcc187202024fee9411a1d7ba884219bb24d7a3a107a2",
+      "size": 256,
+      "bounds": [
+        53,
+        43,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/water_3/idle_02.svg",
+      "sha256": "68ec0e4b68199e13daaf74cebe4218941701601d92bcb25435bef1fd345c308b",
+      "size": 256,
+      "bounds": [
+        53,
+        42,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/water_3/idle_03.svg",
+      "sha256": "d00adf67c2ef1e9c236bcc187202024fee9411a1d7ba884219bb24d7a3a107a2",
+      "size": 256,
+      "bounds": [
+        53,
+        43,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/water_3/prepare_00.svg",
+      "sha256": "e528d6faf9625de1c5943b03fa43130e31358a5e9171e9ddf814daf5ef78e1dc",
+      "size": 256,
+      "bounds": [
+        49,
+        53,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/water_3/prepare_01.svg",
+      "sha256": "582e1d5b5f01bd34e795feaa273d4293ffe3adc7af9975926bc0b854ef2eb298",
+      "size": 256,
+      "bounds": [
+        49,
+        53,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/water_3/prepare_02.svg",
+      "sha256": "dcff8237d52405a815139c8831eeeb2e0ec757c658f08fe3a36c225a4c288b96",
+      "size": 256,
+      "bounds": [
+        49,
+        53,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/water_3/prepare_03.svg",
+      "sha256": "338d88654df971707002f13ffb94c419ea82c9be757da843f7d98349c178948f",
+      "size": 256,
+      "bounds": [
+        50,
+        53,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/water_3/fire_00.svg",
+      "sha256": "dd19715a029073dec074c3ee23796bc8c4a01b3392767c807e7713298c6369ed",
+      "size": 256,
+      "bounds": [
+        51,
+        38,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/water_3/fire_01.svg",
+      "sha256": "15e31cdda7cd1b26e8b48ba34e080825213d7fc8a1a8e4c3dc3cbb393d07851c",
+      "size": 256,
+      "bounds": [
+        49,
+        38,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/water_3/fire_02.svg",
+      "sha256": "b65f39452a7a1cbb6b3afe20ec248090f25fe0bc46f499f6a8d20f8dbcabcf4a",
+      "size": 256,
+      "bounds": [
+        50,
+        38,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/water_3/fire_03.svg",
+      "sha256": "dd19715a029073dec074c3ee23796bc8c4a01b3392767c807e7713298c6369ed",
+      "size": 256,
+      "bounds": [
+        51,
+        38,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/water_3/recover_00.svg",
+      "sha256": "28dd73acbb87933346355c962e52f165e9cd5110a46ea325e1d6761a4d5614c1",
+      "size": 256,
+      "bounds": [
+        52,
+        45,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/water_3/recover_01.svg",
+      "sha256": "58bb6a2e98aa08c14c4251b4f96495b9e3ddda8904a38deec7a57f21a1cf6334",
+      "size": 256,
+      "bounds": [
+        52,
+        45,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/water_3/recover_02.svg",
+      "sha256": "e78d6b498ec9663a998a032193c863fbba13709da3b3e08b07cc2bdd1c6c74ef",
+      "size": 256,
+      "bounds": [
+        53,
+        45,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_3/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/water_3/recover_03.svg",
+      "sha256": "e78d6b498ec9663a998a032193c863fbba13709da3b3e08b07cc2bdd1c6c74ef",
+      "size": 256,
+      "bounds": [
+        53,
+        45,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/water_3.png",
+      "source": "assets/mobile-art/svg/Portraits/water_3.svg",
+      "sha256": "a6ba1989f56be55127a4e9777e7730da0d6fd03e276b54723c92b9a7198a7ad6",
+      "size": 256,
+      "bounds": [
+        53,
+        43,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/water_3.png",
+      "source": "assets/mobile-art/svg/Icons/water_3.svg",
+      "sha256": "ecb5212562f07e9029e4c0eff5aec12db98b629e89315a65a017ca05b1e0821c",
+      "size": 128,
+      "bounds": [
+        26,
+        21,
+        113,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/water_4/idle_00.svg",
+      "sha256": "067ff977e9fb5ca62ee60f4553820981307c1540bfb805368fed9bc0c80f71da",
+      "size": 256,
+      "bounds": [
+        34,
+        51,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/water_4/idle_01.svg",
+      "sha256": "b1532a5ab2231322186905244f05a3c231af69fdaf7614aa969fcf7b1226e91f",
+      "size": 256,
+      "bounds": [
+        34,
+        51,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/water_4/idle_02.svg",
+      "sha256": "867eed84bb4bf6d535bb2e43e0fef07a1a97117c7861b421a7016ef0a9ffc4eb",
+      "size": 256,
+      "bounds": [
+        34,
+        50,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/water_4/idle_03.svg",
+      "sha256": "b1532a5ab2231322186905244f05a3c231af69fdaf7614aa969fcf7b1226e91f",
+      "size": 256,
+      "bounds": [
+        34,
+        51,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/water_4/prepare_00.svg",
+      "sha256": "02c1e9292f20f1144a2fc53c2a6b5e8b6cc72c9d4343cb250e0e3d9dd3dcf23b",
+      "size": 256,
+      "bounds": [
+        25,
+        56,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/water_4/prepare_01.svg",
+      "sha256": "a70371dff892fbc2faf7d2660d04020db1f880f26ac1e4383faaabe913760cbd",
+      "size": 256,
+      "bounds": [
+        26,
+        56,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/water_4/prepare_02.svg",
+      "sha256": "737026a567a9dfb05521dadda0f0ee83ea680cdd79749ee73577d5429b2660dd",
+      "size": 256,
+      "bounds": [
+        26,
+        56,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/water_4/prepare_03.svg",
+      "sha256": "83f15283d87fd6d35afd6581799ec0edc1bd654092b03cfaafe7bf41c1c60d76",
+      "size": 256,
+      "bounds": [
+        26,
+        56,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/water_4/fire_00.svg",
+      "sha256": "5f6d6b034475bfb56ed578c901c6f925cb40d21fcb2f10e29d4e6ca897649cac",
+      "size": 256,
+      "bounds": [
+        34,
+        48,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/water_4/fire_01.svg",
+      "sha256": "c5eb80c6f21d6e0ae38565530445d30f9e9b8ca420fa4087e569bff65d04e922",
+      "size": 256,
+      "bounds": [
+        32,
+        48,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/water_4/fire_02.svg",
+      "sha256": "f41beba7ccfa9a0466e30cb07d62f8073423b04f5c97ff0dc16b7246ab19c5c9",
+      "size": 256,
+      "bounds": [
+        33,
+        48,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/water_4/fire_03.svg",
+      "sha256": "5f6d6b034475bfb56ed578c901c6f925cb40d21fcb2f10e29d4e6ca897649cac",
+      "size": 256,
+      "bounds": [
+        34,
+        48,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/water_4/recover_00.svg",
+      "sha256": "a87401d0e51f02e121daff67730f79dcd3f65b261216ac678f2d7d25ee32fc14",
+      "size": 256,
+      "bounds": [
+        33,
+        53,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/water_4/recover_01.svg",
+      "sha256": "79f2b16431b05424f9381157771af89a5151bf9b2db970f9165881d932062178",
+      "size": 256,
+      "bounds": [
+        33,
+        53,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/water_4/recover_02.svg",
+      "sha256": "789bb07c4b9945a00d3377e49348da8851f4cd0bf73e2685775b25ef84aa7402",
+      "size": 256,
+      "bounds": [
+        34,
+        53,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/water_4/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/water_4/recover_03.svg",
+      "sha256": "789bb07c4b9945a00d3377e49348da8851f4cd0bf73e2685775b25ef84aa7402",
+      "size": 256,
+      "bounds": [
+        34,
+        53,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/water_4.png",
+      "source": "assets/mobile-art/svg/Portraits/water_4.svg",
+      "sha256": "067ff977e9fb5ca62ee60f4553820981307c1540bfb805368fed9bc0c80f71da",
+      "size": 256,
+      "bounds": [
+        34,
+        51,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/water_4.png",
+      "source": "assets/mobile-art/svg/Icons/water_4.svg",
+      "sha256": "e40ff6680ad15cd4d1578f1fe0534bb19dc61f52c59a22d6db7f2385a270009f",
+      "size": 128,
+      "bounds": [
+        17,
+        25,
+        111,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/idle_00.svg",
+      "sha256": "814ad9582234cca67a8c854ef23554fabd69578f7c3234d6c2aea70b0abcd741",
+      "size": 256,
+      "bounds": [
+        60,
+        51,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/idle_01.svg",
+      "sha256": "021af9f936095fdc85516cd870ecf31a790283dd12ca3cd003de235dba3a7b5f",
+      "size": 256,
+      "bounds": [
+        60,
+        51,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/idle_02.svg",
+      "sha256": "050f25a8118e5806baae3a24fa5c9f7e5244f4e6b67ebddee32cf8fccc00bb81",
+      "size": 256,
+      "bounds": [
+        60,
+        50,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/idle_03.svg",
+      "sha256": "021af9f936095fdc85516cd870ecf31a790283dd12ca3cd003de235dba3a7b5f",
+      "size": 256,
+      "bounds": [
+        60,
+        51,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/prepare_00.svg",
+      "sha256": "899aededf7d0c02e1a1ce26858b29033948e1169ce53a990991edb8613fb15a3",
+      "size": 256,
+      "bounds": [
+        60,
+        59,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/prepare_01.svg",
+      "sha256": "cf7cb1ad215533733f9c0f5b1ab771c68ec5e7642f467c4887d86d194436e258",
+      "size": 256,
+      "bounds": [
+        60,
+        59,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/prepare_02.svg",
+      "sha256": "004bc6f70b9e62c84d3ea4b00d539fe51c33fcdbd3515ff5a193b10700e0b308",
+      "size": 256,
+      "bounds": [
+        61,
+        59,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/prepare_03.svg",
+      "sha256": "283632615863200ac2cbc5a6b32b56b203c9c75d7c32149aa72d6c15f44b8f1e",
+      "size": 256,
+      "bounds": [
+        61,
+        59,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/fire_00.svg",
+      "sha256": "871e1addf0f351c8962157674ea1e745ae5ded17526da57f79c39d459c056a47",
+      "size": 256,
+      "bounds": [
+        60,
+        46,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/fire_01.svg",
+      "sha256": "f079ad8935bb27f138426bd69032cd74f3f84f06d91be166b14785376b042886",
+      "size": 256,
+      "bounds": [
+        58,
+        46,
+        194,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/fire_02.svg",
+      "sha256": "3d2aedf254d8ef0693a8c59a70f28028a5efa7d9008285c8cba3211804edfd25",
+      "size": 256,
+      "bounds": [
+        59,
+        46,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/fire_03.svg",
+      "sha256": "871e1addf0f351c8962157674ea1e745ae5ded17526da57f79c39d459c056a47",
+      "size": 256,
+      "bounds": [
+        60,
+        46,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/recover_00.svg",
+      "sha256": "93fec5290b66b066a9fe4977884b5433da72a1a624f653b2c11b633ab39e6d41",
+      "size": 256,
+      "bounds": [
+        59,
+        53,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/recover_01.svg",
+      "sha256": "ba01d96d6c21ae417f4b972552f18db522fedc11643c967ab73f78be9f35ef60",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/recover_02.svg",
+      "sha256": "db1970527540cdcb8a0cc276aadbe3310dda3029db8579a6f11f272e9a356cda",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_1/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_1/recover_03.svg",
+      "sha256": "db1970527540cdcb8a0cc276aadbe3310dda3029db8579a6f11f272e9a356cda",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/frost_1.png",
+      "source": "assets/mobile-art/svg/Portraits/frost_1.svg",
+      "sha256": "814ad9582234cca67a8c854ef23554fabd69578f7c3234d6c2aea70b0abcd741",
+      "size": 256,
+      "bounds": [
+        60,
+        51,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/frost_1.png",
+      "source": "assets/mobile-art/svg/Icons/frost_1.svg",
+      "sha256": "575075c78575d89e16c1a271a02fea2e309217cdc84b18ec6c8eb3d12ee28828",
+      "size": 128,
+      "bounds": [
+        30,
+        25,
+        98,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/idle_00.svg",
+      "sha256": "dbf3b1cf5d3c5b613497cec7d9af9576c470b0a3446bc1d05ffc3f8721f8fbd3",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/idle_01.svg",
+      "sha256": "ac4572db2d0207157949c71875deb6214c46d1a9d205dcad28e2cec30f685e12",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/idle_02.svg",
+      "sha256": "674a180a6805218348a82163d3aa5d64fbdb790ff984af7c51b1aecdb7d6fcf6",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/idle_03.svg",
+      "sha256": "ac4572db2d0207157949c71875deb6214c46d1a9d205dcad28e2cec30f685e12",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/prepare_00.svg",
+      "sha256": "07801351b25836480f55663634c994060e3c71bae4ed3f090a78246e24dba45d",
+      "size": 256,
+      "bounds": [
+        56,
+        60,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/prepare_01.svg",
+      "sha256": "3a49383142cca898ac1880e2ece4150fea496dd62ef27b5318a1e4456dc1b198",
+      "size": 256,
+      "bounds": [
+        57,
+        60,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/prepare_02.svg",
+      "sha256": "d5197c12e325bae5cbefdb6de84a4a5073a121fa1eefacfe7e5b974558bfcb92",
+      "size": 256,
+      "bounds": [
+        57,
+        60,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/prepare_03.svg",
+      "sha256": "d760b05a26edc11673355f316d5f754b75ce2dad9dbffaa30bf9d303ed9d258b",
+      "size": 256,
+      "bounds": [
+        57,
+        60,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/fire_00.svg",
+      "sha256": "3431b6f2df0362717e1a64d4342bf958dcd07a5b7852e792619a423774d9ec2c",
+      "size": 256,
+      "bounds": [
+        60,
+        48,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/fire_01.svg",
+      "sha256": "72d3400d10d7cf61dee1639815b36348552f3b5b3a65fed071f309869d362426",
+      "size": 256,
+      "bounds": [
+        58,
+        48,
+        194,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/fire_02.svg",
+      "sha256": "b94f9512de0ad68f17ba003c29f270f6286282a2d195f08d68b01fa79309f5d7",
+      "size": 256,
+      "bounds": [
+        59,
+        48,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/fire_03.svg",
+      "sha256": "3431b6f2df0362717e1a64d4342bf958dcd07a5b7852e792619a423774d9ec2c",
+      "size": 256,
+      "bounds": [
+        60,
+        48,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/recover_00.svg",
+      "sha256": "be6d8d361c9a19cedf88cf9be4dc21dd38be0daa854f4dc9ddfa730de459912e",
+      "size": 256,
+      "bounds": [
+        59,
+        55,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/recover_01.svg",
+      "sha256": "14faf4a42fdaf985dae33a41f93a289017cc5723849c2e9126c6830308296b41",
+      "size": 256,
+      "bounds": [
+        60,
+        55,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/recover_02.svg",
+      "sha256": "97506453b9dfbb91e36f846326c7953907093f223aef553f49a365b65bd8e75f",
+      "size": 256,
+      "bounds": [
+        60,
+        55,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_2/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_2/recover_03.svg",
+      "sha256": "97506453b9dfbb91e36f846326c7953907093f223aef553f49a365b65bd8e75f",
+      "size": 256,
+      "bounds": [
+        60,
+        55,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/frost_2.png",
+      "source": "assets/mobile-art/svg/Portraits/frost_2.svg",
+      "sha256": "dbf3b1cf5d3c5b613497cec7d9af9576c470b0a3446bc1d05ffc3f8721f8fbd3",
+      "size": 256,
+      "bounds": [
+        60,
+        53,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/frost_2.png",
+      "source": "assets/mobile-art/svg/Icons/frost_2.svg",
+      "sha256": "ac8f98375dce88d33e8eca3e722573aa3f0a572efc51fa7cc79d99eb20f11f72",
+      "size": 128,
+      "bounds": [
+        30,
+        26,
+        98,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/idle_00.svg",
+      "sha256": "e2b2a2b35f5f3038dc75074b7469ccc52021d6c07d7cbdcebed1fd54003db759",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/idle_01.svg",
+      "sha256": "320b4b83f7d6c64acdc18c15aff42f171c6b44c593c70f8bf4f8aea725a8eba0",
+      "size": 256,
+      "bounds": [
+        41,
+        62,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/idle_02.svg",
+      "sha256": "f4e75873b77e9c4c32c8d946f1d33856534ce0a8456c7a996bc8211007e506e7",
+      "size": 256,
+      "bounds": [
+        41,
+        62,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/idle_03.svg",
+      "sha256": "320b4b83f7d6c64acdc18c15aff42f171c6b44c593c70f8bf4f8aea725a8eba0",
+      "size": 256,
+      "bounds": [
+        41,
+        62,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/prepare_00.svg",
+      "sha256": "8a8429ed944f195dd2b33aa961a4c5749c9152f771cd07d6ae3fa2c880ae35a8",
+      "size": 256,
+      "bounds": [
+        32,
+        67,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/prepare_01.svg",
+      "sha256": "b505ab4201ee01113b1c228a07c00ac85ed4e79a3af940a97b150aac86a22e76",
+      "size": 256,
+      "bounds": [
+        32,
+        67,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/prepare_02.svg",
+      "sha256": "b8919139e765153e072068f5998863dc42ccf9ccbc942a27d3548464cc4116a0",
+      "size": 256,
+      "bounds": [
+        33,
+        67,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/prepare_03.svg",
+      "sha256": "beeff0c71c4d8cb1d161044779f5df56797b467ab1a1bf09b4e1dff711ddc4e3",
+      "size": 256,
+      "bounds": [
+        33,
+        67,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/fire_00.svg",
+      "sha256": "f391f42f7292e239bb90d9435c491d3660d679aef10f213dcb5c75242be63de8",
+      "size": 256,
+      "bounds": [
+        41,
+        57,
+        212,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/fire_01.svg",
+      "sha256": "29bea771ca6fc8ad4b842a0842547ad7625b998cfd0fb214ca031b29361f152d",
+      "size": 256,
+      "bounds": [
+        39,
+        57,
+        210,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/fire_02.svg",
+      "sha256": "d6f5ed6e052d147a0d478d9f69efbed6827b6c4c38f93d0c7f68640ccb55b341",
+      "size": 256,
+      "bounds": [
+        40,
+        57,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/fire_03.svg",
+      "sha256": "f391f42f7292e239bb90d9435c491d3660d679aef10f213dcb5c75242be63de8",
+      "size": 256,
+      "bounds": [
+        41,
+        57,
+        212,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/recover_00.svg",
+      "sha256": "d4cea1d4804877dd000190af3f4c7fe2fdb15b1a17c61bf6466d1609052a8d05",
+      "size": 256,
+      "bounds": [
+        40,
+        64,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/recover_01.svg",
+      "sha256": "6274bcbfd72497e43b4c177c838ce52758d99c12fc128556935fe2dabd19fc7d",
+      "size": 256,
+      "bounds": [
+        40,
+        64,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/recover_02.svg",
+      "sha256": "2533624d64a5f4cfa089fab4a05a44eb51c6177229be83a3db280139f7082036",
+      "size": 256,
+      "bounds": [
+        41,
+        64,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_3/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_3/recover_03.svg",
+      "sha256": "2533624d64a5f4cfa089fab4a05a44eb51c6177229be83a3db280139f7082036",
+      "size": 256,
+      "bounds": [
+        41,
+        64,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/frost_3.png",
+      "source": "assets/mobile-art/svg/Portraits/frost_3.svg",
+      "sha256": "e2b2a2b35f5f3038dc75074b7469ccc52021d6c07d7cbdcebed1fd54003db759",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/frost_3.png",
+      "source": "assets/mobile-art/svg/Icons/frost_3.svg",
+      "sha256": "d31637c14755a5c81c606cca7aaece899e00e724bda80c729dfecc4d4e3cacb7",
+      "size": 128,
+      "bounds": [
+        20,
+        31,
+        108,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/idle_00.svg",
+      "sha256": "683fa62c18e8bc71d386d2d19854381ac128ea62d99fcd85973f4adccb933a96",
+      "size": 256,
+      "bounds": [
+        38,
+        40,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/idle_01.svg",
+      "sha256": "9e8e030da5b461f56e6b2b2e83fd62bb0dd87ad9d6f447d9c8eb56c26cd0090c",
+      "size": 256,
+      "bounds": [
+        38,
+        39,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/idle_02.svg",
+      "sha256": "d8c47cca987b1444c43647c6e38a2e94abe7b9fed3c77abeb55eb28c4b7d2e3e",
+      "size": 256,
+      "bounds": [
+        38,
+        39,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/idle_03.svg",
+      "sha256": "9e8e030da5b461f56e6b2b2e83fd62bb0dd87ad9d6f447d9c8eb56c26cd0090c",
+      "size": 256,
+      "bounds": [
+        38,
+        39,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/prepare_00.svg",
+      "sha256": "ccd25db27da8e36b34e14f08af047186d66624f8c437dc5856885eef9fc1eee6",
+      "size": 256,
+      "bounds": [
+        28,
+        49,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/prepare_01.svg",
+      "sha256": "ec26606d2935d7ac52be27bcd32bc922e89b0ed67ad46ebb35bcba64a9ee2cd4",
+      "size": 256,
+      "bounds": [
+        28,
+        49,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/prepare_02.svg",
+      "sha256": "417c829d3bfe425fe93de944826c51bf68c4bfd3b2a1c7b02b533df71e3e7799",
+      "size": 256,
+      "bounds": [
+        29,
+        49,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/prepare_03.svg",
+      "sha256": "c7eb43bd56d0e4f0d39bff59a36358f8eb5967f2a6a858cf9811e12e72c18f81",
+      "size": 256,
+      "bounds": [
+        29,
+        49,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/fire_00.svg",
+      "sha256": "b7c7fc85da822720e538c97c9c0b35e1b73a127a903b5e41c2abc42bb5cac922",
+      "size": 256,
+      "bounds": [
+        41,
+        35,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/fire_01.svg",
+      "sha256": "8e1eda0954c15dbe3cc781f64afb578727089dbbda89cf03d2e0a11ad8d228fb",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/fire_02.svg",
+      "sha256": "a68c099a8191937d099d3eedb5391c88424ac0255d61b494987cdcb2478ed8d4",
+      "size": 256,
+      "bounds": [
+        40,
+        35,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/fire_03.svg",
+      "sha256": "b7c7fc85da822720e538c97c9c0b35e1b73a127a903b5e41c2abc42bb5cac922",
+      "size": 256,
+      "bounds": [
+        41,
+        35,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/recover_00.svg",
+      "sha256": "4c803f8484de6d23d12ce5f4292f3756f41d789658298fe5ccba4ba46c7e6a0e",
+      "size": 256,
+      "bounds": [
+        37,
+        42,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/recover_01.svg",
+      "sha256": "ddfaf0a39f75c025c7c7fae9df97ce896b92cfdbaec9744e1e02fff1bae6b87d",
+      "size": 256,
+      "bounds": [
+        38,
+        42,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/recover_02.svg",
+      "sha256": "5a2212bd782e2ebfd0aadf0fc0648e3e32a66e0452b074d231e005ac18060e35",
+      "size": 256,
+      "bounds": [
+        38,
+        42,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/frost_4/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/frost_4/recover_03.svg",
+      "sha256": "5a2212bd782e2ebfd0aadf0fc0648e3e32a66e0452b074d231e005ac18060e35",
+      "size": 256,
+      "bounds": [
+        38,
+        42,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/frost_4.png",
+      "source": "assets/mobile-art/svg/Portraits/frost_4.svg",
+      "sha256": "683fa62c18e8bc71d386d2d19854381ac128ea62d99fcd85973f4adccb933a96",
+      "size": 256,
+      "bounds": [
+        38,
+        40,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/frost_4.png",
+      "source": "assets/mobile-art/svg/Icons/frost_4.svg",
+      "sha256": "9fca80c44779d7e3a6e7f8d0091a26bd6e42ba7d5fff3ac0203c7e4857a33b7a",
+      "size": 128,
+      "bounds": [
+        19,
+        20,
+        111,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/idle_00.svg",
+      "sha256": "1ef9952b6de3d87d14d7766e8508e333a300d003d66392939420df9526dd54b7",
+      "size": 256,
+      "bounds": [
+        60,
+        35,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/idle_01.svg",
+      "sha256": "6f7c64e222bddcbcd9e4392091e95900484e90a97df68eda6eb11b9428b297d0",
+      "size": 256,
+      "bounds": [
+        60,
+        34,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/idle_02.svg",
+      "sha256": "cb4119edfcd10adcdb3395ccddb2e3f25a4dc102fe6408319bdb6335ef938a21",
+      "size": 256,
+      "bounds": [
+        60,
+        34,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/idle_03.svg",
+      "sha256": "6f7c64e222bddcbcd9e4392091e95900484e90a97df68eda6eb11b9428b297d0",
+      "size": 256,
+      "bounds": [
+        60,
+        34,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/prepare_00.svg",
+      "sha256": "3667460020fc242d4a0f618752336db23083b4561454ba6fad334e05095193b9",
+      "size": 256,
+      "bounds": [
+        58,
+        44,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/prepare_01.svg",
+      "sha256": "ea8c35b7db1b5eabd4158c4401259209258c4a5363cd7b5dbb9195f46bb2fad9",
+      "size": 256,
+      "bounds": [
+        58,
+        44,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/prepare_02.svg",
+      "sha256": "d2b719390b1b1a902b738384f7f041a7433127a8878e2f6dea06d986fecb6a87",
+      "size": 256,
+      "bounds": [
+        59,
+        44,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/prepare_03.svg",
+      "sha256": "bb24d4dd890ac385c32401c223862c9bc80c3418c857a5ddd58b07e447a949f1",
+      "size": 256,
+      "bounds": [
+        59,
+        44,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/fire_00.svg",
+      "sha256": "57111314dbf061a3e343a669a443f24ab1107492006a424476d2137f7c9c59e9",
+      "size": 256,
+      "bounds": [
+        60,
+        30,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/fire_01.svg",
+      "sha256": "9c93dfc5f6b15cb472008f22eb330d558e2b46efa787f5081ba98a0e80b7dd69",
+      "size": 256,
+      "bounds": [
+        58,
+        30,
+        194,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/fire_02.svg",
+      "sha256": "29661720c635e7d7dafa8a5d0282f7f900b1fabe145a4244fd1fb4633791c015",
+      "size": 256,
+      "bounds": [
+        59,
+        30,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/fire_03.svg",
+      "sha256": "57111314dbf061a3e343a669a443f24ab1107492006a424476d2137f7c9c59e9",
+      "size": 256,
+      "bounds": [
+        60,
+        30,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/recover_00.svg",
+      "sha256": "ab2c1f7f28fe505de10677e10f3275a232f0ccc8683273d9c6bff64434569d95",
+      "size": 256,
+      "bounds": [
+        59,
+        36,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/recover_01.svg",
+      "sha256": "2ee2be58db996b12bbac5be1b6c8f4d19c3b68e478b01bc8ebb9e1f2713d3d67",
+      "size": 256,
+      "bounds": [
+        60,
+        36,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/recover_02.svg",
+      "sha256": "d25eac76a78a36cfaa4306cd1f7152383e5d91b080105a74284fe613b592d575",
+      "size": 256,
+      "bounds": [
+        60,
+        36,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_1/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_1/recover_03.svg",
+      "sha256": "d25eac76a78a36cfaa4306cd1f7152383e5d91b080105a74284fe613b592d575",
+      "size": 256,
+      "bounds": [
+        60,
+        36,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/wind_1.png",
+      "source": "assets/mobile-art/svg/Portraits/wind_1.svg",
+      "sha256": "1ef9952b6de3d87d14d7766e8508e333a300d003d66392939420df9526dd54b7",
+      "size": 256,
+      "bounds": [
+        60,
+        35,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/wind_1.png",
+      "source": "assets/mobile-art/svg/Icons/wind_1.svg",
+      "sha256": "cc613022c541a45431de53dfc5772a1416307ca0b41d98da747982daa3e87e7f",
+      "size": 128,
+      "bounds": [
+        30,
+        17,
+        98,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/idle_00.svg",
+      "sha256": "7e622a34d6a62c8db5289e22d4957e8f929d260c914769cc75eea2020c63a957",
+      "size": 256,
+      "bounds": [
+        60,
+        25,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/idle_01.svg",
+      "sha256": "9b6658c4a9e352efdce883ee7f964a7341827c0f32fc885f548e1a0dd6a0813c",
+      "size": 256,
+      "bounds": [
+        60,
+        25,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/idle_02.svg",
+      "sha256": "f2824f71e916eb17d937fc063ce97f910d126783a307da3100165424d4d55749",
+      "size": 256,
+      "bounds": [
+        60,
+        24,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/idle_03.svg",
+      "sha256": "9b6658c4a9e352efdce883ee7f964a7341827c0f32fc885f548e1a0dd6a0813c",
+      "size": 256,
+      "bounds": [
+        60,
+        25,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/prepare_00.svg",
+      "sha256": "cda01d1be3064570f066b41258951272d200579ba41f14e9766ed9968b3d44d1",
+      "size": 256,
+      "bounds": [
+        53,
+        35,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/prepare_01.svg",
+      "sha256": "8a4ad53b6ee29bf665978c2dbd77de40a6cd9796f52f2181c414d7ffd70fc27a",
+      "size": 256,
+      "bounds": [
+        53,
+        35,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/prepare_02.svg",
+      "sha256": "f37de00209c18088f459f71d6b287289a77776e104cab136ae0e33dda8298488",
+      "size": 256,
+      "bounds": [
+        53,
+        35,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/prepare_03.svg",
+      "sha256": "f80eefc313c1ca3d384b3b6992625b07cbf7b382c63e0ec73508a867bd9b94bb",
+      "size": 256,
+      "bounds": [
+        54,
+        35,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/fire_00.svg",
+      "sha256": "34a3c6b9d6badeae377415ed5a0c14667d28ca0a513068e57fd34aabb8f48ee6",
+      "size": 256,
+      "bounds": [
+        60,
+        20,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/fire_01.svg",
+      "sha256": "6691f48e424f8e809e9ec945cd2c4662de32f4423729dc3b71cf46df522dfd93",
+      "size": 256,
+      "bounds": [
+        58,
+        20,
+        194,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/fire_02.svg",
+      "sha256": "474692e7cd991dd81b59821f17db5c2816f45ef371d7e5ddb9022ca70e2d0f58",
+      "size": 256,
+      "bounds": [
+        59,
+        20,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/fire_03.svg",
+      "sha256": "34a3c6b9d6badeae377415ed5a0c14667d28ca0a513068e57fd34aabb8f48ee6",
+      "size": 256,
+      "bounds": [
+        60,
+        20,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/recover_00.svg",
+      "sha256": "f8262b0db2b090c1cda7ab6a3eff9bf47637eccecd5040fb470cdc92f094769f",
+      "size": 256,
+      "bounds": [
+        59,
+        27,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/recover_01.svg",
+      "sha256": "56e54ad9cea64f2f6ce787e13817f1ac547881e91cf22ec8ca7dfdd3f4bc4279",
+      "size": 256,
+      "bounds": [
+        60,
+        27,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/recover_02.svg",
+      "sha256": "e5ae7235fdb3e691fbc5c9e7da13b98586426a35bf5597e97a09c389fed18fcc",
+      "size": 256,
+      "bounds": [
+        60,
+        27,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_2/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_2/recover_03.svg",
+      "sha256": "e5ae7235fdb3e691fbc5c9e7da13b98586426a35bf5597e97a09c389fed18fcc",
+      "size": 256,
+      "bounds": [
+        60,
+        27,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/wind_2.png",
+      "source": "assets/mobile-art/svg/Portraits/wind_2.svg",
+      "sha256": "7e622a34d6a62c8db5289e22d4957e8f929d260c914769cc75eea2020c63a957",
+      "size": 256,
+      "bounds": [
+        60,
+        25,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/wind_2.png",
+      "source": "assets/mobile-art/svg/Icons/wind_2.svg",
+      "sha256": "0cc4e432c5b5634ae2efe0c3af667e6c5df25359462d1dcb9fc61ea827b18c68",
+      "size": 128,
+      "bounds": [
+        30,
+        12,
+        98,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/idle_00.svg",
+      "sha256": "81b63f558fafe76e346d0250849e32eccc87e02d3911e9b2e06edbacd67538ba",
+      "size": 256,
+      "bounds": [
+        39,
+        57,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/idle_01.svg",
+      "sha256": "5de72c78791bae78f211014b0b535517ac69dd48cc556a2a3f132e1073738214",
+      "size": 256,
+      "bounds": [
+        39,
+        57,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/idle_02.svg",
+      "sha256": "c825dd3de02768bd31ed9973089d3ab070133ef1c79a9c2bc4e5d9807a435534",
+      "size": 256,
+      "bounds": [
+        39,
+        57,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/idle_03.svg",
+      "sha256": "5de72c78791bae78f211014b0b535517ac69dd48cc556a2a3f132e1073738214",
+      "size": 256,
+      "bounds": [
+        39,
+        57,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/prepare_00.svg",
+      "sha256": "689f7a8583f0425787e89cd775709b1f7c804f9e220517ae01c27dfd057bd0a2",
+      "size": 256,
+      "bounds": [
+        29,
+        64,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/prepare_01.svg",
+      "sha256": "dde3fbbc4756f119cc7ee296b6c26048679812a9e7046648491cfde85ae0a756",
+      "size": 256,
+      "bounds": [
+        30,
+        64,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/prepare_02.svg",
+      "sha256": "3f56fcf6fb0c1629999bd3eeb22266cd9523e36aebd02bd922dcf49a59eded0c",
+      "size": 256,
+      "bounds": [
+        30,
+        64,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/prepare_03.svg",
+      "sha256": "7996d7d4b6ef27823e4d5794ba81a04429bcc10e852f88796dd07fc2e36e22fc",
+      "size": 256,
+      "bounds": [
+        30,
+        64,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/fire_00.svg",
+      "sha256": "ec62806298fb0bcff10b561a5b4013cb22faff24e8f80ec11454d8525b55666a",
+      "size": 256,
+      "bounds": [
+        39,
+        51,
+        212,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/fire_01.svg",
+      "sha256": "10448816eeeabd2b0a6eb87635652bd609329b6233ed8300eb37f8a45f2914c0",
+      "size": 256,
+      "bounds": [
+        37,
+        51,
+        210,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/fire_02.svg",
+      "sha256": "44e72cae5beeeff839e01cd06ea394a442f5bbb8684f578d5419198a2cb2f253",
+      "size": 256,
+      "bounds": [
+        38,
+        51,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/fire_03.svg",
+      "sha256": "ec62806298fb0bcff10b561a5b4013cb22faff24e8f80ec11454d8525b55666a",
+      "size": 256,
+      "bounds": [
+        39,
+        51,
+        212,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/recover_00.svg",
+      "sha256": "863cfbd940779b65b8ea69b0f17bc7e3e2235974b01601942cd683d5fd51702f",
+      "size": 256,
+      "bounds": [
+        37,
+        59,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/recover_01.svg",
+      "sha256": "b0a96d1ee85a8072acee3d8a17d26e063b1c39bf25864c7c93746807f4835613",
+      "size": 256,
+      "bounds": [
+        38,
+        59,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/recover_02.svg",
+      "sha256": "bb7a19d896b25e42bc729176fdf197178c558ac726d436d3453ec2aaf1f16ea4",
+      "size": 256,
+      "bounds": [
+        38,
+        59,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_3/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_3/recover_03.svg",
+      "sha256": "bb7a19d896b25e42bc729176fdf197178c558ac726d436d3453ec2aaf1f16ea4",
+      "size": 256,
+      "bounds": [
+        38,
+        59,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/wind_3.png",
+      "source": "assets/mobile-art/svg/Portraits/wind_3.svg",
+      "sha256": "81b63f558fafe76e346d0250849e32eccc87e02d3911e9b2e06edbacd67538ba",
+      "size": 256,
+      "bounds": [
+        39,
+        57,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/wind_3.png",
+      "source": "assets/mobile-art/svg/Icons/wind_3.svg",
+      "sha256": "420f9c575049c672d9e69261a559a097bfc8b9a2d567538aa2e5e78710a77b94",
+      "size": 128,
+      "bounds": [
+        19,
+        28,
+        108,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/idle_00.svg",
+      "sha256": "6251e2a1bdb4a97b0198e52fb5b8ba0758479d360a4eb01c1a002e10e74cd6d4",
+      "size": 256,
+      "bounds": [
+        39,
+        50,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/idle_01.svg",
+      "sha256": "84f7a3e89dc9773b53702b5819489e34081c4938e20d3fe451b233249b8e415e",
+      "size": 256,
+      "bounds": [
+        39,
+        50,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/idle_02.svg",
+      "sha256": "6459cecf76b8cfaa974b7568796941e66226318d532b5df458e2cf157fecd7c2",
+      "size": 256,
+      "bounds": [
+        39,
+        49,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/idle_03.svg",
+      "sha256": "84f7a3e89dc9773b53702b5819489e34081c4938e20d3fe451b233249b8e415e",
+      "size": 256,
+      "bounds": [
+        39,
+        50,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/prepare_00.svg",
+      "sha256": "b30ea9e278ceaea7119c148c2730e03743d36bba4d82621101dfd51124830d38",
+      "size": 256,
+      "bounds": [
+        30,
+        59,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/prepare_01.svg",
+      "sha256": "11624050690c977f69099a39a99ee8df4d31cd1bfeed9d84104a76e52299cb1e",
+      "size": 256,
+      "bounds": [
+        31,
+        59,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/prepare_02.svg",
+      "sha256": "33e652fdd56dda1d42c27c93f66e692404786e6df691cf153ea73652220528d8",
+      "size": 256,
+      "bounds": [
+        31,
+        59,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/prepare_03.svg",
+      "sha256": "3f2fbb0043fc98d6ba54d4d1918234e21e968e23dc6301a253b9c94e921f2534",
+      "size": 256,
+      "bounds": [
+        31,
+        59,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/fire_00.svg",
+      "sha256": "8547b82401a633e5e5fe3d9fe3d9b88c0fc8c865966468ba773ed6c5cdc9278f",
+      "size": 256,
+      "bounds": [
+        40,
+        46,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/fire_01.svg",
+      "sha256": "5348ee3d9ecce4deec7e723d865d6cd34cff86d74669efe093c6f5a4140fd0a2",
+      "size": 256,
+      "bounds": [
+        38,
+        46,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/fire_02.svg",
+      "sha256": "558ca123d6f8391736b0c83321620bffe5f0eef18a303ee5992e8d82559b567d",
+      "size": 256,
+      "bounds": [
+        39,
+        46,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/fire_03.svg",
+      "sha256": "8547b82401a633e5e5fe3d9fe3d9b88c0fc8c865966468ba773ed6c5cdc9278f",
+      "size": 256,
+      "bounds": [
+        40,
+        46,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/recover_00.svg",
+      "sha256": "4dad70f7da249b247022c50c795083f1276701e85099fcdecafa2a7ce5948f50",
+      "size": 256,
+      "bounds": [
+        37,
+        52,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/recover_01.svg",
+      "sha256": "4cd8a6e6a4bef584538993d2f5807e3304b5687ee2d4003f8639aadc08cf739c",
+      "size": 256,
+      "bounds": [
+        38,
+        52,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/recover_02.svg",
+      "sha256": "0e365436f6ed181b318dba72e7ab32a027fb3c975294ff2633cab1ed9c66e76e",
+      "size": 256,
+      "bounds": [
+        38,
+        52,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/wind_4/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/wind_4/recover_03.svg",
+      "sha256": "0e365436f6ed181b318dba72e7ab32a027fb3c975294ff2633cab1ed9c66e76e",
+      "size": 256,
+      "bounds": [
+        38,
+        52,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/wind_4.png",
+      "source": "assets/mobile-art/svg/Portraits/wind_4.svg",
+      "sha256": "6251e2a1bdb4a97b0198e52fb5b8ba0758479d360a4eb01c1a002e10e74cd6d4",
+      "size": 256,
+      "bounds": [
+        39,
+        50,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/wind_4.png",
+      "source": "assets/mobile-art/svg/Icons/wind_4.svg",
+      "sha256": "d4c12643bda488911235fdaecb84658e1f002ce4d1d82b231815bbb0852166b6",
+      "size": 128,
+      "bounds": [
+        19,
+        25,
+        113,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/idle_00.svg",
+      "sha256": "345ea1019d0da561a1f9a6a31ab0998b9eb1d7d3348a39099eb6c9142a050ee3",
+      "size": 256,
+      "bounds": [
+        60,
+        42,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/idle_01.svg",
+      "sha256": "f5aa33d3a8d65858578678f3137db74b09c0b8ad1545a4a5a51191a39db7893c",
+      "size": 256,
+      "bounds": [
+        60,
+        41,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/idle_02.svg",
+      "sha256": "a6240382c25f447aba7ffb53cfc9205cc1b54bcf109ca452db1812f3045628c2",
+      "size": 256,
+      "bounds": [
+        60,
+        41,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/idle_03.svg",
+      "sha256": "f5aa33d3a8d65858578678f3137db74b09c0b8ad1545a4a5a51191a39db7893c",
+      "size": 256,
+      "bounds": [
+        60,
+        41,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/prepare_00.svg",
+      "sha256": "73ab7e4ab12a1a731b76e33e51f8269718100c42d0dd962b56f4728b6a478823",
+      "size": 256,
+      "bounds": [
+        60,
+        50,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/prepare_01.svg",
+      "sha256": "d51544e1848a883a1f257edb9c4b4a42a25dbd550afdde4bf2ce12a3973cb7cf",
+      "size": 256,
+      "bounds": [
+        61,
+        50,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/prepare_02.svg",
+      "sha256": "b682421abdad5ea2cf05a5945ab163e53e717a2f2e56e1b9901d20a0af8bc3cd",
+      "size": 256,
+      "bounds": [
+        61,
+        50,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/prepare_03.svg",
+      "sha256": "e34cc00a0b701de38173502c3db2fb7297e1faf5083a037f46cd75518e4dff59",
+      "size": 256,
+      "bounds": [
+        61,
+        50,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/fire_00.svg",
+      "sha256": "d688692b09033203be62daa4dea8bccf571557258ce81ed8b646c02af8469307",
+      "size": 256,
+      "bounds": [
+        60,
+        37,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/fire_01.svg",
+      "sha256": "274f26eb6dabfade85371d8bc162091067236933e0082bc121994cf0cda11c8b",
+      "size": 256,
+      "bounds": [
+        58,
+        37,
+        194,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/fire_02.svg",
+      "sha256": "f66cbc867fc25dbc4d0222b0869fe9022d7291a4a895d00822a671391fbb0fbb",
+      "size": 256,
+      "bounds": [
+        59,
+        37,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/fire_03.svg",
+      "sha256": "d688692b09033203be62daa4dea8bccf571557258ce81ed8b646c02af8469307",
+      "size": 256,
+      "bounds": [
+        60,
+        37,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/recover_00.svg",
+      "sha256": "5dce3373a01e14fb2592a8958feb590514699752c7f21a77214139709026ceab",
+      "size": 256,
+      "bounds": [
+        59,
+        43,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/recover_01.svg",
+      "sha256": "5da24024b2db04940c6282739f6fa916fbcf249b2dca7103ea9ea3ddc77c236a",
+      "size": 256,
+      "bounds": [
+        60,
+        43,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/recover_02.svg",
+      "sha256": "e5e5917ed4851c11eaed0f2cefb31784179dddc0c4b3ce6d05f201325386aa6a",
+      "size": 256,
+      "bounds": [
+        60,
+        43,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_1/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_1/recover_03.svg",
+      "sha256": "e5e5917ed4851c11eaed0f2cefb31784179dddc0c4b3ce6d05f201325386aa6a",
+      "size": 256,
+      "bounds": [
+        60,
+        43,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/electric_1.png",
+      "source": "assets/mobile-art/svg/Portraits/electric_1.svg",
+      "sha256": "345ea1019d0da561a1f9a6a31ab0998b9eb1d7d3348a39099eb6c9142a050ee3",
+      "size": 256,
+      "bounds": [
+        60,
+        42,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/electric_1.png",
+      "source": "assets/mobile-art/svg/Icons/electric_1.svg",
+      "sha256": "4768445bb27a5030d7ce222f46590438e32af0f39f725003524024d2101479d6",
+      "size": 128,
+      "bounds": [
+        30,
+        21,
+        98,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/idle_00.svg",
+      "sha256": "ca8b5945af8182a4a92097c0e02b13ce0d6996ddda29b7af2a989875846e37a0",
+      "size": 256,
+      "bounds": [
+        60,
+        32,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/idle_01.svg",
+      "sha256": "37a98cdd58c0893812f85f578a52fac800802918f826d043fca047e07bbeecd4",
+      "size": 256,
+      "bounds": [
+        60,
+        32,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/idle_02.svg",
+      "sha256": "01f7225ecf96f67734e22e7d3d6bf40a8d26cdbd02fad9199d8dbba56c86ce0c",
+      "size": 256,
+      "bounds": [
+        60,
+        31,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/idle_03.svg",
+      "sha256": "37a98cdd58c0893812f85f578a52fac800802918f826d043fca047e07bbeecd4",
+      "size": 256,
+      "bounds": [
+        60,
+        32,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/prepare_00.svg",
+      "sha256": "beba30476415bcd9b454c1e5c7d6a6106f77a3ba8539c054f3ab27493b68ebb6",
+      "size": 256,
+      "bounds": [
+        58,
+        42,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/prepare_01.svg",
+      "sha256": "6e8e86cc953918617677a1d6d93539db4a73bc9a4faeadc6bc3d7c4bd62d7d50",
+      "size": 256,
+      "bounds": [
+        58,
+        42,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/prepare_02.svg",
+      "sha256": "669292f1043a4f34a454f923130619463f31d4cc56d664490b9bc7ff33f01b3c",
+      "size": 256,
+      "bounds": [
+        58,
+        42,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/prepare_03.svg",
+      "sha256": "3c27336a58b9bd537624af993702778f012465d85a0e2e694370c2ee632c0631",
+      "size": 256,
+      "bounds": [
+        59,
+        42,
+        197,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/fire_00.svg",
+      "sha256": "6503166fd0ea2b449fc212d16c7f351d18d2400bbd1402603f88d9b03c206aaa",
+      "size": 256,
+      "bounds": [
+        60,
+        28,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/fire_01.svg",
+      "sha256": "fff08094d5fb1ce79fc380d7a9fefd60970d17a7a62d5e47da6c54f6ea5c0fa7",
+      "size": 256,
+      "bounds": [
+        58,
+        28,
+        194,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/fire_02.svg",
+      "sha256": "fac22fbb27985261d456a3908fb983100dfdb1bdf1de343fa6ddffe778b4740e",
+      "size": 256,
+      "bounds": [
+        59,
+        28,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/fire_03.svg",
+      "sha256": "6503166fd0ea2b449fc212d16c7f351d18d2400bbd1402603f88d9b03c206aaa",
+      "size": 256,
+      "bounds": [
+        60,
+        28,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/recover_00.svg",
+      "sha256": "de14d005345d6752866f3f6ad979b731d2fe7c216ca834091bc4f3b1dc8ddcff",
+      "size": 256,
+      "bounds": [
+        59,
+        34,
+        195,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/recover_01.svg",
+      "sha256": "deb719f94b68bf7a53f279d01f741d45702ca7ad518823d517b5e7a1247a432b",
+      "size": 256,
+      "bounds": [
+        60,
+        34,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/recover_02.svg",
+      "sha256": "fabe235e110e71726cfc1f296095d3f834e0063b763144dbd5b01cf6b9ffff56",
+      "size": 256,
+      "bounds": [
+        60,
+        34,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_2/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_2/recover_03.svg",
+      "sha256": "fabe235e110e71726cfc1f296095d3f834e0063b763144dbd5b01cf6b9ffff56",
+      "size": 256,
+      "bounds": [
+        60,
+        34,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/electric_2.png",
+      "source": "assets/mobile-art/svg/Portraits/electric_2.svg",
+      "sha256": "ca8b5945af8182a4a92097c0e02b13ce0d6996ddda29b7af2a989875846e37a0",
+      "size": 256,
+      "bounds": [
+        60,
+        32,
+        196,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/electric_2.png",
+      "source": "assets/mobile-art/svg/Icons/electric_2.svg",
+      "sha256": "5098b11d25f7bbe947faa16a91ec537d450a2b78af1d35b9d86c26bf9934ccb3",
+      "size": 128,
+      "bounds": [
+        30,
+        16,
+        98,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/idle_00.svg",
+      "sha256": "57b7a9d208a1bc366e50660076bb10b5b729d98a5e89d1b9c62ef0c2a55a7692",
+      "size": 256,
+      "bounds": [
+        39,
+        42,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/idle_01.svg",
+      "sha256": "663d637c248f70981ea71b99151961fb17389aa3196b82127562c496360cc979",
+      "size": 256,
+      "bounds": [
+        39,
+        41,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/idle_02.svg",
+      "sha256": "8fed1d3478c82a4cb9761d39858bfe7b8b71a7b686853c1f3b7917f7ff00572b",
+      "size": 256,
+      "bounds": [
+        39,
+        41,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/idle_03.svg",
+      "sha256": "663d637c248f70981ea71b99151961fb17389aa3196b82127562c496360cc979",
+      "size": 256,
+      "bounds": [
+        39,
+        41,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/prepare_00.svg",
+      "sha256": "3d091aa6de828d2a9262c5f92fdfed537be387fded3e72cdb049da4bebe990b0",
+      "size": 256,
+      "bounds": [
+        30,
+        49,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/prepare_01.svg",
+      "sha256": "64b3772c70760c3e31c2dd71f380cab35283fc5e8e3abf3dc095115e7bdf7b1e",
+      "size": 256,
+      "bounds": [
+        30,
+        49,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/prepare_02.svg",
+      "sha256": "b0d58a3e6be35edd95646930868c96903adf9cdcf2d8ef121704db54916aa4aa",
+      "size": 256,
+      "bounds": [
+        31,
+        49,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/prepare_03.svg",
+      "sha256": "18833fed69fae42903fbeae03f0f504aaf4b49a8fb38fdb77eb60243eca26d9a",
+      "size": 256,
+      "bounds": [
+        31,
+        49,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/fire_00.svg",
+      "sha256": "67acc76df9132aef1aab78149408a623f55bee38ace8913db6828a21ef063514",
+      "size": 256,
+      "bounds": [
+        38,
+        36,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/fire_01.svg",
+      "sha256": "4172e864b45922c182168d5949ca5f7388ed66fc819fbf8c3b6080bb04835c7a",
+      "size": 256,
+      "bounds": [
+        36,
+        36,
+        214,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/fire_02.svg",
+      "sha256": "beccfc54a1fe48efa4712d32fae4549a21114843f9711f5b716d29bf4c3d6187",
+      "size": 256,
+      "bounds": [
+        37,
+        36,
+        215,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/fire_03.svg",
+      "sha256": "67acc76df9132aef1aab78149408a623f55bee38ace8913db6828a21ef063514",
+      "size": 256,
+      "bounds": [
+        38,
+        36,
+        216,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/recover_00.svg",
+      "sha256": "954e56628241936cdfc094c460dc6417739e2313fa8c0b56f0b71e4e2e8cc82e",
+      "size": 256,
+      "bounds": [
+        37,
+        43,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/recover_01.svg",
+      "sha256": "2c00070d9b9e1f020ab6003b593b00425fb4c3c5f195c30137733d27cc0664ae",
+      "size": 256,
+      "bounds": [
+        38,
+        43,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/recover_02.svg",
+      "sha256": "631b4f3bd0b5a7a54d5354002d02d590e00148c3d1df93a71af9cb3b39dcb51e",
+      "size": 256,
+      "bounds": [
+        38,
+        43,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_3/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_3/recover_03.svg",
+      "sha256": "631b4f3bd0b5a7a54d5354002d02d590e00148c3d1df93a71af9cb3b39dcb51e",
+      "size": 256,
+      "bounds": [
+        38,
+        43,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/electric_3.png",
+      "source": "assets/mobile-art/svg/Portraits/electric_3.svg",
+      "sha256": "57b7a9d208a1bc366e50660076bb10b5b729d98a5e89d1b9c62ef0c2a55a7692",
+      "size": 256,
+      "bounds": [
+        39,
+        42,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/electric_3.png",
+      "source": "assets/mobile-art/svg/Icons/electric_3.svg",
+      "sha256": "516fb718c8778462fcfa32282539d2f6f5d6b0dd871309e80a457f67be899184",
+      "size": 128,
+      "bounds": [
+        19,
+        21,
+        110,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/idle_00.svg",
+      "sha256": "79fb9907519fa2af7a51d4fb60e0c6c11467b00e48e040be41c5e048febcd47b",
+      "size": 256,
+      "bounds": [
+        39,
+        42,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/idle_01.svg",
+      "sha256": "37c22730ee1ffa04326de01a76d28b7835a0ca3587fc521d407621f5cc5ff0bc",
+      "size": 256,
+      "bounds": [
+        39,
+        41,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/idle_02.svg",
+      "sha256": "569097ff2776145000eca0060c88898eeb730e7c8d2c91a4ce022ca34c1c808f",
+      "size": 256,
+      "bounds": [
+        39,
+        41,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/idle_03.svg",
+      "sha256": "37c22730ee1ffa04326de01a76d28b7835a0ca3587fc521d407621f5cc5ff0bc",
+      "size": 256,
+      "bounds": [
+        39,
+        41,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/prepare_00.svg",
+      "sha256": "7e05e38e1ee9939b8b829f593052b1d337dbdb231fd83bb38543c9ffe588f7dc",
+      "size": 256,
+      "bounds": [
+        31,
+        53,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/prepare_01.svg",
+      "sha256": "68db9a7ff2cc1b39689eee5d3c361ae19dcb30197da82bce79e0dd6220901ed5",
+      "size": 256,
+      "bounds": [
+        31,
+        53,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/prepare_02.svg",
+      "sha256": "67d7701c51a1201b4e496c0c43f01067215db9369b64c252d794c42cb3dd2686",
+      "size": 256,
+      "bounds": [
+        31,
+        53,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/prepare_03.svg",
+      "sha256": "fad95815036e4b0a5b3d5401f31d734473d6f5526c53a247778503ea39dfdc92",
+      "size": 256,
+      "bounds": [
+        32,
+        53,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/fire_00.svg",
+      "sha256": "97d48d1bd5285c8374afbd21739c1a7370fdfac33278f5f0c6ec5ce4702928b3",
+      "size": 256,
+      "bounds": [
+        38,
+        36,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/fire_01.svg",
+      "sha256": "109c6e2b4c20ff3453ab9ca0c78aec268f5b8cbb0d08b94dd6ee9340cb3ae36b",
+      "size": 256,
+      "bounds": [
+        36,
+        36,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/fire_02.svg",
+      "sha256": "6a543d5584f30dff61c63129efbb5e5e5938dfe1f9188c8b01ed91d674a57206",
+      "size": 256,
+      "bounds": [
+        37,
+        36,
+        212,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/fire_03.svg",
+      "sha256": "97d48d1bd5285c8374afbd21739c1a7370fdfac33278f5f0c6ec5ce4702928b3",
+      "size": 256,
+      "bounds": [
+        38,
+        36,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/recover_00.svg",
+      "sha256": "1a34f50590301626fceaba7d570c24ad2d1be8d2a681a05c8ceefed613f2fc90",
+      "size": 256,
+      "bounds": [
+        37,
+        43,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/recover_01.svg",
+      "sha256": "eff3864ca9a6b25b3748b1d138fc52926f929d1604b0a5f4a0de637152ee3c57",
+      "size": 256,
+      "bounds": [
+        38,
+        43,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/recover_02.svg",
+      "sha256": "0c9f62aaff79c226af41bb83226ceab8ca21b6e1ad1893ef61b32444fe0431a6",
+      "size": 256,
+      "bounds": [
+        38,
+        43,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/electric_4/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/electric_4/recover_03.svg",
+      "sha256": "0c9f62aaff79c226af41bb83226ceab8ca21b6e1ad1893ef61b32444fe0431a6",
+      "size": 256,
+      "bounds": [
+        38,
+        43,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/electric_4.png",
+      "source": "assets/mobile-art/svg/Portraits/electric_4.svg",
+      "sha256": "79fb9907519fa2af7a51d4fb60e0c6c11467b00e48e040be41c5e048febcd47b",
+      "size": 256,
+      "bounds": [
+        39,
+        42,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/electric_4.png",
+      "source": "assets/mobile-art/svg/Icons/electric_4.svg",
+      "sha256": "7392e56329d4f29b937a84ad14b028613e262d3c1ded355c1e4a7762684bd388",
+      "size": 128,
+      "bounds": [
+        19,
+        21,
+        109,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/idle_00.svg",
+      "sha256": "3c4094c4db107de508ef79fb6c4b92ade52caf64d6b1cd5745e3e45728917bd3",
+      "size": 256,
+      "bounds": [
+        39,
+        61,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/idle_01.svg",
+      "sha256": "7ce10651b45f959e061e984b01d81f0dd11abe48dd42a0086eff599adebc182e",
+      "size": 256,
+      "bounds": [
+        39,
+        61,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/idle_02.svg",
+      "sha256": "4adc08ffd7b75d571c6a74b0f1e1923977c828f088d0b244c0c356a38628a836",
+      "size": 256,
+      "bounds": [
+        39,
+        61,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/idle_03.svg",
+      "sha256": "7ce10651b45f959e061e984b01d81f0dd11abe48dd42a0086eff599adebc182e",
+      "size": 256,
+      "bounds": [
+        39,
+        61,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/prepare_00.svg",
+      "sha256": "369ede56ee5202546e986fdd284b87c9ced9a3debca4e592f6ed6fcfbbe225a5",
+      "size": 256,
+      "bounds": [
+        30,
+        72,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/prepare_01.svg",
+      "sha256": "8667e3a91eea87ab54f6c1036f9d2257c630b299c53f637d7e2f6370f3caf83e",
+      "size": 256,
+      "bounds": [
+        30,
+        72,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/prepare_02.svg",
+      "sha256": "d277218324743b4f269971074fe656dbf591e708e4a6681c115f8c89ebb509bd",
+      "size": 256,
+      "bounds": [
+        31,
+        72,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/prepare_03.svg",
+      "sha256": "305763d1a3dee9fddea38ba68ff5fa9cdd00d0dbd1f4f6d9f6d24e2f45b1c534",
+      "size": 256,
+      "bounds": [
+        31,
+        72,
+        228,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/fire_00.svg",
+      "sha256": "80df3fd1afce2a344a61ea373970ade59edc5c9299ae26e2ba1a8c1fd2fb83df",
+      "size": 256,
+      "bounds": [
+        40,
+        56,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/fire_01.svg",
+      "sha256": "38f961e674f05762fc0b11dc4a366cdcf6a4d83eb89409aa45e20acb446f3471",
+      "size": 256,
+      "bounds": [
+        38,
+        56,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/fire_02.svg",
+      "sha256": "8eec5bf3877541a0369798a3d1c05177b51245f768bd29bddd76f24be3c00374",
+      "size": 256,
+      "bounds": [
+        39,
+        56,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/fire_03.svg",
+      "sha256": "80df3fd1afce2a344a61ea373970ade59edc5c9299ae26e2ba1a8c1fd2fb83df",
+      "size": 256,
+      "bounds": [
+        40,
+        56,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/recover_00.svg",
+      "sha256": "93bd864b96cbdb558e2367cb3db2e76babe6236600dfc06ddbef27bf73904d38",
+      "size": 256,
+      "bounds": [
+        37,
+        63,
+        229,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/recover_01.svg",
+      "sha256": "d57df44ff1af23b37f5b7080274d79f154515fa4444539a259f526e67c775ffd",
+      "size": 256,
+      "bounds": [
+        38,
+        63,
+        230,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/recover_02.svg",
+      "sha256": "4c10f8cbfe7a9d496f16812ec068774c63b9f25f34b6302d3d9bf9e6517fc30f",
+      "size": 256,
+      "bounds": [
+        38,
+        63,
+        230,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_1/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_1/recover_03.svg",
+      "sha256": "4c10f8cbfe7a9d496f16812ec068774c63b9f25f34b6302d3d9bf9e6517fc30f",
+      "size": 256,
+      "bounds": [
+        38,
+        63,
+        230,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/laser_1.png",
+      "source": "assets/mobile-art/svg/Portraits/laser_1.svg",
+      "sha256": "3c4094c4db107de508ef79fb6c4b92ade52caf64d6b1cd5745e3e45728917bd3",
+      "size": 256,
+      "bounds": [
+        39,
+        61,
+        227,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/laser_1.png",
+      "source": "assets/mobile-art/svg/Icons/laser_1.svg",
+      "sha256": "722c0939fe03491c6aeae7fb69597fd7553ce48f007d402d8fe678b61b192fc7",
+      "size": 128,
+      "bounds": [
+        19,
+        31,
+        113,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/idle_00.svg",
+      "sha256": "5f1f4153f45fbde8c5297b1f2f9ea6ce262d8bc2e71b5d0ace5d62709cc89bac",
+      "size": 256,
+      "bounds": [
+        48,
+        58,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/idle_01.svg",
+      "sha256": "f21c5050c3dc903756e587e75ff42bf6b8139ead1167d1e4ccb7deababe7b490",
+      "size": 256,
+      "bounds": [
+        48,
+        58,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/idle_02.svg",
+      "sha256": "d6ee0ba60399b8a953c2a59716260bda23ee9c0a0701518401c46ce9288e5ec3",
+      "size": 256,
+      "bounds": [
+        48,
+        57,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/idle_03.svg",
+      "sha256": "f21c5050c3dc903756e587e75ff42bf6b8139ead1167d1e4ccb7deababe7b490",
+      "size": 256,
+      "bounds": [
+        48,
+        58,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/prepare_00.svg",
+      "sha256": "ed2da0d07f509b8e947d895c64e3ab490313a59f3dad95e874c58dd0607ab934",
+      "size": 256,
+      "bounds": [
+        42,
+        63,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/prepare_01.svg",
+      "sha256": "f3ec535b2a0ad95e899978f449e696c943c075901f6d53114d42a6ecbad8b086",
+      "size": 256,
+      "bounds": [
+        43,
+        63,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/prepare_02.svg",
+      "sha256": "28230ba0a775a472e146f831c6f3d75e9354425cf830addff67d44bdab4fc45f",
+      "size": 256,
+      "bounds": [
+        43,
+        63,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/prepare_03.svg",
+      "sha256": "5f7dbe682dfacef3a5356ded4b33584d89e39eea77949b915bb4cecba2546fbf",
+      "size": 256,
+      "bounds": [
+        43,
+        63,
+        214,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/fire_00.svg",
+      "sha256": "9513dd26b3a7472c04cbc11fac14b542526ed36cf199e9fe7e4c16075e2cb9d5",
+      "size": 256,
+      "bounds": [
+        47,
+        52,
+        205,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/fire_01.svg",
+      "sha256": "36c7b0c0428d2f3feb6f8576851841165b454656a593449ff58ac182b6944fac",
+      "size": 256,
+      "bounds": [
+        45,
+        52,
+        203,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/fire_02.svg",
+      "sha256": "6e4edb3523c09e9ca32230aaf674c2b184dcf98546b158e41f70334853759461",
+      "size": 256,
+      "bounds": [
+        46,
+        52,
+        204,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/fire_03.svg",
+      "sha256": "9513dd26b3a7472c04cbc11fac14b542526ed36cf199e9fe7e4c16075e2cb9d5",
+      "size": 256,
+      "bounds": [
+        47,
+        52,
+        205,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/recover_00.svg",
+      "sha256": "a5e84dde49e73e8a5e6da30d9c815ce1b152d3a4182ebae754ad38f4a39cb3da",
+      "size": 256,
+      "bounds": [
+        47,
+        60,
+        212,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/recover_01.svg",
+      "sha256": "6d4e47b1ef6a20ca5d54176eb00d3beedb280586a563b4c07a69ba87b2531c92",
+      "size": 256,
+      "bounds": [
+        47,
+        60,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/recover_02.svg",
+      "sha256": "0805b5fde5fefecd0c0304a0bc480629166fe9a3a33187edf7ee1ba2d88954b8",
+      "size": 256,
+      "bounds": [
+        48,
+        60,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_2/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_2/recover_03.svg",
+      "sha256": "0805b5fde5fefecd0c0304a0bc480629166fe9a3a33187edf7ee1ba2d88954b8",
+      "size": 256,
+      "bounds": [
+        48,
+        60,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/laser_2.png",
+      "source": "assets/mobile-art/svg/Portraits/laser_2.svg",
+      "sha256": "5f1f4153f45fbde8c5297b1f2f9ea6ce262d8bc2e71b5d0ace5d62709cc89bac",
+      "size": 256,
+      "bounds": [
+        48,
+        58,
+        211,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/laser_2.png",
+      "source": "assets/mobile-art/svg/Icons/laser_2.svg",
+      "sha256": "1749c2295d9ed47666c2b54524c09f4e0c5185c79ba8ebe779a87eb2ca214ebd",
+      "size": 128,
+      "bounds": [
+        24,
+        29,
+        105,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/idle_00.svg",
+      "sha256": "cde263fe5a7d70ee006843277ef161bf94e60735fa483332c10b8ac3aad3e7b6",
+      "size": 256,
+      "bounds": [
+        43,
+        63,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/idle_01.svg",
+      "sha256": "edc8cb85efb3d5aefa817272062950538cdf928afad62be37286cb1c33a510ab",
+      "size": 256,
+      "bounds": [
+        43,
+        62,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/idle_02.svg",
+      "sha256": "4b22ecaf090c0539fa7c8df7634c43700e4479021afd74006a18b46c109b5c38",
+      "size": 256,
+      "bounds": [
+        43,
+        62,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/idle_03.svg",
+      "sha256": "edc8cb85efb3d5aefa817272062950538cdf928afad62be37286cb1c33a510ab",
+      "size": 256,
+      "bounds": [
+        43,
+        62,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/prepare_00.svg",
+      "sha256": "adf3435879f497adf05c94a1a4af03a33e7d1845665b0875f4f437b5e840bdad",
+      "size": 256,
+      "bounds": [
+        35,
+        68,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/prepare_01.svg",
+      "sha256": "7c9d81f47a88f79423ff569d4042157c9cf3b92151690f2900e523c9a3cfd1aa",
+      "size": 256,
+      "bounds": [
+        35,
+        68,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/prepare_02.svg",
+      "sha256": "4b31b107fd9587203f7f2804cf37c0ff891161c88859bef5bf131ae0995d0995",
+      "size": 256,
+      "bounds": [
+        35,
+        68,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/prepare_03.svg",
+      "sha256": "ce5cecaf6e772ac42d4d291513896897d6b79ecba9f8028503a45a478f033ef1",
+      "size": 256,
+      "bounds": [
+        36,
+        68,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/fire_00.svg",
+      "sha256": "a43c1c0260e92d879e9fb33bd9b76541834a1997fda4150041f4689304d4e0d5",
+      "size": 256,
+      "bounds": [
+        43,
+        57,
+        214,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/fire_01.svg",
+      "sha256": "ab431e9e9fa3554eb591c009ed30da5be3faa1b07a4c614e8313028e02665e79",
+      "size": 256,
+      "bounds": [
+        41,
+        57,
+        212,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/fire_02.svg",
+      "sha256": "456f1e3ffba1ed80eb4d4246fa99d5ae5883963f01fe406030f009fba691442b",
+      "size": 256,
+      "bounds": [
+        42,
+        57,
+        213,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/fire_03.svg",
+      "sha256": "a43c1c0260e92d879e9fb33bd9b76541834a1997fda4150041f4689304d4e0d5",
+      "size": 256,
+      "bounds": [
+        43,
+        57,
+        214,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/recover_00.svg",
+      "sha256": "fbabc04acc7958bcce7537b55f7ab27b4bfa3c094aea98b5907578c03340a101",
+      "size": 256,
+      "bounds": [
+        42,
+        64,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/recover_01.svg",
+      "sha256": "c31dd22ca0eb8f96a7aab2878eba79fc67c16b74f68405ae03b4651fb29db310",
+      "size": 256,
+      "bounds": [
+        43,
+        64,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/recover_02.svg",
+      "sha256": "92e42b6071c5e1a740431f6cf0ee4fdc75c050fc2345886b50e1d84ee85a1a45",
+      "size": 256,
+      "bounds": [
+        43,
+        64,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_3/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_3/recover_03.svg",
+      "sha256": "92e42b6071c5e1a740431f6cf0ee4fdc75c050fc2345886b50e1d84ee85a1a45",
+      "size": 256,
+      "bounds": [
+        43,
+        64,
+        221,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/laser_3.png",
+      "source": "assets/mobile-art/svg/Portraits/laser_3.svg",
+      "sha256": "cde263fe5a7d70ee006843277ef161bf94e60735fa483332c10b8ac3aad3e7b6",
+      "size": 256,
+      "bounds": [
+        43,
+        63,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/laser_3.png",
+      "source": "assets/mobile-art/svg/Icons/laser_3.svg",
+      "sha256": "a24df864c816b8c2a479e65a03824cdb342febc507cf628347649ceb6398ec65",
+      "size": 128,
+      "bounds": [
+        21,
+        31,
+        109,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/idle_00.svg",
+      "sha256": "a68b2d38517fadd481f4932c3f6622664466d0921abdd47ef64012d41d62e6a6",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/idle_01.svg",
+      "sha256": "f63c5bbe58360b1f5dd0cbff4fa99cadad8396d952a0a5dccf39d7755a32dcad",
+      "size": 256,
+      "bounds": [
+        50,
+        48,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/idle_02.svg",
+      "sha256": "a89c805e20e1667bfbfe7dbb9d1b0f09514942be14159bd9c029bc35e6cecb4f",
+      "size": 256,
+      "bounds": [
+        50,
+        48,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/idle_03.svg",
+      "sha256": "f63c5bbe58360b1f5dd0cbff4fa99cadad8396d952a0a5dccf39d7755a32dcad",
+      "size": 256,
+      "bounds": [
+        50,
+        48,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/prepare_00.svg",
+      "sha256": "138682aba7e8565ef8a4726614ca64fe2f9e007b4e034fec01a8ab0d72e3cdf0",
+      "size": 256,
+      "bounds": [
+        41,
+        57,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/prepare_01.svg",
+      "sha256": "cb4f6da079687ebff5948f97072252ebc26de435fd305228b6af1211ac2624b5",
+      "size": 256,
+      "bounds": [
+        41,
+        57,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/prepare_02.svg",
+      "sha256": "eb828af5cd9dcdf2302e62d1d02f17dc9d01e4dba2f010080b03e30216e2b12f",
+      "size": 256,
+      "bounds": [
+        42,
+        57,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/prepare_03.svg",
+      "sha256": "1e3db8fded22a2451eadc6e5d11f56dd20a440696e2e92234b80d824e0d23d50",
+      "size": 256,
+      "bounds": [
+        42,
+        57,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/fire_00.svg",
+      "sha256": "63fa84b655204756b56f8e8d4f7a5396ee9b192279712563a3b551405589c437",
+      "size": 256,
+      "bounds": [
+        52,
+        44,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/fire_01.svg",
+      "sha256": "d78f62e5c8940bfffd2fcad15c79d24850d5c5ea49eed6b99389773f13b9ecb4",
+      "size": 256,
+      "bounds": [
+        50,
+        44,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/fire_02.svg",
+      "sha256": "e0135a78d5c7738f634e0eef857d1e1b1e74d24b047c2ad01410e66c752a4bb4",
+      "size": 256,
+      "bounds": [
+        51,
+        44,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/fire_03.svg",
+      "sha256": "63fa84b655204756b56f8e8d4f7a5396ee9b192279712563a3b551405589c437",
+      "size": 256,
+      "bounds": [
+        52,
+        44,
+        220,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/recover_00.svg",
+      "sha256": "a31c209e02ce1f5507fc311dd8996c5f10071a59f51932105105b0fb47dca228",
+      "size": 256,
+      "bounds": [
+        49,
+        50,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/recover_01.svg",
+      "sha256": "88e2514d730518b1f33bc32a2f640f44855c7c5acd1e18c9d4db78ca7555913c",
+      "size": 256,
+      "bounds": [
+        50,
+        50,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/recover_02.svg",
+      "sha256": "d776eef309213a9c93de74fd05e27fcd78e1a2194af31bf5ccb10f73acb62ac9",
+      "size": 256,
+      "bounds": [
+        50,
+        50,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/laser_4/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/laser_4/recover_03.svg",
+      "sha256": "d776eef309213a9c93de74fd05e27fcd78e1a2194af31bf5ccb10f73acb62ac9",
+      "size": 256,
+      "bounds": [
+        50,
+        50,
+        226,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/laser_4.png",
+      "source": "assets/mobile-art/svg/Portraits/laser_4.svg",
+      "sha256": "a68b2d38517fadd481f4932c3f6622664466d0921abdd47ef64012d41d62e6a6",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/laser_4.png",
+      "source": "assets/mobile-art/svg/Icons/laser_4.svg",
+      "sha256": "2035a83dda777035179931726f038f4ea5d5672502d4c76a3fbacaa13be04705",
+      "size": 128,
+      "bounds": [
+        25,
+        24,
+        112,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/idle_00.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/idle_00.svg",
+      "sha256": "fb90982836c69fb0fbf168bb3b76f84476108ce15e98189092cf54f9d8abf0ea",
+      "size": 256,
+      "bounds": [
+        36,
+        32,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/idle_01.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/idle_01.svg",
+      "sha256": "ee49b80152c18552561045e2c047c9204f7105246c5af309cbca20b33881919d",
+      "size": 256,
+      "bounds": [
+        36,
+        32,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/idle_02.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/idle_02.svg",
+      "sha256": "5856b5ae695fbd2f8e19ed3af5f9bac7fdfdf3dd0b3b1f6225ff49be6a30ab85",
+      "size": 256,
+      "bounds": [
+        36,
+        31,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/idle_03.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/idle_03.svg",
+      "sha256": "ee49b80152c18552561045e2c047c9204f7105246c5af309cbca20b33881919d",
+      "size": 256,
+      "bounds": [
+        36,
+        32,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/prepare_00.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/prepare_00.svg",
+      "sha256": "f07bdacdf826e6ddf997a29ae9c8372aa4c0428268f2559c600a203f187ed66a",
+      "size": 256,
+      "bounds": [
+        27,
+        42,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/prepare_01.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/prepare_01.svg",
+      "sha256": "a4c261ce485524e1e6845292d85b29280993c705673d27092df046b48bae992f",
+      "size": 256,
+      "bounds": [
+        28,
+        42,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/prepare_02.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/prepare_02.svg",
+      "sha256": "e518498b022a6ff75cd1958ba70617b91e43a37221633390f32baaf868e7dbca",
+      "size": 256,
+      "bounds": [
+        28,
+        42,
+        222,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/prepare_03.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/prepare_03.svg",
+      "sha256": "be7f270fa8313bfff5e1cdd3a7291bbe48586a7f48c97dbb3e75b3c6b623e78e",
+      "size": 256,
+      "bounds": [
+        28,
+        42,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/fire_00.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/fire_00.svg",
+      "sha256": "fd1522695ee65c15efc02cfb9a7070a195340b1eda1f9bae80e253dcba294da9",
+      "size": 256,
+      "bounds": [
+        38,
+        28,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/fire_01.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/fire_01.svg",
+      "sha256": "a854bde9cf27fa8a15de26eca4f3eb7f7a75c3ae563623281193743956d5d63c",
+      "size": 256,
+      "bounds": [
+        36,
+        28,
+        217,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/fire_02.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/fire_02.svg",
+      "sha256": "58cd6a1981f743bb16ce4eac3ca9d3848b6eb95417d421683e766ec3665201ec",
+      "size": 256,
+      "bounds": [
+        37,
+        28,
+        218,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/fire_03.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/fire_03.svg",
+      "sha256": "fd1522695ee65c15efc02cfb9a7070a195340b1eda1f9bae80e253dcba294da9",
+      "size": 256,
+      "bounds": [
+        38,
+        28,
+        219,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/recover_00.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/recover_00.svg",
+      "sha256": "87fca2e86c0affc0739620b21b601946d5a4bb99d9c6ae1186807784f14463fb",
+      "size": 256,
+      "bounds": [
+        35,
+        34,
+        224,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/recover_01.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/recover_01.svg",
+      "sha256": "837486043c1d9f9068e955810f58ef5df279755771c736864cd3342c182eea7f",
+      "size": 256,
+      "bounds": [
+        36,
+        34,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/recover_02.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/recover_02.svg",
+      "sha256": "ea7df0df8b1c61b1af94c5577ffcac274672a7799f81ebe039ce83f9fa6e15b9",
+      "size": 256,
+      "bounds": [
+        36,
+        34,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Units/guardian_s/recover_03.png",
+      "source": "assets/mobile-art/svg/Units/guardian_s/recover_03.svg",
+      "sha256": "ea7df0df8b1c61b1af94c5577ffcac274672a7799f81ebe039ce83f9fa6e15b9",
+      "size": 256,
+      "bounds": [
+        36,
+        34,
+        225,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Portraits/guardian_s.png",
+      "source": "assets/mobile-art/svg/Portraits/guardian_s.svg",
+      "sha256": "fb90982836c69fb0fbf168bb3b76f84476108ce15e98189092cf54f9d8abf0ea",
+      "size": 256,
+      "bounds": [
+        36,
+        32,
+        223,
+        234
+      ]
+    },
+    {
+      "path": "MobileArt/Icons/guardian_s.png",
+      "source": "assets/mobile-art/svg/Icons/guardian_s.svg",
+      "sha256": "c2ecc304ed8ee67d806f34ecc3755c314ba65966d750dc94e5d70b5cd8633187",
+      "size": 128,
+      "bounds": [
+        18,
+        16,
+        111,
+        117
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/move_00.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/move_00.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/move_01.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/move_01.svg",
+      "sha256": "8e59c6a701399fa9f7bf1c0973c2a39aa0c23cd794baa97b29d007b2a4bff601",
+      "size": 256,
+      "bounds": [
+        39,
+        32,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/move_02.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/move_02.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/move_03.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/move_03.svg",
+      "sha256": "8353334ca12f3a2162a6926529786b49554b03d1797f40df442a5573f8be57bc",
+      "size": 256,
+      "bounds": [
+        39,
+        32,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/hit_00.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/hit_00.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/hit_01.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/hit_01.svg",
+      "sha256": "860cfb0fcc6e0553c5d664aef031b3cbe464385e38afa8848380b64d15327649",
+      "size": 256,
+      "bounds": [
+        28,
+        46,
+        219,
+        236
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/hit_02.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/hit_02.svg",
+      "sha256": "7de6db2e9a178011f61376ae487858661689381edf96e7446c8ce41c466a4329",
+      "size": 256,
+      "bounds": [
+        34,
+        38,
+        217,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/hit_03.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/hit_03.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/stop_00.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/stop_00.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/stop_01.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/stop_01.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/stop_02.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/stop_02.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/stop_03.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/stop_03.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/destroy_00.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/destroy_00.svg",
+      "sha256": "c39f49c2640652fb8cefd4a4914f5b9c5a49dc196dc8c61c51bc1544b431099f",
+      "size": 256,
+      "bounds": [
+        39,
+        35,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/destroy_01.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/destroy_01.svg",
+      "sha256": "5c62764397467e44145c1dbacaadf212441c56d4f5ed8ecf615561fe4830b6a3",
+      "size": 256,
+      "bounds": [
+        52,
+        78,
+        205,
+        233
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/destroy_02.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/destroy_02.svg",
+      "sha256": "95cbd5b8aff8cab7985af26ca4545113d79370128f784526f9d09e89e6bf83a8",
+      "size": 256,
+      "bounds": [
+        66,
+        122,
+        191,
+        230
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/grunt/destroy_03.png",
+      "source": "assets/mobile-art/svg/Enemies/grunt/destroy_03.svg",
+      "sha256": "63e2fa1a782e39614d8fddef7721fb4ada5e99ecc36b034b750d685e859ada40",
+      "size": 256,
+      "bounds": [
+        79,
+        167,
+        178,
+        224
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/move_00.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/move_00.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/move_01.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/move_01.svg",
+      "sha256": "7e1b422d08f65fc4aa45546b2ba26fdddef3518cad3960f030f8a4021a2c8428",
+      "size": 256,
+      "bounds": [
+        50,
+        46,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/move_02.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/move_02.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/move_03.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/move_03.svg",
+      "sha256": "f54005c1625399318a14003de98626cb4248c150e24a8fd5ee8cb5cce0d086bc",
+      "size": 256,
+      "bounds": [
+        50,
+        46,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/hit_00.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/hit_00.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/hit_01.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/hit_01.svg",
+      "sha256": "b171facc85eff94e5ac746b34238376660ce4ac60fe8ab771afbb4c60ab7b31f",
+      "size": 256,
+      "bounds": [
+        41,
+        59,
+        206,
+        236
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/hit_02.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/hit_02.svg",
+      "sha256": "132a1df90f44dbf2e5eeab6041b868695be7193c59cac26b795f025a3aa05afd",
+      "size": 256,
+      "bounds": [
+        46,
+        52,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/hit_03.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/hit_03.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/stop_00.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/stop_00.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/stop_01.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/stop_01.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/stop_02.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/stop_02.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/stop_03.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/stop_03.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/destroy_00.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/destroy_00.svg",
+      "sha256": "d00620189e56de677bc36c2e59f3fb640ddbebbc567ca8ba40f7a062380a2f80",
+      "size": 256,
+      "bounds": [
+        50,
+        49,
+        206,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/destroy_01.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/destroy_01.svg",
+      "sha256": "4b058027b281c08d153b323cfd10d5788bfcf3f0d051941707d1491425a93ace",
+      "size": 256,
+      "bounds": [
+        62,
+        89,
+        195,
+        233
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/destroy_02.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/destroy_02.svg",
+      "sha256": "903ad93ea0e9e7e8604802a14f10c55be4d7157e57dcd33ef7769d13f8311d11",
+      "size": 256,
+      "bounds": [
+        74,
+        130,
+        183,
+        230
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/runner/destroy_03.png",
+      "source": "assets/mobile-art/svg/Enemies/runner/destroy_03.svg",
+      "sha256": "44687666690639db205322909435d0e37682768dfbe89218cd4c992fa6dcf243",
+      "size": 256,
+      "bounds": [
+        86,
+        171,
+        171,
+        224
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/move_00.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/move_00.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/move_01.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/move_01.svg",
+      "sha256": "e1fc3f39ef92fcc50b624064cebaeda91d9a658d5b18afda70a87656f788be9d",
+      "size": 256,
+      "bounds": [
+        41,
+        60,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/move_02.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/move_02.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/move_03.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/move_03.svg",
+      "sha256": "ab1c85270f08dc3a6135218229df1c68076cd156acc9f779e244509301c09e8b",
+      "size": 256,
+      "bounds": [
+        41,
+        60,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/hit_00.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/hit_00.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/hit_01.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/hit_01.svg",
+      "sha256": "83b429bff8e27962a7df0d4921ac04f4cff4af913be4a7c84897caedaaaa870e",
+      "size": 256,
+      "bounds": [
+        31,
+        72,
+        219,
+        236
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/hit_02.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/hit_02.svg",
+      "sha256": "c16c0ee0aedc287464848c33d6ae2e5d4b5c6237f7f8d893b924e824436927c5",
+      "size": 256,
+      "bounds": [
+        37,
+        66,
+        217,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/hit_03.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/hit_03.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/stop_00.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/stop_00.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/stop_01.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/stop_01.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/stop_02.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/stop_02.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/stop_03.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/stop_03.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/destroy_00.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/destroy_00.svg",
+      "sha256": "b2aa18b4f8d7f30271f8b42a9547b3aa4b3f41873cf49315b9d623e9dd808efc",
+      "size": 256,
+      "bounds": [
+        41,
+        63,
+        218,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/destroy_01.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/destroy_01.svg",
+      "sha256": "912fb16b594a360ce12dc0930ff337969db66e3a76f7029ccc0d3a39206b29c3",
+      "size": 256,
+      "bounds": [
+        54,
+        100,
+        204,
+        233
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/destroy_02.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/destroy_02.svg",
+      "sha256": "c9992654fe176d3e8a12f77ff00e5cf1820623287d2dd6183206613c46c79596",
+      "size": 256,
+      "bounds": [
+        67,
+        138,
+        191,
+        230
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/siege/destroy_03.png",
+      "source": "assets/mobile-art/svg/Enemies/siege/destroy_03.svg",
+      "sha256": "cd354665379c9e4c42806e44237011f364c5ffabeb866b462368d3427644b131",
+      "size": 256,
+      "bounds": [
+        81,
+        175,
+        177,
+        224
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/move_00.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/move_00.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/move_01.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/move_01.svg",
+      "sha256": "5c844d3af0dc293e2c55f823faf1b2c10c62cda31e1c62ad16f7167285963277",
+      "size": 256,
+      "bounds": [
+        46,
+        56,
+        210,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/move_02.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/move_02.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/move_03.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/move_03.svg",
+      "sha256": "63fff929b8bb07167840747d877a4d7110ef96ed4f38608240ded2bedeb8510f",
+      "size": 256,
+      "bounds": [
+        46,
+        56,
+        210,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/hit_00.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/hit_00.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/hit_01.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/hit_01.svg",
+      "sha256": "b2ca9f62ea04e00222dda9440625612ca3cbb39ed3c5a1e169c6984acc412f87",
+      "size": 256,
+      "bounds": [
+        44,
+        68,
+        203,
+        236
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/hit_02.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/hit_02.svg",
+      "sha256": "f3cea8b2895d5d111916040fc57c1aeb60bd2d6fed4cbfb4a493818f4946f855",
+      "size": 256,
+      "bounds": [
+        49,
+        61,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/hit_03.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/hit_03.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/stop_00.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/stop_00.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/stop_01.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/stop_01.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/stop_02.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/stop_02.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/stop_03.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/stop_03.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/destroy_00.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/destroy_00.svg",
+      "sha256": "2e80978c770b94bc3a3bf8a1de349c27b8cb6487ef42e9302cef8b6c8be3cb41",
+      "size": 256,
+      "bounds": [
+        53,
+        58,
+        203,
+        237
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/destroy_01.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/destroy_01.svg",
+      "sha256": "75148ddf427e5a8b157b8542fac50844bb5fb2c2d31df44f0a20efe3841459f7",
+      "size": 256,
+      "bounds": [
+        64,
+        97,
+        192,
+        233
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/destroy_02.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/destroy_02.svg",
+      "sha256": "1c2273c6e8be0b583d21b9cf7f11ac1ad98edf75255d57c44814adfc5ae13300",
+      "size": 256,
+      "bounds": [
+        76,
+        135,
+        181,
+        230
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/swarm/destroy_03.png",
+      "source": "assets/mobile-art/svg/Enemies/swarm/destroy_03.svg",
+      "sha256": "7c877291aa62cbebd8ef4f5804a731fc837f94886f4f8e0bb8c85883ae4d3e78",
+      "size": 256,
+      "bounds": [
+        87,
+        174,
+        169,
+        219
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/move_00.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/move_00.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/move_01.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/move_01.svg",
+      "sha256": "399b31fa9e2fa1140d0e3965eb8c9a41ee0b1a42fd6658b8e4c7554532fa300b",
+      "size": 512,
+      "bounds": [
+        49,
+        56,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/move_02.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/move_02.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/move_03.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/move_03.svg",
+      "sha256": "54b9ff0633d7b9f27d0d212cf9737cfbcb593719677024f242f66fea85881a6d",
+      "size": 512,
+      "bounds": [
+        49,
+        56,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/hit_00.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/hit_00.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/hit_01.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/hit_01.svg",
+      "sha256": "9306194944641f654cb5d3f67c1a75483a0903dbfe847cc1378621618ed42d4a",
+      "size": 512,
+      "bounds": [
+        28,
+        83,
+        473,
+        473
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/hit_02.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/hit_02.svg",
+      "sha256": "71c5bcdde57b9116ff817825e8aaf72d9910629ba227a96df45bc73a7f1bfb1b",
+      "size": 512,
+      "bounds": [
+        41,
+        68,
+        469,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/hit_03.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/hit_03.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/stop_00.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/stop_00.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/stop_01.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/stop_01.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/stop_02.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/stop_02.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/stop_03.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/stop_03.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/destroy_00.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/destroy_00.svg",
+      "sha256": "e1b8a331cae40753a06a4d814bb5469ddc2197260ad4672b463c277e92e69e88",
+      "size": 512,
+      "bounds": [
+        49,
+        60,
+        470,
+        474
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/destroy_01.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/destroy_01.svg",
+      "sha256": "c42e7471302f2494f250d92249ff0bf38215f29686709ec51b2ead271ce953f0",
+      "size": 512,
+      "bounds": [
+        81,
+        150,
+        438,
+        468
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/destroy_02.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/destroy_02.svg",
+      "sha256": "53d7d8632b20a155fb5ca833fb2afc865d2461b7e569d5d80d667f5f49265101",
+      "size": 512,
+      "bounds": [
+        112,
+        240,
+        406,
+        461
+      ]
+    },
+    {
+      "path": "MobileArt/Enemies/boss/destroy_03.png",
+      "source": "assets/mobile-art/svg/Enemies/boss/destroy_03.svg",
+      "sha256": "1bd0922d66e127d63381e2f36faca75375f6a9f1511608c1bf48202d75a52b94",
+      "size": 512,
+      "bounds": [
+        143,
+        331,
+        374,
+        449
+      ]
+    }
+  ]
+}

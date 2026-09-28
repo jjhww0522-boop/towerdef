@@ -1,16 +1,17 @@
 // Original scrap robots: the battlefield and roster use the same vector artwork.
 // Element color is shared by bodies, weapons, portraits, the hangar and combat UI.
 const robotElements = Object.freeze({
-  fire: Object.freeze({ main: '#ad5148', dark: '#5d3437', light: '#db7350', glow: '#ffb565', accent: '#ff9255' }),
-  frost: Object.freeze({ main: '#397d9f', dark: '#244857', light: '#69b5cf', glow: '#8ce9ef', accent: '#72dbea' }),
-  wind: Object.freeze({ main: '#468f78', dark: '#2a554c', light: '#76b49a', glow: '#a0efd0', accent: '#86ddb7' }),
-  laser: Object.freeze({ main: '#78549a', dark: '#423557', light: '#a580c7', glow: '#dab1ff', accent: '#c399f2' }),
-  electric: Object.freeze({ main: '#9b8239', dark: '#574b2c', light: '#ccb458', glow: '#ffe479', accent: '#f9d666' })
+  fire: Object.freeze({ main: '#f58971', dark: '#b96460', light: '#ffd8bd', glow: '#fff0b2', accent: '#eb765b' }),
+  water: Object.freeze({ main: '#6eaff5', dark: '#4e7fb4', light: '#cee7ff', glow: '#e8f8ff', accent: '#5b9de6' }),
+  frost: Object.freeze({ main: '#70d3de', dark: '#4c99ab', light: '#cef5f4', glow: '#e6fff7', accent: '#5cc6d9' }),
+  wind: Object.freeze({ main: '#73d2a2', dark: '#4a9b80', light: '#d5f2cd', glow: '#e9ffe4', accent: '#60bd95' }),
+  laser: Object.freeze({ main: '#b69ce5', dark: '#8371ae', light: '#eddefb', glow: '#f7eaff', accent: '#a185d5' }),
+  electric: Object.freeze({ main: '#f5d475', dark: '#b49a55', light: '#fff0bd', glow: '#fffbdc', accent: '#e4c165' })
 });
 const neutralRobot = Object.freeze({ main: '#72848d', dark: '#3d4e58', light: '#a8b5ba', glow: '#e2e9dd', accent: '#b7c8ce' });
 const metal = { main: '#a8b5ba', light: '#d6ddd7', dark: '#596971' };
 export function elementPalette(element) { return Object.hasOwn(robotElements, element) ? robotElements[element] : neutralRobot; }
-const outline = '#19313e';
+const outline = '#35445b';
 const cache = new Map();
 const svgPath = (d, fill = 'none', extra = '') => `<path d="${d}" fill="${fill}" ${extra}/>`;
 const rect = (x, y, width, height, radius, fill, extra = '') => `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}" fill="${fill}" ${extra}/>`;
@@ -19,65 +20,150 @@ const circle = (x, y, radius, fill, extra = '') => ellipse(x, y, radius, radius,
 const svg = (shapes, defs = '') => `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">${defs}<g stroke="${outline}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${shapes}</g></svg>`;
 
 export function applianceKind(definition) {
+  if (definition.id === 'guardian_s') return 'guardian';
+  const family = /^(fire|water|frost|wind|electric|laser)_([1-4])$/.exec(definition.id);
+  if (family) return ({ fire: ['lighter', 'range', 'flamethrower', 'incinerator'],
+    water: ['watergun', 'hose', 'washer', 'firetruck'], frost: ['fridge', 'icemaker', 'freezer', 'coldstore'],
+    wind: ['handfan', 'standfan', 'blower', 'jet'], electric: ['battery', 'swatter', 'transformer', 'powerplant'],
+    laser: ['pointer', 'engraver', 'cutter', 'lasercannon'] })[family[1]][Number(family[2]) - 1];
   if (definition.rarity !== 'basic') return null;
   return definition.id === 'wu_archer' ? 'lighter' : definition.id === 'shu_archer' ? 'dryer' : definition.id === 'wei_archer' ? 'pointer' : null;
 }
 
-function applianceSvg(kind, pose, palette) {
+// Round appliance bodies and readable faces are original code-authored vector paths.
+function applianceSvg(kind, pose, p) {
   const ready = pose === 'windup', firing = pose === 'strike', recovering = pose === 'recovery';
-  let shapes = ellipse(47, 88, 26, 3, '#06141c44', 'stroke="none"');
-  if (kind === 'lighter') {
-    shapes += svgPath('M37 70 L35 81 M59 70 L63 81', 'none', 'stroke="#596765" stroke-width="6"');
-    shapes += rect(26, 80, 15, 7, 3, '#d5d1bb') + rect(59, 80, 15, 7, 3, '#d5d1bb');
-    shapes += rect(29, 32, 39, 41, 7, palette.main);
-    shapes += svgPath('M32 39 L32 62 Q32 68 39 68', 'none', 'stroke="#ffd6a2" stroke-width="3"');
-    shapes += rect(36, 23, 28, 13, 3, '#d5d1bb');
-    for (const x of [42, 49, 56]) shapes += circle(x, 29, 1.6, '#48585b', 'stroke="none"');
-    shapes += `<g transform="rotate(${firing || recovering ? -105 : ready ? -25 : 0} 30 35)">`;
-    shapes += rect(29, 18, 39, 18, 4, palette.dark) + svgPath('M33 22 L62 22', 'none', 'stroke="#f3b27b" stroke-width="2"') + '</g>';
-    shapes += circle(30, 35, 3, '#d5d1bb');
-    shapes += circle(60, 24, 5, '#7a8581') + svgPath(`M57 ${ready ? 20 : 23} L63 ${ready ? 26 : 23}`, 'none', 'stroke="#e8dfc8" stroke-width="1.5"');
-    shapes += ellipse(42, 49, 3, firing ? 2.6 : 4, '#203a40', 'stroke="none"') + ellipse(55, 49, 3, 4, '#203a40', 'stroke="none"');
-    shapes += svgPath('M43 58 Q48 61 53 58', 'none', 'stroke="#7e4b3c" stroke-width="1.8"');
-    shapes += rect(49, 64, 13, 4, 1, palette.glow, 'stroke-width="1"');
-    if (firing) {
-      shapes += svgPath('M54 22 Q48 14 56 7 Q54 14 61 12 Q68 21 59 25 Z', palette.glow, 'stroke="#a65d3e" stroke-width="1.5"');
-      shapes += svgPath('M57 22 Q53 18 58 15 Q63 21 59 23 Z', '#fff0b0', 'stroke="none"');
+  const cream = '#fff8e8', blush = '#f4a69d';
+  const line = (d, color = outline, width = 2.4) => svgPath(d, 'none', `stroke="${color}" stroke-width="${width}"`);
+  const shine = d => line(d, '#fffdf4', 2.5);
+  const face = (x, y, width = 32, height = 22) => {
+    const left = x - width * .21, right = x + width * .21;
+    let s = ellipse(x, y, width / 2, height / 2, cream, 'stroke="none"');
+    s += ellipse(x - width * .36, y + 3, 3.2, 2, blush, 'stroke="none"') + ellipse(x + width * .36, y + 3, 3.2, 2, blush, 'stroke="none"');
+    if (firing) s += line(`M${left - 2.5} ${y - 1} Q${left} ${y - 5} ${left + 2.5} ${y - 1}`) + line(`M${right - 2.5} ${y - 1} Q${right} ${y - 5} ${right + 2.5} ${y - 1}`);
+    else {
+      s += ellipse(left, y - 2, 2.7, ready ? 3 : 3.7, outline, 'stroke="none"') + ellipse(right, y - 2, 2.7, ready ? 3 : 3.7, outline, 'stroke="none"');
+      s += circle(left - .7, y - 3.5, .9, '#ffffff', 'stroke="none"') + circle(right - .7, y - 3.5, .9, '#ffffff', 'stroke="none"');
     }
-  } else if (kind === 'dryer') {
-    const brace = firing ? 4 : 0;
-    shapes += svgPath(`M35 71 L${27 - brace} 81 M51 69 L${59 + brace} 81`, 'none', 'stroke="#49695f" stroke-width="5"');
-    shapes += rect(17 - brace, 80, 18, 7, 3, '#cee1b9') + rect(56 + brace, 80, 18, 7, 3, '#cee1b9');
-    shapes += svgPath('M38 49 L54 48 L50 73 Q47 78 35 74 Z', palette.dark);
-    shapes += rect(39, 57, 6, 10, 2, ready || firing ? palette.glow : palette.dark, 'stroke-width="1.4"');
-    shapes += svgPath('M38 74 Q43 87 31 87 L22 85', 'none', 'stroke="#384e4d" stroke-width="2.5"');
-    shapes += svgPath('M32 20 Q17 19 17 36 Q17 53 35 53 L68 49 L76 43 L76 30 L66 23 Z', palette.main);
-    shapes += svgPath('M32 24 Q51 22 63 27', 'none', 'stroke="#deebca" stroke-width="3"');
-    shapes += svgPath('M68 27 L85 31 L85 44 L68 47 Z', '#d0ddc3');
-    shapes += ellipse(84, 37.5, 4, 7, '#395952');
-    shapes += circle(29, 36, 11, palette.dark) + circle(29, 36, 8, palette.glow, 'stroke="none"');
-    shapes += `<g transform="rotate(${firing ? 100 : ready ? 42 : 0} 29 36)">`;
-    for (const angle of [0, 120, 240]) shapes += `<path d="M29 35 Q20 28 24 32 L29 36 Z" fill="#5e8f7c" stroke="#5e8f7c" stroke-width="3" transform="rotate(${angle} 29 36)"/>`;
-    shapes += '</g>' + circle(29, 36, 2, '#e4e7cc', 'stroke="none"');
-    shapes += ellipse(48, 35, 2.5, firing ? 2.3 : 3.8, '#203a40', 'stroke="none"') + ellipse(59, 34, 2.5, 3.8, '#203a40', 'stroke="none"');
-    shapes += svgPath('M50 43 Q54 45 58 42', 'none', 'stroke="#426b5d" stroke-width="1.5"');
-    shapes += svgPath('M58 48 L62 47', 'none', 'stroke="#d7d7b4" stroke-width="3"');
-  } else {
-    shapes += svgPath('M39 58 L31 78 M60 58 L69 78', 'none', 'stroke="#66768c" stroke-width="5"');
-    shapes += rect(20, 77, 19, 8, 3, '#d2d8df') + rect(64, 77, 18, 8, 3, '#d2d8df');
-    shapes += `<g transform="rotate(${ready ? -3 : firing ? -1 : 0} 47 46)">`;
-    shapes += rect(13, 32, 64, 26, 12, palette.main);
-    shapes += ellipse(16, 45, 5, 11, palette.dark) + svgPath('M23 36 L62 36', 'none', 'stroke="#dce4e7" stroke-width="3"');
-    shapes += rect(64, 32, 17, 26, 5, '#d1d9dc');
-    shapes += ellipse(80, 45, 8, 12, '#657789') + ellipse(82, 45, 4.5, 8, palette.dark);
-    shapes += ellipse(83, 45, firing ? 3 : ready ? 2 : 1.5, firing ? 6 : 3, firing ? palette.glow : palette.accent, 'stroke="none"');
-    shapes += rect(44, 26, 13, 6, 3, ready ? palette.glow : palette.light, 'stroke-width="1.6"');
-    shapes += ellipse(35, 44, 2.5, 3.5, '#203a40', 'stroke="none"') + ellipse(47, 44, 2.5, ready ? 2 : 3.5, '#203a40', 'stroke="none"');
-    shapes += svgPath('M35 51 L43 51', 'none', 'stroke="#57718b" stroke-width="1.5"');
-    shapes += svgPath('M20 34 L22 24 Q26 19 33 23', 'none', 'stroke="#89949e" stroke-width="2.5"');
-    shapes += '</g>';
+    return s + (ready ? ellipse(x, y + 4, 2.1, 2.5, outline, 'stroke="none"') : line(`M${x - 3} ${y + 3} Q${x} ${y + 7} ${x + 3} ${y + 3}`, outline, 1.7));
+  };
+  const nozzle = (x, y, width = 17, height = 14) => rect(x, y, width, height, 5, p.light) + ellipse(x + width, y + height / 2, 3.5, height / 2, p.dark) + ellipse(x + width + .6, y + height / 2, 1.7, firing ? height * .32 : height * .18, firing ? p.glow : p.accent, 'stroke="none"');
+  const wheel = (x, y, radius = 7) => circle(x, y, radius, outline) + circle(x, y, radius * .49, cream, 'stroke="none"');
+  const fan = (x, y, radius, friendly = false) => {
+    let s = circle(x, y, radius, p.main) + circle(x, y, radius - 4, p.light);
+    for (const angle of [0, 120, 240]) s += `<g transform="rotate(${angle + (firing ? 65 : ready ? -14 : recovering ? 24 : 0)} ${x} ${y})">` + svgPath(`M${x} ${y} Q${x - radius + 2} ${y - 5} ${x - 8} ${y - radius + 6} Q${x + 4} ${y - radius + 1} ${x + 4} ${y - 4} Z`, p.dark, 'stroke="none"') + '</g>';
+    return s + (friendly ? face(x, y + 4, 28, 19) + (firing ? line(`M${x - radius + 4} ${y - 3} Q${x - radius + 4} ${y - radius + 4} ${x - 3} ${y - radius + 4}`, p.glow, 2.5) : '') : circle(x, y, 4, p.glow));
+  };
+  const snow = (x, y, radius = 5) => line(`M${x} ${y - radius} V${y + radius} M${x - radius} ${y - radius / 2} L${x + radius} ${y + radius / 2} M${x - radius} ${y + radius / 2} L${x + radius} ${y - radius / 2}`, p.glow, 2.2);
+  const feet = rect(24, 77, 18, 10, 5, p.dark) + rect(56, 77, 18, 10, 5, p.dark) + shine('M29 80 H35 M61 80 H67');
+  let body = feet;
+  if (kind === 'lighter') {
+    body += rect(25, 31, 46, 48, 15, p.main) + shine('M30 45 Q30 36 37 36');
+    body += rect(30, 25, 34, 12, 4, cream) + circle(61, 28, 5, p.dark);
+    body += (firing || recovering ? `<g transform="rotate(${firing ? -14 : -4} 24 35)">` + rect(7, 19, 20, 28, 7, p.main) + shine('M12 26 V35') : `<g transform="rotate(${ready ? -25 : -6} 27 35)">` + rect(27, 14, 44, 23, 8, p.main) + shine('M34 19 H57')) + '</g>' + circle(28, 35, 3, p.dark);
+    body += face(48, 54, 35, 25) + rect(37, 71, 22, 4, 2, p.light, 'stroke="none"');
+    if (firing) body += svgPath('M45 27 Q38 20 45 11 Q45 17 50 15 Q59 24 51 29 Z', p.glow, `stroke="${p.dark}" stroke-width="1.6"`);
+  } else if (kind === 'range') {
+    body += rect(18, 28, 60, 52, 14, p.main) + ellipse(48, 29, 29, 10, p.light);
+    for (const x of [34, 62]) body += ellipse(x, 27, 9, 4.5, p.dark) + ellipse(x, 27, firing ? 6.5 : 3, 2, p.glow, 'stroke="none"');
+    body += face(48, 47, 37, 24) + rect(28, 62, 40, 12, 5, p.dark) + rect(34, 66, 28, 4, 2, p.light, 'stroke="none"') + shine('M23 42 V56');
+  } else if (kind === 'flamethrower') {
+    body += rect(12, 29, 20, 47, 10, p.dark) + rect(16, 22, 12, 10, 4, p.light);
+    body += line('M22 54 Q7 73 30 73', p.light, 5) + rect(27, 32, 41, 47, 16, p.main);
+    body += rect(61, 50, 14, 22, 6, p.dark) + nozzle(68, 53, 17, 16) + face(47, 50, 34, 25) + shine('M34 38 H47');
+    body += circle(47, 71, 4, p.glow, 'stroke="none"');
+  } else if (kind === 'incinerator') {
+    body += rect(23, 10, 15, 25, 6, p.dark) + rect(19, 10, 23, 8, 4, p.light);
+    body += rect(16, 27, 65, 53, 15, p.main) + face(48, 44, 40, 25);
+    body += rect(27, 58, 43, 19, 8, p.dark) + svgPath('M37 72 Q32 66 42 60 L46 67 L54 59 Q67 69 59 73 Z', p.glow, 'stroke="none"') + shine('M23 36 V48');
+  } else if (kind === 'watergun') {
+    body += line('M61 59 L64 79', p.dark, 5);
+    body += rect(30, 56, 22, 23, 8, p.dark) + rect(17, 31, 54, 33, 16, p.main);
+    body += rect(26, 21, 34, 15, 7, p.light) + nozzle(69, 38, 16, 15);
+    body += face(43, 49, 36, 23) + shine('M25 37 H35') + circle(68, 60, 3, p.glow, 'stroke="none"');
+  } else if (kind === 'hose') {
+    body += rect(20, 28, 48, 51, 15, p.main) + face(43, 44, 36, 24);
+    body += circle(43, 65, 13, p.dark) + circle(43, 65, 8, p.light) + circle(43, 65, 3, p.dark, 'stroke="none"');
+    body += line('M56 71 Q80 82 76 44', p.main, 5) + nozzle(67, 30, 17, 11) + shine('M25 35 L31 32');
+  } else if (kind === 'washer') {
+    body += line('M27 31 V17 Q42 10 55 17 V30', p.dark, 6);
+    body += rect(19, 26, 46, 53, 17, p.main) + face(42, 44, 35, 25);
+    body += rect(29, 61, 25, 9, 4, p.dark) + wheel(25, 79, 8) + wheel(59, 79, 8);
+    body += line('M58 65 Q79 79 77 41', p.dark, 4) + nozzle(67, 26, 18, 10) + shine('M26 33 L33 30');
+  } else if (kind === 'firetruck') {
+    body = rect(9, 39, 53, 36, 10, p.main) + rect(58, 29, 29, 46, 11, p.main);
+    body += face(72, 53, 25, 23) + rect(14, 48, 38, 20, 7, p.light) + circle(32, 58, 8, p.dark) + circle(32, 58, 4, p.light, 'stroke="none"');
+    body += wheel(26, 78, 9) + wheel(73, 78, 9) + rect(23, 27, 35, 7, 3, cream) + line('M31 26 V20 H55', p.dark, 5) + nozzle(55, 15, 18, 10);
+    body += rect(67, 24, 11, 6, 3, p.glow) + shine('M64 34 H76');
+  } else if (kind === 'fridge') {
+    body += rect(24, 15, 48, 66, 15, p.main) + face(48, 40, 36, 25);
+    body += line('M27 55 H69', p.dark, 2) + rect(61, 28, 4, 16, 2, cream, 'stroke="none"') + rect(61, 62, 4, 11, 2, cream, 'stroke="none"');
+    body += snow(43, 68, 6) + shine('M30 30 Q30 21 39 21');
+  } else if (kind === 'icemaker') {
+    body += rect(22, 24, 51, 57, 15, p.main) + rect(25, 16, 45, 13, 6, p.light) + face(48, 44, 36, 24);
+    body += rect(30, 59, 36, 18, 7, p.dark);
+    for (const [x, y, angle] of [[35, 64, -10], [47, 66, 12], [54, 61, -7]]) body += `<g transform="rotate(${angle} ${x + 3} ${y + 3})">` + rect(x, y, 8, 8, 2, p.glow, 'stroke-width="1.2"') + '</g>';
+    body += shine('M29 32 H40');
+  } else if (kind === 'freezer') {
+    body += rect(12, 27, 72, 53, 15, p.main) + rect(13, 20, 70, 12, 6, p.light);
+    body += face(48, 45, 40, 25) + line('M48 60 V77', p.dark, 2) + rect(39, 61, 4, 11, 2, cream, 'stroke="none"') + rect(54, 61, 4, 11, 2, cream, 'stroke="none"');
+    body += snow(25, 64) + snow(72, 64) + shine('M19 38 V48');
+  } else if (kind === 'coldstore') {
+    body += rect(13, 29, 65, 51, 13, p.main) + svgPath('M11 32 Q10 28 16 25 L42 11 Q46 9 51 12 L80 28 L78 33 Z', p.dark);
+    body += face(42, 46, 39, 25) + rect(28, 61, 29, 19, 7, p.light) + snow(43, 71);
+    body += rect(69, 35, 18, 30, 7, cream) + fan(78, 49, 6) + shine('M19 38 V45');
+  } else if (kind === 'handfan' || kind === 'standfan') {
+    body += kind === 'handfan' ? rect(35, 49, 26, 29, 11, p.main) + circle(48, 69, 3, p.glow) : rect(43, 45, 10, 28, 5, p.dark) + ellipse(48, 76, 26, 7, p.main);
+    body += fan(48, kind === 'handfan' ? 33 : 31, kind === 'handfan' ? 25 : 27, true) + shine('M30 24 Q33 16 40 15');
+  } else if (kind === 'blower') {
+    body += rect(11, 26, 73, 51, 15, p.main) + rect(15, 73, 64, 8, 4, p.dark);
+    body += fan(62, 48, 22) + face(30, 48, 26, 24) + line('M24 26 V19 H63 V26', p.dark, 5) + shine('M18 34 H27');
+  } else if (kind === 'jet') {
+    body += svgPath('M32 32 L47 16 Q50 13 54 17 L61 33 M33 68 L49 79 L64 65', p.light);
+    body += rect(17, 30, 65, 41, 20, p.main) + ellipse(24, 50, 13, 22, p.dark) + fan(24, 50, 9);
+    body += nozzle(70, 39, 15, 21) + face(50, 51, 32, 25) + shine('M39 35 H54');
+  } else if (kind === 'battery') {
+    body += rect(38, 11, 20, 13, 5, p.dark) + rect(26, 19, 44, 62, 17, p.main) + rect(28, 22, 40, 12, 7, p.light, 'stroke="none"');
+    body += face(48, 47, 34, 26) + line('M48 65 V74 M43.5 69.5 H52.5', p.glow, 3.5) + shine('M32 36 V43');
+  } else if (kind === 'swatter') {
+    body += rect(33, 53, 30, 27, 10, p.main) + ellipse(48, 31, 25, 24, p.main) + ellipse(48, 31, 19, 18, p.light);
+    for (const x of [39, 48, 57]) body += line(`M${x} 17 V44`, firing ? p.glow : p.dark, 1.5);
+    for (const y of [24, 32, 40]) body += line(`M32 ${y} H64`, p.dark, 1.5);
+    body += face(48, 65, 27, 21) + shine('M31 19 L36 14');
+  } else if (kind === 'transformer') {
+    body += rect(19, 30, 59, 49, 15, p.main);
+    for (const x of [32, 64]) body += rect(x - 4, 11, 8, 24, 4, p.dark) + ellipse(x, 16, 9, 4, p.light) + ellipse(x, 25, 9, 4, p.light);
+    body += rect(11, 42, 9, 29, 4, p.dark) + rect(77, 42, 9, 29, 4, p.dark) + face(48, 47, 38, 26);
+    body += svgPath('M48 63 L40 70 H47 L45 77 L56 67 H49 L51 63 Z', p.glow, 'stroke="none"') + shine('M26 37 H36');
+  } else if (kind === 'powerplant') {
+    body += svgPath('M17 43 L21 15 Q27 11 36 15 L40 43 M58 39 L62 19 Q68 16 75 20 L79 43', p.dark);
+    body += ellipse(28, 15, 9, 4, p.light) + ellipse(69, 20, 8, 3, p.light) + rect(11, 36, 74, 44, 15, p.main) + face(49, 52, 40, 25);
+    body += rect(26, 66, 46, 9, 4, p.dark) + circle(34, 70, 2.5, p.glow, 'stroke="none"') + circle(48, 70, 2.5, p.glow, 'stroke="none"') + circle(63, 70, 2.5, p.glow, 'stroke="none"') + shine('M18 44 V50');
+  } else if (kind === 'pointer' || kind === 'dryer') {
+    body += line('M36 61 L33 79 M59 61 L64 79', p.dark, 5);
+    body += rect(11, 31, 67, 31, 15, p.main) + ellipse(17, 46, 6, 14, p.dark) + rect(65, 30, 18, 34, 8, p.light) + ellipse(82, 47, 7, 15, p.dark);
+    body += ellipse(84, 47, firing ? 4 : 3, firing ? 10 : 7, firing ? p.glow : p.accent, 'stroke="none"') + rect(36, 22, 22, 9, 4, p.dark);
+    body += face(43, 48, 36, 25) + shine('M26 35 H38') + line('M21 32 Q18 18 32 20', p.light, 3);
+  } else if (kind === 'engraver') {
+    body += rect(15, 57, 67, 24, 11, p.main) + rect(18, 21, 9, 39, 4, p.dark) + rect(70, 21, 9, 39, 4, p.dark) + rect(18, 18, 61, 10, 5, p.light);
+    body += rect(39, 26, 20, 19, 6, p.main) + line('M49 45 V56', firing ? p.glow : p.dark, firing ? 4 : 1.5) + face(48, 68, 38, 21) + shine('M26 22 H39');
+  } else if (kind === 'cutter') {
+    body += rect(13, 28, 72, 53, 15, p.main) + rect(20, 20, 58, 12, 6, p.light) + rect(22, 34, 53, 22, 8, p.dark);
+    body += rect(31, 37, 23, 5, 2, cream, 'stroke="none"') + rect(43, 39, 11, 8, 3, p.main) + line('M49 47 V53', p.glow, firing ? 4 : 1.5);
+    body += face(49, 66, 40, 23) + circle(78, 41, 3, p.glow, 'stroke="none"') + shine('M18 36 V46');
+  } else if (kind === 'lasercannon') {
+    body += rect(20, 67, 60, 15, 7, p.dark) + rect(30, 43, 39, 34, 13, p.main) + face(49, 61, 33, 23);
+    body += rect(16, 22, 56, 29, 13, p.main) + nozzle(66, 23, 18, 27) + rect(33, 14, 23, 8, 4, p.light) + shine('M24 28 H43');
+  } else if (kind === 'guardian') {
+    body += svgPath('M26 38 Q12 24 10 42 L14 65 Q18 73 29 67 M69 38 Q83 24 87 42 L83 65 Q78 73 67 67', p.dark);
+    body += rect(23, 38, 52, 42, 17, p.main) + rect(24, 19, 49, 36, 16, p.light) + face(49, 37, 40, 26);
+    body += svgPath('M37 19 L33 10 L45 14 L49 7 L55 15 L65 11 L61 20 Z', '#f5d475');
+    body += circle(49, 64, 11, p.dark) + svgPath('M49 55 L52 61 L59 62 L54 67 L55 74 L49 70 L43 74 L44 67 L39 62 L46 61 Z', p.glow, 'stroke="none"');
+    for (const [index, element] of ['fire', 'water', 'frost', 'wind', 'electric', 'laser'].entries()) body += circle(24 + index * 10, 78, 3, elementPalette(element).main, 'stroke-width="1.3"');
+    body += shine('M17 43 V53');
   }
-  return svg(shapes);
+  const transform = ready ? 'translate(48 86) rotate(-3) scale(1.045 .95) translate(-48 -86)' : firing ? 'translate(46 86) rotate(2) scale(.97 1.025) translate(-48 -86)' : recovering ? 'translate(48.5 86) scale(1.015 .99) translate(-48 -86)' : '';
+  return svg(ellipse(48, 89, 29, 3, '#14233925', 'stroke="none"') + `<g transform="${transform}">${body}</g>`);
 }
 
 function robotSvg(definition, pose) {
@@ -240,73 +326,49 @@ function robotSvg(definition, pose) {
 }
 
 function scrapDroneSvg(kind, pose) {
-  const step = typeof pose === 'number' ? [0, 4, 0, -4][pose % 4] : 0;
-  const boss = kind === 2;
-  let shapes = ellipse(47, 88, boss ? 34 : 24, 4, '#354b6126', 'stroke="none"');
-  if (boss) {
-    shapes += rect(15, 71, 66, 16, 8, '#5b5878');
-    for (let x = 24; x < 78; x += 13) {
-      shapes += circle(x, 79, 5, '#b3adca') + circle(x, 79, 1.5, '#5b5878', 'stroke="none"');
-      shapes += svgPath(`M${x - 2} ${76 + step * .4} L${x + 2} ${82 - step * .4}`, 'none', 'stroke="#79718c" stroke-width="1.4"');
+  const frame = typeof pose === 'number' ? pose % 4 : 0, step = [0, 3, 0, -3][frame];
+  const boss = kind === 2, ink = '#393449', cream = '#e5d7cc', shell = boss ? '#766079' : kind === 3 ? '#a47c83' : kind === 5 ? '#917486' : '#918497';
+  const line = (d, color = ink, width = 2.5) => svgPath(d, 'none', `stroke="${color}" stroke-width="${width}"`);
+  const wheels = (x, y, radius = 8) => circle(x, y, radius, ink) + circle(x, y, radius * .5, cream, 'stroke="none"');
+  // Dark visors, inward-slanting eyes and uneven teeth distinguish hostile robots at small sizes.
+  const face = (x, y, width = 31) => rect(x - width / 2 - 1, y - 12, width + 2, 27, 8, '#342b3e', 'stroke-width="1.5"') +
+    svgPath(`M${x - 13} ${y - 7} L${x - 3} ${y - 3} L${x - 4} ${y + 1} L${x - 12} ${y - 1} Z M${x + 3} ${y - 3} L${x + 13} ${y - 8} L${x + 12} ${y - 1} L${x + 4} ${y + 1} Z`, boss ? '#ff8574' : '#ffc184', 'stroke="none"') +
+    line(`M${x - 14} ${y - 10} L${x - 3} ${y - 6} M${x + 3} ${y - 6} L${x + 14} ${y - 11}`, shell, 3) +
+    svgPath(`M${x - 10} ${y + 4} Q${x} ${y + 7} ${x + 11} ${y + 2} L${x + 8} ${y + 11} Q${x} ${y + 14} ${x - 9} ${y + 10} Z`, '#191b2a', 'stroke="none"') +
+    svgPath(`M${x - 9} ${y + 5} L${x - 4} ${y + 6} L${x - 6} ${y + 10} Z M${x - 2} ${y + 6} L${x + 3} ${y + 5} L${x + 1} ${y + 9} Z M${x + 6} ${y + 4} L${x + 10} ${y + 3} L${x + 7} ${y + 9} Z`, cream, 'stroke="none"');
+  let body = '';
+  if (boss || kind === 4) {
+    body += rect(14, 70, 69, 18, 9, ink);
+    for (const x of [26, 48, 70]) body += wheels(x, 79, 6) + line(`M${x - 2} ${78 + step * .3} L${x + 2} ${80 - step * .3}`, ink, 1.3);
+    body += rect(15, 25, 68, 49, 19, shell) + rect(24, 61, 49, 13, 6, '#897d99') + face(48, 47, 40);
+    if (boss) {
+      body += svgPath('M25 30 L18 12 L37 20 L47 6 L59 20 L78 10 L70 30 Z', '#bfa2ae');
+      body += rect(5, 48, 16, 22, 5, '#9f7b8e') + rect(76, 48, 16, 22, 5, '#9f7b8e');
+      body += svgPath('M7 49 L7 35 L20 49 Z M77 49 L88 34 L90 50 Z', cream) + line('M10 55 L16 61 M86 55 L80 61', '#f0b198', 2);
+      body += svgPath('M33 65 L39 69 L33 72 Z M45 65 L51 69 L45 72 Z M57 65 L63 69 L57 72 Z', '#f0b198', 'stroke="none"');
+    } else {
+      body += rect(18, 28, 11, 35, 4, '#b3a0b5') + rect(69, 28, 11, 35, 4, '#b3a0b5') + line('M37 68 H59', cream, 2.5);
+      body += svgPath('M17 33 L12 21 L27 29 Z M70 29 L85 20 L80 34 Z', cream) + line('M20 42 L26 47 M72 43 L78 48', ink, 2);
     }
-    shapes += svgPath('M22 46 L10 53 L10 67 M72 46 L86 53 L86 67', 'none', 'stroke="#5b5878" stroke-width="8"');
-    shapes += svgPath('M5 65 L5 74 L15 74 L15 65 M81 65 L81 74 L91 74 L91 65', 'none', 'stroke="#de9a9a" stroke-width="5"');
-    shapes += rect(22, 25, 52, 47, 9, '#a394ba');
-    shapes += rect(28, 16, 40, 12, 4, '#cac4d7');
-    shapes += svgPath('M34 18 L34 24 M47 18 L47 24 M60 18 L60 24', 'none', 'stroke="#5b5878" stroke-width="4"');
-    shapes += rect(28, 48, 40, 15, 4, '#5b5878');
-    shapes += svgPath('M34 48 L38 57 L43 48 L49 57 L55 48 L62 57 L66 48', '#e2c998', 'stroke-width="1.8"');
+    body += line('M33 32 H40', '#f6ece7', 2.5);
   } else if (kind === 3) {
-    // Runner: low scooter chassis, swept antenna and one large drive wheel.
-    shapes += circle(33, 77, 12, '#53546c') + circle(33, 77, 6, '#c7bacb');
-    shapes += circle(69, 79, 7, '#53546c');
-    shapes += svgPath(`M${29 + step} 74 L${37 - step} 80`, 'none', 'stroke="#79718c" stroke-width="3"');
-    shapes += svgPath('M23 63 L60 55 L76 65 L68 73 L30 73 Z', '#bc8797');
-    shapes += svgPath('M34 57 L40 29 L64 25 L74 49 L60 62 Z', '#d4abb5');
-    shapes += svgPath('M42 30 L34 16 L50 24 M58 26 L69 15', 'none', 'stroke="#9e708c" stroke-width="4"');
-    shapes += rect(36, 37, 29, 13, 4, '#514962');
-    shapes += svgPath('M45 64 L54 61 L51 68 L62 65', 'none', 'stroke="#ffe2bd" stroke-width="3"');
-    shapes += svgPath('M17 50 L29 47 M12 57 L26 54', 'none', 'stroke="#bc8797" stroke-width="3"');
-  } else if (kind === 4) {
-    // Plated: a wide, slow siege ram. Plates communicate mass, not damage resistance.
-    shapes += rect(16, 70, 64, 16, 6, '#53546c');
-    for (const x of [27, 47, 67]) {
-      shapes += circle(x, 78, 6, '#aaa1b5');
-      shapes += svgPath(`M${x - 3} ${78 + step * .4} L${x + 3} ${78 - step * .4}`, 'none', 'stroke="#53546c" stroke-width="2"');
-    }
-    shapes += svgPath('M20 30 L35 21 L61 21 L77 31 L81 62 L67 73 L28 73 L14 60 Z', '#968aa9');
-    shapes += svgPath('M20 35 L33 29 L33 63 L22 57 Z M63 29 L75 35 L74 58 L63 64 Z', '#c5b9cc');
-    shapes += rect(32, 32, 32, 17, 5, '#514962');
-    shapes += rect(30, 54, 36, 12, 3, '#72657e');
-    shapes += svgPath('M33 59 L39 63 L45 57 L51 63 L57 57 L63 61', 'none', 'stroke="#e8c99c" stroke-width="3"');
-    shapes += circle(22, 43, 2, '#e0d3de') + circle(73, 43, 2, '#e0d3de');
+    body += wheels(27, 78, 10) + wheels(72, 78, 8) + svgPath('M16 64 Q46 57 75 64 L80 71 Q79 76 71 75 H25 Q16 75 16 64 Z', '#a4859c');
+    body += rect(29, 29, 42, 40, 17, shell) + svgPath('M30 33 L35 21 L48 17 L67 25 L73 31 Z', '#b8969d') + face(50, 47, 31);
+    body += svgPath('M35 25 L24 14 L46 21 Z', cream) + line('M59 28 L66 31', ink, 2);
+    body += line('M34 26 L26 20 M29 59 L21 65 M64 60 L74 54', ink, 4) + line('M69 54 L78 52', '#e4c7a9', 3);
+    body += line(`M${23 - step} 76 L${31 + step} 80`, cream, 2);
   } else if (kind === 5) {
-    // Swarm: compact triangular scrap beetle with six articulated wire legs.
-    for (const side of [-1, 1]) for (let index = 0; index < 3; index++) {
-      shapes += svgPath(`M${47 + side * 15} ${45 + index * 10} L${47 + side * (26 + (index % 2 ? step : -step))} ${46 + index * 11} L${47 + side * 30} ${54 + index * 12}`, 'none', 'stroke="#8c829e" stroke-width="4"');
-    }
-    shapes += svgPath('M47 24 L66 43 L65 64 L47 76 L29 64 L28 43 Z', '#bd9daa');
-    shapes += svgPath('M47 29 L47 69 M34 57 L43 61 M52 61 L60 57', 'none', 'stroke="#806477" stroke-width="3"');
-    shapes += rect(31, 37, 33, 14, 5, '#514962');
-    shapes += svgPath('M37 29 L31 20 M57 29 L63 20', 'none', 'stroke="#c1b5ce" stroke-width="3"');
-  } else if (kind === 1) {
-    shapes += svgPath(`M29 61 L${15 + step} 70 L12 82 M66 61 L${81 - step} 70 L84 82 M35 67 L31 84 M59 67 L63 84`, 'none', 'stroke="#79718c" stroke-width="7"');
-    shapes += rect(24, 29, 47, 38, 11, '#c1b5ce');
-    shapes += svgPath('M27 30 L21 20 L36 25 M68 30 L75 20 L59 25', '#e3cda4');
-    shapes += rect(31, 51, 34, 10, 3, '#8c829e');
-    shapes += svgPath('M38 53 L38 59 M46 53 L46 59 M54 53 L54 59', 'none', 'stroke="#e7deed" stroke-width="2"');
+    for (const side of [-1, 1]) for (let i = 0; i < 3; i++) body += line(`M${48 + side * 14} ${47 + i * 10} Q${48 + side * 28} ${43 + i * 11} ${48 + side * (30 + (i % 2 ? step : -step))} ${56 + i * 11}`, '#978499', 4);
+    body += ellipse(48, 53, 24, 27, shell) + svgPath('M48 28 Q37 30 35 40 L47 46 L61 39 Q57 29 48 28', '#b298ac', 'stroke="none"') + face(48, 53, 33);
+    body += svgPath('M33 34 L27 18 L41 29 Z M56 29 L69 18 L64 35 Z', cream) + line('M43 74 H53', '#74677c', 2.5);
   } else {
-    shapes += svgPath(`M31 67 L${27 + step} 80 L19 83 M61 67 L${65 - step} 80 L74 83`, 'none', 'stroke="#787086" stroke-width="7"');
-    shapes += svgPath('M25 46 L15 54 L18 63 M68 46 L79 53 L77 63', 'none', 'stroke="#9990a6" stroke-width="6"');
-    shapes += rect(27, 29, 40, 43, 10, '#b8afc4');
-    shapes += ellipse(47, 29, 20, 6, '#d9d4e1');
-    shapes += svgPath('M38 28 L39 19 L47 17 L55 21 L54 27', '#a899b7');
-    shapes += svgPath('M36 62 L59 62 M36 66 L51 66', 'none', 'stroke="#82738e" stroke-width="2"');
+    body += rect(24 + step, 76, 19, 11, 5, '#897d99') + rect(56 - step, 76, 19, 11, 5, '#897d99');
+    body += line('M25 51 L18 63 M72 51 L79 63', '#897d99', 7) + circle(17, 64, 6, '#d7c6bf') + circle(79, 64, 6, '#d7c6bf');
+    body += rect(23, 27, 51, 53, 19, shell) + ellipse(48, 29, 23, 8, '#b3a0b5') + face(48, 50, 36);
+    body += line('M47 21 L43 16 L47 12', ink, 3) + circle(47, 11, 3, '#e7ac89') + rect(37, 68, 24, 7, 3, '#74677c') + line('M30 31 L36 36 M59 25 L64 29', ink, 2);
   }
-  shapes += rect(31, boss ? 32 : 37, 33, 14, 5, '#514962');
-  shapes += svgPath(boss ? 'M37 36 L43 39 M53 39 L59 36' : 'M37 41 L43 43 M53 43 L59 41', 'none', 'stroke="#ffcfaa" stroke-width="3"');
-  shapes += circle(61, boss ? 68 : 61, 2, '#ffe5b8', 'stroke="none"');
-  return svg(shapes);
+  const bob = frame === 1 || frame === 3 ? -1 : 0;
+  return svg(ellipse(48, 90, boss ? 33 : 27, 3, '#14233925', 'stroke="none"') + `<g transform="translate(0 ${bob})">${body}</g>`);
 }
 
 export function unitSpriteUrl(definition, pose = 'idle') {
@@ -316,7 +378,7 @@ export function unitSpriteUrl(definition, pose = 'idle') {
 }
 
 export function enemySpriteUrl(kind, pose = 0) {
-  if (typeof kind === 'string') kind = ({ grunt: 0, runner: 3, plated: 4, swarm: 5, boss: 2 })[kind] ?? 0;
+  if (typeof kind === 'string') kind = ({ grunt: 0, runner: 3, plated: 4, siege: 4, swarm: 5, boss: 2 })[kind] ?? 0;
   const key = `enemy:${kind}:${pose}`;
   if (!cache.has(key)) cache.set(key, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(scrapDroneSvg(kind, pose)));
   return cache.get(key);

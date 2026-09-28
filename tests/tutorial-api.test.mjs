@@ -53,12 +53,15 @@ async function complete(request, room, session) {
   await action('tutorial_next', { unitIds: [anchorId] });
   step(room.game, room.game.rules.summonCooldownTicks);
   await action('summon');
+  assert.equal(state.tutorial.step, 'fill');
+  step(room.game, room.game.rules.summonCooldownTicks);
+  await action('summon');
   assert.equal(state.tutorial.step, 'sell');
   await action('salvage', { unitIds: [state.tutorial.saleUnitId] });
   step(room.game, room.game.rules.summonCooldownTicks);
   await action('summon');
-  const material = state.players[0].units.find(unit => unit.definitionId === 'wu_guard');
-  await action('combine', { recipeId: 'make_cheng_yu', unitIds: [anchorId, material.id] });
+  const materials = state.players[0].units.filter(unit => unit.definitionId === 'laser_1' && unit.id !== anchorId);
+  await action('combine', { recipeId: 'make_laser_2', unitIds: [anchorId, ...materials.map(unit => unit.id)] });
   for (let index = 0; index < 600 && room.game.tutorial.step === 'counterattack'; index++) core.tick(room.game);
   assert.equal(room.game.tutorial.step, 'boss_ready');
   await action('tutorial_next');
@@ -82,7 +85,7 @@ test('tutorial accepts an empty engine balance, stays isolated and never consume
   const session = joined.body;
   assert.equal(session.state.battlefieldId, 0);
   assert.equal(session.state.practice, true); assert.equal(session.state.playbackSpeed, 1);
-  assert.equal(session.state.rules.maxUnits, 3); assert.deepEqual(session.state.stories, []);
+  assert.equal(session.state.rules.maxUnits, 4); assert.deepEqual(session.state.stories, []);
   assert.equal(session.state.tutorial.step, 'intro');
   assert.deepEqual(session.profile, before);
   assert.equal(rooms.length, 1);

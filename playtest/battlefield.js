@@ -1,18 +1,21 @@
 import { unitSpriteUrl, enemySpriteUrl, applianceKind, elementPalette } from './casual-art.js';
 import { unitPoint, enemyPoint, projectPoint, getBattlefieldLayout } from '../shared/battle-geometry.js';
 
-const elementColors = Object.fromEntries(['fire', 'wind', 'frost', 'laser', 'electric'].map(element => [element, elementPalette(element).accent]));
+const elementColors = Object.fromEntries(['fire', 'water', 'wind', 'frost', 'laser', 'electric'].map(element => [element, elementPalette(element).accent]));
 const WORLD_W = 1000, WORLD_H = 440, MAX_EFFECTS = 120;
-const slot = (n, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => projectPoint(unitPoint(n, battlefieldId), roadFor(width, height), width === 600, battlefieldId);
-const roadFor = (width, height) => ({ left: width * .12, right: width * .84,
-  top: height * (width === 600 ? .22 : .27), bottom: height * .80 });
+const slot = (n, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => projectPoint(unitPoint(n, battlefieldId), battlefieldRoad(width, height, battlefieldId), width === 600, battlefieldId);
+export const battlefieldRoad = (width, height, battlefieldId = 1) => battlefieldId === 2 ?
+  { left: width * .08, right: width * .92,
+    top: Math.min(height * .40, width === 600 ? Math.max(236, height * .20) : Math.max(130, height * .27)),
+    bottom: Math.max(height * .70, height - (width === 600 ? 220 : 125)) } :
+  { left: width * .12, right: width * .84, top: height * (width === 600 ? .22 : .27), bottom: height * .80 };
 const path = (progress, width = WORLD_W, height = WORLD_H, battlefieldId = 1, routeIndex = 0) => {
   const point = enemyPoint(progress, battlefieldId, routeIndex);
-  return { ...projectPoint(point, roadFor(width, height), width === 600, battlefieldId), face: point.face };
+  return { ...projectPoint(point, battlefieldRoad(width, height, battlefieldId), width === 600, battlefieldId), face: battlefieldId === 2 && width !== 600 ? 1 : point.face };
 };
 const clamp = value => Math.max(0, Math.min(1, value));
 const easeOut = value => 1 - Math.pow(1 - clamp(value), 3);
-const attackTimings = { fire: [65, 125, 120], wind: [125, 170, 170], frost: [80, 180, 130], laser: [110, 55, 95] };
+const attackTimings = { fire: [65, 125, 120], water: [55, 110, 90], wind: [125, 170, 170], frost: [80, 180, 130], laser: [110, 55, 95] };
 const defaultAttackTiming = [80, 150, 90];
 // Presentation only: leave the lighter open between confirmed shots, then close it at rest.
 const LIGHTER_READY_MS = 1200;
@@ -37,7 +40,7 @@ export class Battlefield {
       let nearest = null, distance = Infinity;
       for (const [unitId, view] of this.units) {
         const height = this.unitHeight(this.definitions.get(view.unit.definitionId));
-        const d = Math.hypot((x - view.x) / (height * .43), (y - view.y + height * .47) / (height * .47));
+        const d = Math.hypot((x - view.x) / Math.max(height * .43, 22 / this.scale), (y - view.y + height * .47) / Math.max(height * .47, 22 / this.scale));
         if (d < 1 && d < distance) { nearest = unitId; distance = d; }
       }
       const emptySlot = nearest === null && this.player ? getBattlefieldLayout(this.battlefieldId).slots.findIndex((_, index) => {
@@ -50,8 +53,9 @@ export class Battlefield {
   }
 
   configureLayout() {
-    const portrait = typeof matchMedia === 'function' && matchMedia('(max-width:600px)').matches;
     const bounds = this.canvas.getBoundingClientRect();
+    const portrait = this.battlefieldId === 2 ? bounds.height > bounds.width :
+      typeof matchMedia === 'function' && matchMedia('(max-width:600px)').matches;
     const width = portrait ? 600 : WORLD_W;
     const height = Math.max(280, Math.min(1600, Math.round(width * bounds.height / Math.max(1, bounds.width))));
     const mapId = this.battlefieldId ?? 1, changedMap = this.layoutBattlefieldId !== undefined && this.layoutBattlefieldId !== mapId;
@@ -70,6 +74,12 @@ export class Battlefield {
   }
   position(index) { return slot(index, this.worldWidth, this.worldHeight, this.battlefieldId); }
   path(progress, routeIndex = 0) { return path(progress, this.worldWidth, this.worldHeight, this.battlefieldId, routeIndex); }
+  enemyPosition(enemy, progress = enemy.progress) {
+    const position = this.path(progress, enemy.routeIndex);
+    if (this.battlefieldId === 2 && this.worldWidth === 600) position.x += (enemy.id % 3 - 1) * 18;
+    else if (this.battlefieldId !== 2 && enemy.attackingFacility) { position.x += (enemy.id % 3 - 1) * 8; position.y += Math.floor(enemy.id % 9 / 3) * 5; }
+    return position;
+  }
   previewPlacement() { this.placementPreviewUntil = performance.now() + 1100; }
 
   drawPlacementPreview(now) {
@@ -85,8 +95,8 @@ export class Battlefield {
   }
 
   drawRange() {
-    const context = this.ctx, road = roadFor(this.worldWidth, this.worldHeight), portrait = this.worldWidth === 600;
-    const layout = getBattlefieldLayout(this.battlefieldId), rotated = portrait && layout.rotateInPortrait;
+    const context = this.ctx, road = battlefieldRoad(this.worldWidth, this.worldHeight, this.battlefieldId), portrait = this.worldWidth === 600;
+    const layout = getBattlefieldLayout(this.battlefieldId), rotated = portrait && layout.rotateInPortrait || !portrait && layout.rotateInLandscape;
     for (const id of this.selected) {
       const view = this.units.get(id);
       if (!view || view.unit.dispatched) continue;
@@ -217,7 +227,7 @@ export class Battlefield {
       const view = this.enemies.get(enemy.id);
       if (view) {
         if (!resuming && view.hp > enemy.hp && !impacts.has(enemy.id)) {
-          const position = this.path(enemy.progress, enemy.routeIndex), damage = Math.round(view.hp - enemy.hp);
+          const position = this.enemyPosition(enemy), damage = Math.round(view.hp - enemy.hp);
           view.hitAt = now + 230;
           this.addEffect({ type: 'damage', x: position.x, y: position.y - (enemy.boss ? 70 : 34),
             label: String(damage), color: enemy.boss ? '#ffe6a0' : '#fff5dc', born: now + 230, life: 650 });
@@ -232,13 +242,13 @@ export class Battlefield {
           at: now, hp: enemy.hp, hitAt: -10000, enemy });
         if (!resuming && enemy.boss) {
           this.onCombat({ type: 'boss-entry', intensity: 1 });
-          const position = this.path(enemy.progress, enemy.routeIndex);
+          const position = this.enemyPosition(enemy);
           this.addEffect({ type: 'boss-entry', ...position, born: now, life: 750 });
         }
       }
     }
     for (const [enemyId, view] of this.enemies) if (!enemyIds.has(enemyId)) {
-      const position = this.path(this.progress(view, now), view.enemy.routeIndex);
+      const position = this.enemyPosition(view.enemy, this.progress(view, now));
       if (!resuming) {
         const impact = impacts.get(enemyId), at = impact?.at ?? now + 230;
         this.addEffect({ type: 'death', x: impact?.position.x ?? position.x, y: impact ? impact.position.y + 18 : position.y, facing: position.face,
@@ -265,7 +275,7 @@ export class Battlefield {
     }
     if (destroyed) this.onCombat({ type: 'destroy', intensity: Math.min(1, .35 + destroyed * .1) });
     this.drawOrder.length = 0;
-    for (const view of this.enemies.values()) this.drawOrder.push({ enemy: view, depth: this.path(view.progress, view.enemy.routeIndex).y });
+    for (const view of this.enemies.values()) this.drawOrder.push({ enemy: view, depth: this.enemyPosition(view.enemy, view.progress).y });
     for (const view of this.units.values()) this.drawOrder.push({ unit: view, depth: view.y });
     this.drawOrder.sort((a, b) => a.depth - b.depth);
   }
@@ -281,8 +291,8 @@ export class Battlefield {
       const isStory = typeof hit.targetId === 'string';
       const target = this.player.enemies.find(enemy => enemy.id === hit.targetId), previous = this.enemies.get(hit.targetId);
       const position = isStory ? { x: this.worldWidth * .949, y: this.worldHeight * .382 + 16 } :
-        Number.isFinite(hit.progress) ? this.path(hit.progress, hit.routeIndex) : target ? this.path(target.progress, target.routeIndex) :
-        previous ? this.path(this.progress(previous, now), previous.enemy.routeIndex) : null;
+        Number.isFinite(hit.progress) ? this.enemyPosition({ id: hit.targetId, progress: hit.progress, routeIndex: hit.routeIndex }) : target ? this.enemyPosition(target) :
+        previous ? this.enemyPosition(previous.enemy, this.progress(previous, now)) : null;
       return position ? { ...hit, position: { x: position.x, y: position.y - 18 } } : null;
     }).filter(Boolean);
     if (!targets.length) return;
@@ -319,8 +329,9 @@ export class Battlefield {
 
   unitHeight(definition) {
     const height = definition.rarity === 'legend' ? 94 : definition.rarity === 'hero' ? 86 : definition.rarity === 'elite' ? 78 : 70;
+    if (this.battlefieldId === 2) return this.worldWidth === 600 ? height * 1.14 : Math.max(height, 42 / this.scale);
     if (this.worldWidth === 600 || getBattlefieldLayout(this.battlefieldId).rotateInPortrait) return height;
-    const road = roadFor(this.worldWidth, this.worldHeight);
+    const road = battlefieldRoad(this.worldWidth, this.worldHeight, this.battlefieldId);
     // Open maps have more rows: keep landscape robots and their hit ellipses apart.
     return height * Math.min(1, (road.bottom - road.top) / 460);
   }
@@ -373,7 +384,7 @@ export class Battlefield {
   facility(now) {
     const objective = this.objective, point = this.path(objective.arrivalProgress), portrait = this.worldWidth === 600;
     const layout = getBattlefieldLayout(this.battlefieldId);
-    const anchor = layout.facility ? projectPoint(layout.facility, roadFor(this.worldWidth, this.worldHeight), portrait, this.battlefieldId) :
+    const anchor = layout.facility ? projectPoint(layout.facility, battlefieldRoad(this.worldWidth, this.worldHeight, this.battlefieldId), portrait, this.battlefieldId) :
       { x: point.x - (portrait ? 37 : 25), y: point.y - (portrait ? 0 : 18) };
     const { x, y } = anchor, context = this.ctx;
     const hit = now - (this.facilityHitAt ?? -10000) < 220, health = clamp(this.player.facilityHp / objective.facilityHp);
@@ -404,7 +415,7 @@ export class Battlefield {
   drawSky(terrain, road) {
     const context = this.ctx, width = this.worldWidth, height = this.worldHeight;
     const sky = context.createLinearGradient(0, 0, width * .5, height);
-    sky.addColorStop(0, '#040916'); sky.addColorStop(.45, terrain.sky); sky.addColorStop(1, '#070d1b');
+    sky.addColorStop(0, terrain.skyTop || '#040916'); sky.addColorStop(.45, terrain.sky); sky.addColorStop(1, terrain.skyBottom || '#070d1b');
     this.rect(0, 0, width, height, sky);
     // Distant gas and stars remain low contrast and are cached with the terrain.
     context.save(); context.translate(width * .36, road.top * .2); context.rotate(-.25); context.scale(1, .32);
@@ -453,7 +464,7 @@ export class Battlefield {
     context.bezierCurveTo(width * .22, horizon - 38, width * .63, horizon - 25, width, horizon + 47);
     context.lineTo(width, height); context.lineTo(0, height); context.closePath();
     const soil = context.createLinearGradient(0, horizon, width * .4, height);
-    soil.addColorStop(0, terrain.ridge); soil.addColorStop(.2, terrain.soil); soil.addColorStop(1, '#101723');
+    soil.addColorStop(0, terrain.ridge); soil.addColorStop(.2, terrain.soil); soil.addColorStop(1, terrain.soilBottom || '#101723');
     context.fillStyle = soil; context.fill();
     context.save(); context.clip();
     context.strokeStyle = terrain.halo + '21'; context.lineWidth = 5; context.stroke();
@@ -501,13 +512,15 @@ export class Battlefield {
   }
 
   drawDeck() {
-    const context = this.ctx, road = roadFor(this.worldWidth, this.worldHeight);
-    const terrain = { sky: '#152336', halo: '#9aaebd', planet: '#698595', ridge: '#4d4e4b', soil: '#2e3438', rock: '#535851', track: '#444e53' };
+    const context = this.ctx, road = battlefieldRoad(this.worldWidth, this.worldHeight, this.battlefieldId);
+    const terrain = this.battlefieldId === 2 ?
+      { sky: '#92adaf', skyTop: '#77979f', skyBottom: '#bdccc0', halo: '#e8eee0', planet: '#c6d7c7', ridge: '#b9c8b5', soil: '#a1b5a7', soilBottom: '#829f96', rock: '#647e79', track: '#eadbc1' } :
+      { sky: '#152336', halo: '#9aaebd', planet: '#698595', ridge: '#4d4e4b', soil: '#2e3438', rock: '#535851', track: '#444e53' };
     this.drawSky(terrain, road); this.drawSurface(terrain, road);
     const layout = getBattlefieldLayout(this.battlefieldId);
     for (const route of layout.routes) {
       const points = route.points.map(point => projectPoint(point, road, this.worldWidth === 600, this.battlefieldId));
-      for (const [color, width] of [['#080f19', 53], [terrain.rock, 46], ['#1a2630', 41], [terrain.track, 29]]) {
+      for (const [color, width] of this.battlefieldId === 2 ? [[terrain.rock, 80], ['#fff3d8', 72], [terrain.track, 64]] : [['#080f19', 53], [terrain.rock, 46], ['#1a2630', 41], [terrain.track, 29]]) {
         context.strokeStyle = color; context.lineWidth = width; context.lineJoin = 'round'; context.lineCap = 'round';
         context.beginPath(); context.moveTo(points[0].x, points[0].y);
         for (const point of points.slice(1)) context.lineTo(point.x, point.y);
@@ -520,14 +533,14 @@ export class Battlefield {
         const point = this.path(distance, routeIndex), next = this.path(distance + .002, routeIndex);
         context.save(); context.translate(point.x, point.y);
         context.rotate(Math.atan2(next.y - point.y, next.x - point.x));
-        context.strokeStyle = '#b7ccc5'; context.lineWidth = 3;
+        context.strokeStyle = this.battlefieldId === 2 ? '#a38866' : '#b7ccc5'; context.lineWidth = 3;
         context.beginPath(); context.moveTo(-6, -5); context.lineTo(1, 0); context.lineTo(-6, 5); context.stroke(); context.restore();
       }
     }
     for (let index = 0; index < layout.slots.length; index++) {
       const { x, y } = this.position(index);
-      this.rect(x - 24, y - 12, 48, 28, '#101f28', 5);
-      this.rect(x - 20, y - 9, 40, 20, '#365058', 3);
+      this.rect(x - 27, y - 12, 54, 30, this.battlefieldId === 2 ? '#617f78' : '#101f28', 8);
+      this.rect(x - 23, y - 9, 46, 22, this.battlefieldId === 2 ? '#d7e9d6' : '#365058', 6);
       context.strokeStyle = '#a3c3ba'; context.lineWidth = 1.8;
       for (const side of [-1, 1]) {
         context.beginPath(); context.moveTo(x + side * 15, y - 13); context.lineTo(x + side * 25, y - 13);
@@ -541,7 +554,7 @@ export class Battlefield {
     this.rect(road.left + 23, headingY - 19, 3, 28, '#f0b767');
     this.text(this.battlefieldId === 0 ? 'TRAINING' : 'SECTOR / 0' + this.battlefieldId, road.left + 100, headingY, 13, '#c2d2d4');
     // The story dispatch pad replaces the old banner without moving its slots.
-    if (this.battlefieldId !== 0) {
+    if (this.battlefieldId !== 0 && this.battlefieldId !== 2) {
     const campX = this.worldWidth * .934, campY = this.worldHeight * .50;
     this.rect(campX - 33, campY - 64, 66, 100, '#08131d', 9);
     this.rect(campX - 29, campY - 68, 58, 99, '#344f59', 7);
@@ -571,7 +584,7 @@ export class Battlefield {
   }
 
   miningRig(now) {
-    const context = this.ctx, road = roadFor(this.worldWidth, this.worldHeight);
+    const context = this.ctx, road = battlefieldRoad(this.worldWidth, this.worldHeight, this.battlefieldId);
     const compact = this.worldHeight === 330;
     const rigX = this.worldWidth * .64, rigY = compact ? 60 : road.top - (this.worldWidth === 600 ? 64 : 54);
     context.save();
@@ -637,17 +650,19 @@ export class Battlefield {
     const [prepare, travel, recovery] = attackTimings[definition.element] || defaultAttackTiming;
     const appliance = applianceKind(definition);
     if (!this.reduced) {
-      // Rigid appliances act through their lid, fan and lens, rather than a shared squash.
-      if (!appliance) offsetY = Math.sin(now / 530 + unit.id) * .35;
+      // A small idle breath keeps the friendly appliances alive without additional effects.
+      offsetY = Math.sin(now / 530 + unit.id) * (appliance ? .7 : .35) * easeOut((now - view.born - 300) / 300);
       if (age >= 0 && age < prepare) {
         const windup = age / prepare;
         rotation = view.facing * windup * (definition.element === 'laser' ? -.018 : .012);
+        if (appliance) { stretchX *= 1 + windup * .025; stretchY *= 1 - windup * .025; }
       } else if (age >= prepare && age < prepare + travel + recovery) {
         const shotAge = age - prepare;
         const kick = shotAge < travel ? Math.sin(shotAge / travel * Math.PI * .5) : 1 - (shotAge - travel) / recovery;
         const recoil = definition.element === 'wind' ? 3.5 : definition.element === 'laser' ? .6 : definition.element === 'fire' ? 1.5 : definition.attackPattern === 'blast' ? 5 : 2.5;
         offsetX = -view.facing * kick * recoil;
         rotation = -view.facing * kick * (definition.element === 'laser' ? .008 : definition.element === 'wind' ? .035 : .02);
+        if (appliance) { stretchX *= 1 - kick * .035; stretchY *= 1 + kick * .035; }
       }
       const summonAge = now - view.born;
       if (view.arrivalKind !== 'combine' && summonAge < 300) {
@@ -742,10 +757,8 @@ export class Battlefield {
       offsetY: Math.sin(view.hitAngle || 0) * recoil * .5, rotation: recoil * .016 };
   }
   enemy(view, now) {
-    const enemy = view.enemy, position = this.path(this.progress(view, now), view.enemy.routeIndex), context = this.ctx;
-    // Small visual offsets make the stationary crowd readable; combat still uses the shared path point.
-    if (enemy.attackingFacility) { position.x += (enemy.id % 3 - 1) * 8; position.y += Math.floor(enemy.id % 9 / 3) * 5; }
-    const size = enemy.boss ? 106 : enemy.archetype === 'plated' ? 66 : enemy.archetype === 'swarm' ? 43 : 54;
+    const enemy = view.enemy, position = this.enemyPosition(enemy, this.progress(view, now)), context = this.ctx;
+    const size = (enemy.boss ? 106 : enemy.archetype === 'plated' ? 66 : enemy.archetype === 'swarm' ? 43 : 54) * (this.battlefieldId === 2 && this.worldWidth !== 600 ? .85 : 1);
     const hit = this.hitPresentation(view, now);
     const walking = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility && !enemy.stunned;
     const bounce = walking ? Math.abs(Math.sin(hit.poseTime * .009 * Math.min(this.speed, 3) + enemy.id)) * 2 : 0;
@@ -837,7 +850,12 @@ export class Battlefield {
         const x = effect.x + (effect.tx - effect.x) * t, y = effect.y + (effect.ty - effect.y) * t - arc;
         const angle = Math.atan2(effect.ty - effect.y, effect.tx - effect.x);
         context.translate(x, y); context.rotate(angle);
-        if (effect.element === 'wind') {
+        if (effect.element === 'water') {
+          context.globalAlpha = .75;
+          this.rect(-34, -2, 35, 4, effect.color, 2);
+          this.ellipse(1, 0, 5, 3, '#d9efff');
+          this.circle(-12, -5, 1.8, effect.color); this.circle(-23, 5, 1.4, effect.color);
+        } else if (effect.element === 'wind') {
           context.strokeStyle = effect.color; context.lineWidth = 2; context.globalAlpha = .85;
           for (let ribbon = 0; ribbon < 3; ribbon++) {
             const start = -ribbon * 9;

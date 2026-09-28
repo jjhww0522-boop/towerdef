@@ -57,7 +57,7 @@ test('dense combat is bounded and a danger cue preempts the bounded mix', () => 
 
 test('all elements have distinct layered sound envelopes with bounded pan and delay', () => {
   const profiles = [];
-  for (const element of ['fire', 'frost', 'wind', 'laser', 'electric']) {
+  for (const element of ['fire', 'water', 'frost', 'wind', 'laser', 'electric']) {
     const r = audioContext();
     r.mixer.play('bolt', { element, delay: .1, pan: 20, intensity: 1 });
     assert.ok(r.sources.length >= 2, element + ' has a body and transient');
@@ -65,7 +65,7 @@ test('all elements have distinct layered sound envelopes with bounded pan and de
     assert.ok(r.panners.every(node => node.pan.value <= 1 && node.pan.value >= -1));
     profiles.push(JSON.stringify(r.sources.map(source => [source.type, source.frequency.events])));
   }
-  assert.equal(new Set(profiles).size, 5);
+  assert.equal(new Set(profiles).size, 6);
 });
 
 test('unknown events are silent and duplicate rapid element shots do not flood the mix', () => {
@@ -77,4 +77,11 @@ test('unknown events are silent and duplicate rapid element shots do not flood t
   for (const source of r.sources) source.onended();
   r.context.currentTime += .2; r.mixer.play('bolt', { element: 'fire' });
   assert.ok(r.sources.length > count, 'finished nodes release their budget');
+});
+
+test('water uses its own spray envelope instead of the generic weapon fallback', () => {
+  const water = audioContext(), generic = audioContext();
+  water.mixer.play('bolt', { element: 'water' }); generic.mixer.play('bolt');
+  const envelope = r => r.sources.map(source => [source.type, source.frequency.events, source.stops]);
+  assert.notDeepEqual(envelope(water), envelope(generic));
 });

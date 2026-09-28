@@ -17,9 +17,9 @@ const give = (g, p, definitionId, slot = p.units.length) => {
 const enemy = (g, hp = 999999, boss = false) => ({ id: g.nextEntityId++, hp, maxHp: hp, progress: 0, boss });
 const openStory = g => { g.tick = (g.stories[0].wave - 1) * g.rules.waveTicks - 1; tick(g); assert.equal(g.story?.status, 'active'); };
 
-test('content has 29 valid units and 20 acyclic exact recipes including a free legend and ultimate', () => {
-  assert.equal(content.units.length, 29);
-  assert.equal(content.recipes.length, 20);
+test('content has 25 valid units and 24 acyclic triple recipes leading to one common ultimate', () => {
+  assert.equal(content.units.length, 25);
+  assert.equal(content.recipes.length, 24);
   const ids = content.units.map(u => u.id);
   assert.equal(new Set(ids).size, ids.length);
   for (const u of content.units) {
@@ -31,7 +31,7 @@ test('content has 29 valid units and 20 acyclic exact recipes including a free l
   for (const r of content.recipes) {
     const result = content.units.find(u => u.id === r.result);
     assert.ok(result);
-    assert.ok(r.ingredients.length >= 2 && r.ingredients.length <= 3);
+    assert.equal(r.ingredients.length, 3);
     for (const id of r.ingredients) assert.ok(ranks[content.units.find(u => u.id === id)?.rarity] < (result.tier === 'ultimate' ? 4 : ranks[result.rarity]));
     if (r.unlockBattlefield > 0 && r.unlockType !== 'clear') assert.equal(result.rarity, 'legend');
     if (r.unlockType === 'clear') assert.equal(r.researchCost, 0);
@@ -41,7 +41,7 @@ test('content has 29 valid units and 20 acyclic exact recipes including a free l
 test('same seed and actions reproduce a JSON serializable 8-lane simulation', () => {
   const a = game(8), b = game(8);
   for (const g of [a, b]) {
-    for (const p of g.players) for (let seq = 1; seq <= 5; seq++) assert.equal(applyAction(g, p.id, { seq, type: 'summon' }).ok, true);
+    for (const p of g.players) for (let seq = 1; seq <= 3; seq++) assert.equal(applyAction(g, p.id, { seq, type: 'summon' }).ok, true);
     step(g, 700);
   }
   assert.deepEqual(JSON.parse(JSON.stringify(a)), b);
@@ -71,18 +71,56 @@ test('malformed commands and unsupported tags cannot mutate resources', () => {
   assert.equal(applyAction(g, 'missing', { seq: 1, type: 'summon' }).ok, false);
 });
 
-test('summoning distribution matches 93/6.8/0.2 without legends', () => {
-  const g = game(), p = g.players[0], counts = { basic: 0, elite: 0, hero: 0, legend: 0 };
+test('summoning selects only six basic families with approximately equal probability', () => {
+  const g = game(), p = g.players[0], counts = Object.fromEntries(content.units.filter(unit => unit.rarity === 'basic').map(unit => [unit.id, 0]));
   p.gold = 10000000;
   for (let seq = 1; seq <= 30000; seq++) {
     p.units = [];
     assert.equal(applyAction(g, p.id, { seq, type: 'summon' }).ok, true);
-    counts[content.units.find(u => u.id === p.units[0].definitionId).rarity]++;
+    const definition = content.units.find(u => u.id === p.units[0].definitionId);
+    assert.equal(definition.rarity, 'basic');
+    counts[definition.id]++;
   }
-  assert.ok(counts.basic / 30000 > .92 && counts.basic / 30000 < .94);
-  assert.ok(counts.elite / 30000 > .06 && counts.elite / 30000 < .078);
-  assert.ok(counts.hero > 35 && counts.hero < 90);
-  assert.equal(counts.legend, 0);
+  assert.equal(Object.keys(counts).length, 6);
+  for (const count of Object.values(counts)) assert.ok(count / 30000 > .15 && count / 30000 < .1834);
+});
+
+test('stage one opening budget allows three summons and rejects a fourth without spending or rolling', () => {
+  const g = createGame({ playerIds: ['p'], seed: 123, battlefieldId: 1, practice: false }), p = g.players[0];
+  assert.equal(p.gold, 60);
+  for (let seq = 1; seq <= 3; seq++) {
+    while (g.tick < p.nextSummonTick) tick(g);
+    assert.deepEqual(applyAction(g, p.id, { seq, type: 'summon' }), { ok: true });
+  }
+  while (g.tick < p.nextSummonTick) tick(g);
+  assert.equal(g.wave, 1); assert.ok(p.gold < g.rules.summonCost, 'early kills do not fund an immediate fourth summon');
+  const before = JSON.stringify({ units: p.units, gold: p.gold, rng: g.rngState, placement: g.placementRngState });
+  assert.deepEqual(applyAction(g, p.id, { seq: 4, type: 'summon' }), { ok: false, error: 'INSUFFICIENT_GOLD' });
+  assert.equal(JSON.stringify({ units: p.units, gold: p.gold, rng: g.rngState, placement: g.placementRngState }), before);
+});
+
+test('all six final recipes consume three distinct owned units and preserve the selected anchor', () => {
+  for (const recipe of content.recipes.filter(recipe => recipe.result === 'guardian_s')) {
+    const g = createGame({ playerIds: ['p'], seed: 123, unlockedRecipesByPlayer: { p: [recipe.id] } }), p = g.players[0];
+    const units = recipe.ingredients.map((id, i) => give(g, p, id, i + 3)), spare = give(g, p, 'water_1', 0);
+    let seq = 0;
+    const rejected = ids => {
+      const before = JSON.stringify({ units: p.units, gold: p.gold, rng: g.rngState, entity: g.nextEntityId });
+      assert.deepEqual(applyAction(g, p.id, { seq: ++seq, type: 'combine', recipeId: recipe.id, unitIds: ids }), { ok: false, error: 'INVALID_INGREDIENTS' });
+      assert.equal(JSON.stringify({ units: p.units, gold: p.gold, rng: g.rngState, entity: g.nextEntityId }), before);
+    };
+    rejected([units[0].id, units[1].id]);
+    rejected([units[0].id, units[0].id, units[1].id]);
+    rejected([units[0].id, units[1].id, spare.id]);
+    units[0].dispatched = true; rejected(units.map(unit => unit.id)); units[0].dispatched = false;
+    const packet = { seq: ++seq, type: 'combine', recipeId: recipe.id, unitIds: [units[2].id, units[0].id, units[1].id] };
+    assert.deepEqual(applyAction(g, p.id, packet), { ok: true });
+    const result = p.units.find(unit => unit.definitionId === 'guardian_s');
+    assert.equal(result.slot, 5); assert.equal(result.investedGold, g.rules.summonCost * 3);
+    assert.deepEqual(p.units.map(unit => unit.id), [spare.id, result.id]);
+    const after = JSON.stringify(p.units);
+    assert.deepEqual(applyAction(g, p.id, packet), { ok: true }); assert.equal(JSON.stringify(p.units), after);
+  }
 });
 
 test('combination atomically consumes only owned exact ingredients and reuses a slot', () => {
@@ -108,16 +146,16 @@ test('practice cannot craft locked clear rewards even with exact materials', () 
   assert.equal(p.units.length, r.ingredients.length);
 });
 
-test('three tag bonuses add and upgrades stop at five', () => {
+test('each element upgrades to five independently and a unit receives only its own element bonus', () => {
   const g = game(), p = g.players[0], d = content.units[0], u = give(g, p, d.id);
   p.gold = 10000;
   let seq = 0;
-  for (const tag of [d.faction, d.troop, d.trait]) {
+  for (const tag of ['fire', 'water', 'frost', 'wind', 'electric', 'laser']) {
     for (let n = 0; n < 5; n++) assert.equal(applyAction(g, p.id, { seq: ++seq, type: 'upgrade', tag }).ok, true);
     assert.equal(applyAction(g, p.id, { seq: ++seq, type: 'upgrade', tag }).ok, false);
   }
-  assert.equal(getUnitAttack(p, u), d.attack * 2.5);
-  assert.equal(p.gold, 10000 - 3 * content.rules.upgradeCosts.reduce((a, b) => a + b, 0));
+  assert.equal(getUnitAttack(p, u), d.attack * 1.5);
+  assert.equal(p.gold, 10000 - 6 * content.rules.upgradeCosts.reduce((a, b) => a + b, 0));
 });
 
 test('a lane cannot attack another lane and overcrowding defeats only its owner after five seconds', () => {
@@ -294,7 +332,7 @@ test('all four players dispatch two real units with owner upgrades and get their
   const definition = content.units[0];
   let expectedDamage = 0;
   for (const [i, p] of g.players.entries()) {
-    p.upgrades[definition.faction] = i;
+    p.upgrades[definition.element] = i;
     const a = give(g, p, definition.id, 4), b = give(g, p, definition.id, 9);
     expectedDamage += getUnitAttack(p, a) + getUnitAttack(p, b);
     assert.equal(applyAction(g, p.id, { seq: 1, type: 'dispatch', unitIds: [a.id, b.id] }).ok, true);

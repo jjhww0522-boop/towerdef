@@ -1,4 +1,4 @@
-/* Three game screens, with controls floating inside the battlefield. */
+﻿/* Three game screens, with controls floating inside the battlefield. */
 @font-face{font-family:Pretendard;src:url('/assets/fonts/PretendardVariable.woff2') format('woff2');font-weight:45 920;font-style:normal;font-display:swap}
 @font-face{font-family:'Do Hyeon';src:url('/assets/fonts/DoHyeon-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
 :root{font-family:Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;--muted:#b1c1c4;--ink:#eef1e6}
@@ -162,12 +162,22 @@ body.reduce-motion .crew-robot .pose-idle{opacity:1}body.reduce-motion .crew-rob
 #sale-dialog{width:min(400px,calc(100vw - 28px));padding:22px;text-align:center}#sale-title{font:400 28px/1.2 var(--display-font);margin:0 0 18px}#sale-unit-name{display:block;color:#ffd28e;font-size:22px!important}#sale-description{line-height:1.5;margin:12px 0 20px}.sale-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}.sale-actions button{min-height:48px}#sale-dialog strong,#sale-dialog p,#confirm-sale{font-size:16px}#confirm-sale{width:100%;margin-top:0}
 #upgrade-effect{font-size:24px;font-weight:800;line-height:1.2;color:#ffe0a5}#upgrade-title{font-size:18px}#upgrade-applies{font-size:15px;white-space:pre-line}#upgrade-buy{font-size:18px}.upgrade-button strong{font-size:17px}.research-condition,.research-cost{font-size:16px}#research-list h3{font-size:22px}.research-card>button{font-size:18px}.command-dialog .dialog-heading h2{font-size:22px}
 .crew-robot .pose-recovery{opacity:0}
+#game[data-battlefield="2"] .arena-panel>.panel-heading{background:linear-gradient(#567579f5,#567579cc 70%,#56757900);color:#fff6df}
+#game[data-battlefield="2"] .co-op-summary,#game[data-battlefield="2"] .operation-strip,#game[data-battlefield="2"] .field-mod-toggle{background:#365d60ed;border-color:#b5d0c3;border-radius:14px;color:#fff5df}
+#game[data-battlefield="2"] .field-mod-toggle[data-available=true]{background:#f3d39d;color:#35445b;border-color:#fff0cf}
+#game[data-battlefield="2"] .command-toolbar .tabs button{background:#365d60;border-color:#b5d0c3;color:#fff3db;border-radius:14px}
+#game[data-battlefield="2"] .field-summon{background:#f3d39d;color:#35445b;border-color:#fff0cf;border-radius:20px}
+#game[data-battlefield="2"] .radio-message{display:none}
+#game[data-battlefield="2"] #tactical-status{position:absolute;top:100%;width:100%;margin:1px 0 0}
+@media(max-height:500px){#game[data-battlefield="2"] #tactical-status{display:none}}
+@media(max-height:700px) and (min-height:501px){#game[data-battlefield="2"] #tactical-status{display:none}}
+@media(max-height:500px) and (min-width:501px){#game[data-battlefield="2"] .tactical-controls{left:50%;right:auto;bottom:12px;transform:translateX(-50%)}}
 .home-scene .hero-robots .crew-robot img{animation-duration:19s}.crew-robot[data-device=lighter]{--check-delay:1s}.crew-robot[data-device=pointer]{--check-delay:11s}
 .crew-robot[data-device=lighter] .pose-idle{animation-name:lighter-idle}.crew-robot[data-device=lighter] .pose-windup{animation-name:lighter-prepare}.crew-robot[data-device=lighter] .pose-strike{animation-name:lighter-fire}.crew-robot[data-device=lighter] .pose-recovery{animation-name:lighter-recover}
-.crew-robot[data-device=dryer] .pose-windup,.crew-robot[data-device=pointer] .pose-windup{animation-name:crew-spindown}
+.crew-robot[data-device=handfan] .pose-windup,.crew-robot[data-device=pointer] .pose-windup{animation-name:crew-spindown}
 @keyframes lighter-idle{0%,7%,100%{opacity:1}1%{opacity:0}}@keyframes lighter-prepare{0%,2%,100%{opacity:0}1%{opacity:1}}@keyframes lighter-fire{0%,4%,100%{opacity:0}2%{opacity:1}}@keyframes lighter-recover{0%,7%,100%{opacity:0}4%{opacity:1}}
 @keyframes crew-spindown{0%,3%,8%,100%{opacity:0}2%,6%{opacity:1}}
-.crew-robot[data-device=dryer] .pose-strike,.crew-robot[data-device=pointer] .pose-strike{animation-name:crew-powered}@keyframes crew-powered{0%,6%,100%{opacity:0}3%{opacity:1}}
+.crew-robot[data-device=handfan] .pose-strike,.crew-robot[data-device=pointer] .pose-strike{animation-name:crew-powered}@keyframes crew-powered{0%,6%,100%{opacity:0}3%{opacity:1}}
 @media(max-height:700px) and (min-height:501px){.home-brand h1{font-size:56px}.stage-screen{gap:6px;padding-top:8px;padding-bottom:12px;grid-template-rows:44px minmax(120px,1fr) auto auto}.planet-showcase{gap:4px}.planet-showcase .planet-orb{width:92px}#destination-name{font-size:28px}.mission-brief{max-height:25dvh}.mission-brief dl{margin-top:4px;padding-top:4px}.mission-brief dl>div{padding-block:2px}.departure-controls>.primary{min-height:56px}.canvas-wrap>.unit-dialog{padding-block:4px}.canvas-wrap>.unit-dialog .dialog-heading{min-height:50px}}
 @media(max-width:380px){.command-toolbar .tabs{gap:3px}.command-toolbar .tabs button{min-width:46px;padding-inline:4px}.field-summon{min-width:136px}.counters{gap:6px}.counters strong{font-size:24px}.counters span{font-size:12px}.connection-meta{gap:2px}.side-column .co-op-summary{min-width:73px;padding-inline:7px}.boss-hud{width:calc(100% - 185px)}.canvas-wrap>.unit-dialog .unit-detail-portrait{display:none}}
 @media(max-height:500px){

@@ -1,58 +1,62 @@
-# Unity 클라이언트 실행
+# Unity 모바일 클라이언트 준비
 
-이 클라이언트는 **로컬 개발용 첫 플레이 버전**이다. Unity 표시·입력과 서버 판정을 연결하며, 모든 방은 연습으로 표시하고 영구 보상을 지급하지 않는다. 현재 환경에는 Unity Editor와 .NET SDK가 없어 Unity 컴파일·실행·iPhone 검증은 아직 하지 못했다.
+첫 목표는 현행 서버 코어 `0.13.1-casual-pressure`·HTTP를 사용하는 **세로 iPhone 1구역**이다. 현재 콘텐츠는 6속성·25종·24식이며 모든 유닛의 Unity용 PNG를 출력했다. 물 표시·소리, 4칸/동일 3기 조합 훈련, 미래 해금 안내, 종료 연구 환급 안내를 클라이언트 소스에 반영했다. 브라우저는 회귀 기준이며 8스테이지와 Nakama 이관은 첫 실기기 범위 밖이다. 실제 기기 완주·Unity 컴파일·Xcode 빌드는 아직 미검증이다. C# DTO/모델 검사 19개 통과는 Unity UI 컴파일을 대신하지 않는다.
 
-## 준비와 실행
+## 환경과 검증 범위
 
-1. Unity Hub에서 **Unity 6.3 LTS 6000.3.24f1**을 설치한다. 2026-09-10 공개 패치를 [공식 릴리스 페이지](https://unity.com/releases/editor/whats-new/6000.3.24f1)로 확인해 `client/ProjectSettings/ProjectVersion.txt`에 고정했다. 지원 기준은 [Unity 6 지원 페이지](https://unity.com/releases/unity-6/support)를 참고한다.
-2. 저장소 루트에서 `npm install`, `npm run build`, `npm run dev`를 실행한다. 서버는 기본적으로 `http://127.0.0.1:7351`에서 동작한다. 실제 명령은 루트 README를 기준으로 한다.
-3. Unity Hub의 **Add project from disk**에서 저장소의 **client 폴더**를 선택한다. 저장소 루트가 아니다. 패키지와 누락된 기본 ProjectSettings는 첫 임포트에서 Editor가 생성한다.
-4. 컴파일이 끝나면 메뉴 **Towerdef → 첫 실행 준비**를 누른다. `Assets/Scenes/Practice.unity`를 만들고 빌드 장면, 1280×720 가로 화면, 개발용 HTTP 허용을 설정한다. 기존에 열어둔 장면에 수정이 있으면 Unity의 저장 안내를 따른다.
-5. **Play**를 누른다. 빈 장면에서도 `BattleClient`가 자동 생성되어 카메라·화면·네트워크 연결을 준비한다. 서버 주소, 방 이름, 참가자 ID를 입력하고 **연습방 연결 / 재접속**을 누른다. 방과 ID는 영문·숫자·밑줄·하이픈 1~32자다.
-6. 같은 방 이름과 서로 다른 ID를 사용하면 최대 4명의 실제 클라이언트가 참가한다. 첫 참가부터 진행되며 빈자리를 AI로 채우지 않는다. 추가 창은 Windows 개발 빌드를 실행하거나 별도 프로젝트 복사본에서 실행한다. 같은 ID·토큰을 여러 창에서 동시에 사용하지 않는다.
+- 프로젝트는 저장소의 `client/` 폴더이며 고정 Unity는 `6000.3.24f1`이다.
+- Mac mini는 보유하지만 사양·설치·접속 정보·서명 계정은 확인 전이다.
+- 읽기 전용 준비 확인: `node tools/mobile-preflight.mjs`. iOS 도구 미준비 시 실패: `node tools/mobile-preflight.mjs --require-ios`.
+- 별도 Unity 위치는 `UNITY_EDITOR_PATH`에 실행 파일을 지정한다. 도구 발견은 앱 빌드·서명·기기 실행 성공이 아니다.
+- 계약 검사에는 .NET 8 SDK가 필요하다. 이 작업 컴퓨터의 `artifacts/mobile-sdk/dotnet` 설치는 Git에 포함되지 않는다. 다른 컴퓨터에서는 설치된 `dotnet` 또는 `TOWERDEF_DOTNET`으로 실행 파일을 지정한다. `npm run test:mobile-contract`는 실제 C# DTO/모델과 서버 응답을 검사한다. **UGUI/Unity API 컴파일이나 iOS 플러그인 링크 검사가 아니다.**
 
-`Practice.unity`와 Unity가 생성한 `.meta`/ProjectSettings 파일은 첫 Editor 검증 후 함께 추적하면 된다. 외부 이미지·오디오·폰트 파일은 필요하지 않다. 한글은 OS의 맑은 고딕/Apple SD Gothic Neo/Noto Sans CJK KR을 요청한다. 지원 기기 폰트 가독성은 실기기에서 확인해야 한다.
+화면은 UGUI·2D 스프라이트·재사용 효과로 이식하는 범위다. 과거 1280×720 IMGUI 화면 안내와 실행 결과는 최신 세로 앱 검증으로 사용하지 않는다.
 
-## 화면과 조작
+## Editor 인계 계약
 
-- 왼쪽 큰 영역: 내 전장. 장수 클릭으로 파견 대상 최대 2기를 선택한다.
-- 오른쪽: 참가자 상태·적 수·유닛 수·최근 유닛. 카드를 눌러 관전하고 **나** 카드로 돌아온다. 개인 패배 후에도 동료 관전이 가능하다.
-- **소환**: 서버 콘텐츠의 소환 비용을 표시한다. 결과와 비용은 서버가 확정한다.
-- **조합**: 동일 재료가 여러 개 필요한 경우 합산하고, 파견 중인 유닛은 재료 수에서 제외한다. 초기 해금 레시피만 사용할 수 있다. 영구 해금 저장은 이번 클라이언트에 없다.
-- **강화**: 세 축의 단계별 금화 비용과 현재 단계를 표시한다. 선택한 유닛에 적용되는 태그에는 별표가 붙는다.
-- **스토리 파견**: 스토리 진행 중 선택한 유닛을 파견한다. 유닛은 지원 위치로 이동하고, 서버가 복귀를 확정하면 원래 슬롯으로 돌아온다.
-- 하단: 요청 성공·거절·연결 오류. 응답 유실로 확정되지 않은 행동은 **같은 요청 재시도**를 사용한다.
+아래 메뉴와 빌드 코드는 통합했다. 실제 Editor 실행·컴파일 검증은 남아 있다.
 
-유닛의 대기 움직임·도착 효과·공격 섬광과 파견 이동은 임시 절차적 연출이다. 공격 섬광은 표시용 주기이며 정확한 타격 이벤트 스트림이 아니다. 피해 숫자는 실제 서버 체력 감소에서만 생성한다. 적 위치는 5Hz 스냅샷 사이를 보간하며 클라이언트에서 전투를 계산하지 않는다. 최종 아트·터치 UX·장시간 성능 검증을 대신하는 구현이 아니다.
+| 용도 | 메뉴 / API / 경로 |
+| --- | --- |
+| 장면 준비 | `Towerdef → 첫 실행 준비` / `TowerDef.Editor.ClientSetup.Prepare` |
+| iOS 개발 프로젝트 | `Towerdef → iOS 개발 프로젝트 내보내기` / `TowerDef.Editor.ClientSetup.BuildIosDevelopment` |
+| 장면 / 출력 | `Assets/Scenes/Mobile.unity` / `Builds/iOS` |
 
-## HTTP 계약과 재접속
+Unity Hub에서 `client/`를 열고 고정 Editor와 iOS 지원 모듈을 준비한다. Console 오류 없이 세로 장면을 확인한 뒤 개발 프로젝트를 내보내고 Xcode에서 개인 기기에 설치한다. 로컬 iOS 빌드는 macOS에서 수행한다. [Unity 공식 절차](https://docs.unity.com/en-us/engine/6000.3/manual/platform-specific/iphone/ios-building-and-delivering/build-process)
 
-| 호출 | 입력 / 인증 | 응답 |
-| --- | --- | --- |
-| `GET /content` | 없음 | `version`, `rules`, `units`, `recipes`, `stories` |
-| `POST /session` | `{roomId,playerId,protocolVersion:"1",contentVersion}`; 재접속 시 Bearer | `{token,playerId,state}` |
-| `GET /state` | `Authorization: Bearer token` | 현재 `GameState` |
-| `POST /action` | Bearer와 `{seq,type,recipeId?,tag?,unitIds?}` | `{ok,error?,state}` |
+## 서버와 계정
 
-`Protocol.cs` DTO는 `JsonUtility`용이며 서버의 `upgrades` 객체를 알려진 9개 태그 필드로 읽는다. 콘텐츠는 `/content`에서 받아 비용·조합을 표시한다. 클라이언트에는 별도 확률·전투·보상 계산이 없다. 게임 상태의 프로토콜/콘텐츠 버전이 다르면 행동을 중지한다.
+로컬 Editor는 `npm run dev`의 `http://127.0.0.1:7351`을 사용할 수 있다. iPhone은 컴퓨터의 사설 LAN 주소가 필요하다. 명시적 LAN 설정·분리 저장소·잠금 복구는 [실기기 체크리스트](MOBILE_DEVICE_CHECKLIST.md)를 따른다.
 
-요청은 한 번에 하나만 전송하며, 정상 상태는 0.2초 간격, 네트워크 오류 시 2초 간격으로 다시 조회한다. 진행 중인 요청 때문에 실제 폴링 빈도는 네트워크 지연에 따라 낮아질 수 있다. 행동은 `lastSeq+1`을 사용하고 응답이 불명확하면 같은 번호·본문으로 재시도한다. 서버 스냅샷에 해당 번호가 반영되어 있으면 미확정 행동을 해제한다. 정상 거절 응답도 미확정 상태를 해제한다.
+일반 1배속은 서버가 엔진·진행·해금을 저장한다. 무료 훈련은 완료 여부만 저장하며 배속/명시적 연습은 영구 전투 보상을 주지 않는다. 모든 방이 무보상이라는 과거 안내는 현재 HTTP에 해당하지 않는다.
 
-개발 세션 토큰은 서버 주소·방·ID 조합별 **로컬 PlayerPrefs**에 저장해 Play 재시작 후 복구한다. 출시용 자격 증명 저장 방식이 아니며 토큰을 로그나 저장소에 복사하지 않는다. 서버 프로세스를 재시작하면 서버 메모리의 방·세션이 사라진다. 재접속으로 새 연습을 시작하거나 연결 설정에서 새 방/ID를 사용한다. 실행 중 서버를 잃어도 이미 수신한 화면은 남으며 서버가 다시 응답하기 전에는 새 행동을 허용하지 않는다.
+| HTTP 계약 | 용도 |
+| --- | --- |
+| `GET /content` | 유닛·조합·규칙, 구역별 `resolvedRules`, 훈련을 포함한 맵 geometry, `serverInstanceId` |
+| `POST /profile`, `GET /profile` | 프로필 발급/복구·진행 조회 |
+| `POST /session` | 버전·프로필·구역 확인, 참가/기존 자리 복구. 네이티브의 `expectedServerInstanceId`가 다르면 입장 전에 거절 |
+| `GET /state` | 전투·본인 프로필·실제 공격 적중·전술·예고·결과 |
+| `POST /action` | 순번을 포함한 뽑기·조립·강화·판매·전술·파견·현장개조 판정 |
 
-로컬 HTTP 서버는 loopback 전용이며 WebGL 브라우저의 Origin 요청을 거절한다. 이 안내는 Windows Editor/개발 빌드용이다. iPhone에서 `127.0.0.1`은 PC가 아니라 iPhone 자신을 뜻하므로 현재 주소 그대로 실제 기기 연결을 할 수 없다. 정식 서버 주소·HTTPS·Nakama 클라이언트 인증 연결은 별도 단계다.
+클라이언트는 전투·확률·재화·보상을 별도로 확정하지 않는다. 응답 유실 시 순번·본문을 보존해 재전송하고 서버 상태로 결과를 맞춘다. 프로필 자격과 전투 세션은 구분한다.
 
-## 검증할 항목
+현장개조는 `fieldMods` 콘텐츠와 개인 `fieldMod` 상태를 사용한다. 상단 버튼에서 비모달 패널을 열어 하나의 효과를 선택하고, 후반 기회에 유지하거나 교체한다. `choose_mod` 재전송은 원래 `seq/offerId/modId`를 그대로 보낸다. 결과 화면은 개인 종료 시점의 `result.fieldMod`를 읽는다. [설계·시점·조건](design/FIELD_MODS.md)과 실제 기기에서 패널 스크롤·지원 버튼·일찍 종료한 뒤 관전을 함께 확인한다.
 
-1. Editor 임포트 후 Console 컴파일 오류 없음, 메뉴로 장면 생성, Play 화면의 한글과 안전 영역 표시.
-2. 소환으로 금화가 정확히 한 번 감소하고 재료가 맞는 레시피만 조합 가능. 조합 결과/금화/강화 단계를 서버 상태와 비교.
-3. 4개 개발 클라이언트에서 같은 방 참가, 동료 선택 관전, 개인 패배 후 남은 방 진행.
-4. 6·12·18웨이브에 파견 2기 한도, 개인 방어 제외, 종료 후 원래 자리 복귀, 실패 시 개인 즉시 패배 없음.
-5. 응답 유실·30초 단절·재접속에서 같은 행동의 중복 적용 없음, 120초 유예 이후 상태 확인.
-6. 최대 유닛 30기와 적 70기 이상에서 가독성/성능. iPhone 폰트·터치·발열은 실제 기기에서 따로 측정.
+입장 요청도 전송 전에 서버 인스턴스 ID와 함께 저장한다. 같은 서버에서 응답을 놓쳤다면 기존 방으로 복구하고, 재시작한 서버는 이전 요청을 `409 server_restarted`로 거절한다. 이전 요청을 자동으로 새 원정 비용에 사용하지 않는다. 서버를 다시 조회한 뒤 사용자가 새 출발을 선택해야 한다.
 
-Windows에서 Unity를 설치한 뒤 기본 임포트 확인에 사용할 명령 예시는 다음과 같다. Editor 경로는 설치 위치에 맞춘다. 이는 아직 실행한 검증 결과가 아니다.
+iOS Keychain 플러그인 `Assets/Plugins/iOS/TowerdefKeychain.mm`와 `SecretStore.cs`가 있지만 Xcode 링크·잠금/복귀·실제 보존은 미검증이다. Editor의 PlayerPrefs 대체 경로는 iOS 보안 저장 검증이 아니다. 토큰을 로그·인계 문서에 복사하지 않는다.
 
-```powershell
-& 'C:\Program Files\Unity\Hub\Editor\6000.3.24f1\Editor\Unity.exe' -batchmode -nographics -quit -projectPath "$PWD\client" -executeMethod TowerDef.Editor.ClientSetup.Prepare -logFile "$PWD\client\Logs\import.log"
-```
+서버 재시작은 전투 자체를 이어서 복원하지 않는다. 이전 부팅의 신규 원정을 한 번 중단 처리·엔진 반환하고 `profile.lastInterruption`으로 알린다. 강제 종료 후 잠금이 남으면 소유 서버 정지를 확인하고 제거해야 서버가 시작된다. 기존 프로필·과거 입장을 모두 환불하거나 초기화하지 않는다.
+
+## 검증과 다음 단계
+
+1. 서버 커밋·콘텐츠·앱 빌드와 관련 검사 결과를 묶는다.
+2. Editor 컴파일→세로 장면→Xcode 프로젝트→iPhone 설치를 실제로 확인한다.
+3. [기기 체크리스트](MOBILE_DEVICE_CHECKLIST.md)의 프로필→훈련→최대 180초 원정→재접속·정산을 수행한다. 4인 관전은 별도 참가자 접속으로 검증한다.
+4. 첫 시험 결함을 수정하고 같은 기기에서 재검증한다. 관련 브라우저 회귀를 유지한다.
+
+네이티브 자산 `Assets/Resources/MobileArt`는 제작 출처 대장과 연결해 전달한다. 실제 사용 파일의 출처·이용 조건·변환 기록을 유지한다. 브라우저 자산을 가져왔다는 사실만으로 네이티브 글꼴·렌더링·성능이 검증되지는 않는다.
+
+첫 아트 세트는 대표 로봇 7종·적 5종의 PNG 206개와 WAV 10개다. 나머지 현행 로봇은 속성색과 이름으로 표시한다. `assets/mobile-art/contact-sheet.png`는 비교용 산출물이며 Unity 실행 화면이 아니다. `npm run assets:mobile`로 다시 생성할 수 있고, 별도 Chromium 위치는 `CHROME_PATH`로 지정한다.
+
+원격 비공개 HTTPS·계정 분실 복구·공개 배포·스토어 결제는 별도 단계이며 현재 제공 기능으로 안내하지 않는다.

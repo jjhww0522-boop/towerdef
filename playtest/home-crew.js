@@ -3,9 +3,9 @@ import { unitSpriteUrl } from './casual-art.js';
 // The same three appliance silhouettes appear in the hangar and on the field.
 export function mountHomeCrew(container) {
   const crew = [
-    { id: 'shu_archer', faction: 'shu', troop: 'archer', trait: 'strategy', rarity: 'basic', element: 'wind', attackPattern: 'blast', device: 'dryer' },
-    { id: 'wu_archer', faction: 'wu', troop: 'archer', trait: 'might', rarity: 'basic', element: 'fire', attackPattern: 'bolt', device: 'lighter' },
-    { id: 'wei_archer', faction: 'wei', troop: 'archer', trait: 'strategy', rarity: 'basic', element: 'laser', attackPattern: 'bolt', device: 'pointer' }
+    { id: 'wind_1', faction: 'shu', troop: 'cavalry', trait: 'strategy', rarity: 'basic', element: 'wind', attackPattern: 'blast', device: 'handfan' },
+    { id: 'fire_1', faction: 'shu', troop: 'infantry', trait: 'might', rarity: 'basic', element: 'fire', attackPattern: 'bolt', device: 'lighter' },
+    { id: 'laser_1', faction: 'wu', troop: 'archer', trait: 'strategy', rarity: 'basic', element: 'laser', attackPattern: 'bolt', device: 'pointer' }
   ];
   for (const definition of crew) {
     const robot = document.createElement('div'); robot.className = 'crew-robot'; robot.dataset.device = definition.device; robot.dataset.element = definition.element;

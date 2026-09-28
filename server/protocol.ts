@@ -1,4 +1,20 @@
-import { GameState, expeditionProgress, tutorialCombatPaused, encounterPreview } from './core';
+import { GameState, content, expeditionProgress, tutorialCombatPaused, encounterPreview, fieldModView } from './core';
+import { getBattlefieldLayout } from '../shared/battle-geometry';
+
+// Native clients consume the same coordinates used by server range and route rules.
+export function publicContent() {
+  return {
+    ...content,
+    battlefields: content.battlefields.map(field => ({
+      ...field,
+      resolvedRules: { ...content.rules, ...field.rules }
+    })),
+    battlefieldLayouts: [0].concat(content.battlefields.map(field => field.id)).map(battlefieldId => ({
+      battlefieldId,
+      ...getBattlefieldLayout(battlefieldId)
+    }))
+  };
+}
 
 // Keep future random results and replay bookkeeping on the authoritative server.
 export function publicState(game: GameState): object {
@@ -31,6 +47,7 @@ export function publicState(game: GameState): object {
         unlockedRecipes: player.unlockedRecipes,
         result: player.result,
         battleStats: player.battleStats,
+        fieldMod: fieldModView(game, player),
         tactical: {
           cooldownRemainingTicks: Math.max(0, player.nextTacticTick - game.tick),
           overdriveRemainingTicks: Math.max(0, player.overdriveUntilTick - game.tick),

@@ -10,7 +10,7 @@ function target(game, player, { boss = false, archetype = boss ? 'boss' : 'grunt
   const enemy = { id: game.nextEntityId++, hp, maxHp: hp, boss, archetype, progress };
   player.enemies.push(enemy); return enemy;
 }
-function robot(game, player, definitionId = 'wei_archer') {
+function robot(game, player, definitionId = 'laser_1') {
   const unit = { id: game.nextEntityId++, definitionId, slot: 2, dispatched: false, attackCooldownTicks: 0, lastAttackHits: [] };
   player.units.push(unit); return unit;
 }
@@ -149,7 +149,7 @@ test('swarm pairs share an entrance and pay one normal enemy bounty between them
   assert.ok(player.enemies.every(enemy => enemy.archetype === 'swarm'));
   assert.equal(player.enemies[0].routeIndex, player.enemies[1].routeIndex);
   assert.equal(player.enemies[0].progress, player.enemies[1].progress);
-  const gun = robot(game, player, 'han_dang'); gun.slot = 0;
+  const gun = robot(game, player, 'wind_2'); gun.slot = 0;
   for (const enemy of player.enemies) { enemy.hp = 1; enemy.progress = 0; }
   const before = player.gold; tick(game);
   assert.equal(player.enemies.length, 0);

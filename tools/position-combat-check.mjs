@@ -13,7 +13,7 @@ const store = createProgressionStore(), anchorSlot = getBattlefieldLayout(1).slo
 const server = createDevServer({ progressionStore: store, automaticTicks: false, onRoomCreated(room) {
   rooms.push(room);
   const game = room.game, player = game.players[0]; player.gold = 1000;
-  for (const [definitionId, slot] of [['shu_guard', anchorSlot], ['shu_rider', 2], ['wei_guard', 3], ['wei_archer', 0]]) {
+  for (const [definitionId, slot] of [['fire_1', anchorSlot], ['fire_1', 2], ['frost_1', 3], ['fire_1', 0]]) {
     while (game.tick < player.nextSummonTick) core.tick(game);
     assert.equal(core.applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' }).ok, true);
     Object.assign(player.units.at(-1), { definitionId, slot });
@@ -43,12 +43,12 @@ try {
     await page.waitForFunction(() => window.positionField.player.enemies.some(enemy => enemy.slowed));
     const before = { seq: player.lastSeq, units: player.units.length };
     await page.locator('#recipes-tab').tap();
-    await page.locator('[data-combine-recipe="make_guan_ping"]').tap();
+    await page.locator('[data-combine-recipe="make_fire_2"]').tap();
     await page.locator('#unit-dialog[open]').waitFor();
     assert.equal(player.lastSeq, before.seq, 'codex selects a placement before consuming materials');
     assert.equal(player.units.length, before.units);
     assert.equal(await page.evaluate(id => window.positionField.selected.has(id), anchor.id), true);
-    assert.equal(await page.locator('#unit-subtitle').innerText(), '화염 · 근거리');
+    assert.equal(await page.locator('#unit-subtitle').innerText(), '1단계 · 화염 집중');
     await page.waitForTimeout(450);
     const fixedBox = await page.locator('#unit-dialog').evaluate(element => element.getBoundingClientRect().toJSON());
     const path = `artifacts/position-combat-${size.width}.png`;
@@ -82,11 +82,11 @@ try {
       assert.equal(await page.locator('#unit-dialog').evaluate(dialog => dialog.open), true, 'Q support remains usable while inspecting a robot');
     }
     const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/action');
-    await page.locator('#unit-dialog [data-evolve-recipe="make_guan_ping"]').tap();
+    await page.locator('#unit-dialog [data-evolve-recipe="make_fire_2"]').tap();
     const response = await responsePromise, packet = response.request().postDataJSON(), result = await response.json();
     assert.equal(result.ok, true);
     assert.equal(packet.unitIds[0], anchor.id);
-    const assembled = player.units.find(unit => unit.definitionId === 'guan_ping');
+    const assembled = player.units.find(unit => unit.definitionId === 'fire_2');
     assert.equal(assembled.slot, anchorSlot, 'selected slot wins over lower-numbered ingredient slot');
     assert.equal(player.units.some(unit => unit.slot === 2), false);
     await page.waitForFunction(id => window.positionField.units.has(id), assembled.id);

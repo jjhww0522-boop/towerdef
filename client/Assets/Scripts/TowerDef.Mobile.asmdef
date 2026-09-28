@@ -1,0 +1,6 @@
+{
+  "name": "TowerDef.Mobile",
+  "rootNamespace": "TowerDef",
+  "references": ["UnityEngine.UI"],
+  "autoReferenced": true
+}

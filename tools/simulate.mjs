@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { createGame, applyAction, tick, content, getUnitAttack } from '../dist/server/core/index.js';
 import { unitPoint, enemyPoint, distanceSquared, getBattlefieldLayout } from '../shared/battle-geometry.js';
+import { getUpgradeLevel } from '../shared/upgrade-model.js';
 
 const { rules } = content;
 const definitions = new Map(content.units.map(unit => [unit.id, unit]));
@@ -67,7 +68,7 @@ function policy(game, player, counts, strategy) {
     const candidates = Object.keys(player.upgrades).filter(tag => player.upgrades[tag] < rules.maxUpgradeLevel);
     candidates.sort((a, b) => tagValue(player, b, rules) - tagValue(player, a, rules));
     const tag = candidates[0];
-    if (tag && player.gold >= rules.upgradeCosts[player.upgrades[tag]]) act(game, player, { type: 'upgrade', tag }, counts);
+    if (tag && tagValue(player, tag, rules) > 0 && player.gold >= rules.upgradeCosts[player.upgrades[tag]]) act(game, player, { type: 'upgrade', tag }, counts);
   }
   if ((strategy === 'upgrade' || strategy === 'dispatch') && player.units.length >= rules.maxUnits && player.gold >= rules.summonCost && game.tick >= (player.nextSummonTick || 0)) {
     const candidates = player.units.filter(unit => !unit.dispatched && definitions.get(unit.definitionId).rarity !== 'legend');
@@ -89,9 +90,10 @@ function dps(player, unit, battlefieldId) {
   return getUnitAttack(player, unit) / definition.attackIntervalTicks * coverage(definition, unit.slot, battlefieldId);
 }
 function tagValue(player, tag, rules) {
+  const upgraded = { ...player.upgrades, [tag]: player.upgrades[tag] + 1 };
   return player.units.reduce((sum, unit) => {
     const d = definitions.get(unit.definitionId);
-    return sum + ([d.faction, d.troop, d.trait].includes(tag) ? d.attack / d.attackIntervalTicks : 0);
+    return sum + (getUpgradeLevel(d, upgraded) - getUpgradeLevel(d, player.upgrades)) * d.attack / d.attackIntervalTicks;
   }, 0) / rules.upgradeCosts[player.upgrades[tag]];
 }
 
@@ -141,7 +143,7 @@ export function scriptedMatch(seats, seed, strategy = 'dispatch', measure = true
 function syntheticStress(seats) {
   const game = createGame({ playerIds: ids(seats), seed: 1, practice: true });
   for (const player of game.players) {
-    player.units = Array.from({ length: rules.maxUnits }, (_, slot) => ({ id: game.nextEntityId++, definitionId: 'zhang_fei', slot, dispatched: false, attackCooldownTicks: 0 }));
+    player.units = Array.from({ length: rules.maxUnits }, (_, slot) => ({ id: game.nextEntityId++, definitionId: 'fire_3', slot, dispatched: false, attackCooldownTicks: 0 }));
     player.enemies = Array.from({ length: rules.overcrowdCount }, () => ({ id: game.nextEntityId++, hp: 1e12, maxHp: 1e12, progress: 0, boss: false }));
   }
   const tickMs = [], snapshotBytes = [];
