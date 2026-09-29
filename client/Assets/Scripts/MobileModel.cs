@@ -6,6 +6,7 @@ namespace TowerDef
     // Pure presentation helpers: no economy, movement, damage or reward authority.
     public static class MobileModel
     {
+        public static bool IsCoop(GameState state) => state != null && state.tutorial == null && state.mode != "solo";
         public static int UpgradeLevel(UnitDefinition definition, UpgradeLevels levels) => definition.tier == "ultimate" ? levels.Highest : levels.Get(definition.element);
         public static float PrimaryDps(UnitDefinition definition, UpgradeLevels levels, Rules rules) => definition.attack * (definition.attackPattern == "blast" ? .8f : 1) * (1 + UpgradeLevel(definition, levels) * rules.upgradeBonus) * rules.ticksPerSecond / definition.attackIntervalTicks;
         public static string UpgradeDescription(UnitDefinition definition) => definition.tier == "ultimate" ? "공통 S · 가장 높은 속성 강화 1개만 적용 (합산 안 함)" : ElementName(definition.element) + " 강화 적용";

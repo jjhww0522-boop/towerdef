@@ -6,6 +6,21 @@ using TowerDef;
 public class MobileModelTests
 {
     [Test]
+    public void ExplicitModeSurvivesSerializationAndLegacySnapshotsRemainCoop()
+    {
+        var solo = JsonConvert.DeserializeObject<GameState>("{\"mode\":\"solo\"}");
+        var coop = JsonConvert.DeserializeObject<GameState>("{\"mode\":\"coop\",\"players\":[]}");
+        Assert.IsFalse(MobileModel.IsCoop(solo));
+        Assert.IsTrue(MobileModel.IsCoop(coop));
+        Assert.IsTrue(MobileModel.IsCoop(JsonConvert.DeserializeObject<GameState>("{}")));
+        coop.tutorial = new Tutorial();
+        Assert.IsFalse(MobileModel.IsCoop(coop));
+        var request = new SessionRequest { mode = "solo", roomId = "saved-room" };
+        Assert.AreEqual("solo", JsonConvert.DeserializeObject<SessionRequest>(JsonConvert.SerializeObject(request)).mode);
+        Assert.AreEqual("coop", JsonConvert.DeserializeObject<SessionRequest>("{}").mode);
+    }
+
+    [Test]
     public void UpgradeSnapshotReadsOnlyTheSixElementLevels()
     {
         var levels = JsonConvert.DeserializeObject<UpgradeLevels>("{\"fire\":3,\"water\":2,\"frost\":1,\"wind\":4,\"electric\":5,\"laser\":2,\"shu\":5}");

@@ -49,12 +49,12 @@ const layouts = {
   2: { ...openLayout(600, 1440, [route([[300, 0], [300, 1360]])],
     rows([180, 420], [120, 360, 600, 840, 1080, 1320]),
     { x: 300, y: 1420 }), rotateInLandscape: true },
-  3: openLayout(1640, 800, [route([[0, 400], [1550, 400]])],
+  3: { ...openLayout(1640, 800, [route([[0, 400], [1550, 400]])],
     rows([90, 330, 570, 810, 1050, 1290, 1530], [280, 520]),
-    { x: 1620, y: 400 }),
-  4: openLayout(1920, 880, [route([[0, 440], [870, 440]]), route([[1920, 440], [1050, 440]])],
+    { x: 1620, y: 400 }), rotateInPortrait: true },
+  4: { ...openLayout(1920, 880, [route([[0, 440], [870, 440]]), route([[1920, 440], [1050, 440]])],
     rows([120, 360, 600, 840, 1080, 1320, 1560, 1800], [320, 560]),
-    { x: 960, y: 440 }),
+    { x: 960, y: 440 }), rotateInPortrait: true },
   5: openLayout(1440, 1440, [route([[0, 720], [630, 720]]), route([[1440, 720], [810, 720]]),
     route([[720, 0], [720, 630]]), route([[720, 1440], [720, 810]])],
     quadrants(), { x: 720, y: 720 })
@@ -88,7 +88,7 @@ export function distanceSquared(a, b) {
   return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
 }
 
-// Only the introductory loop rotates in portrait. Open maps keep their ingress direction.
+// Long boards rotate for the device; combat points and route lengths never rotate.
 export function projectPoint(point, road, portrait, battlefieldId = 1) {
   const layout = getBattlefieldLayout(battlefieldId), rotate = portrait && layout.rotateInPortrait;
   const x = point.x / layout.width, y = point.y / layout.height;

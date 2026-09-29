@@ -50,6 +50,7 @@ try {
     assert.equal(await page.evaluate(id => window.positionField.selected.has(id), anchor.id), true);
     assert.equal(await page.locator('#unit-subtitle').innerText(), '1단계 · 화염 집중');
     await page.waitForTimeout(450);
+    const fieldBox = await page.locator('#battlefield').boundingBox();
     const fixedBox = await page.locator('#unit-dialog').evaluate(element => element.getBoundingClientRect().toJSON());
     const path = `artifacts/position-combat-${size.width}.png`;
     await page.screenshot({ path });
@@ -65,7 +66,31 @@ try {
       await page.locator('#unit-dialog').evaluate(async element => { await Promise.allSettled(element.getAnimations().map(animation => animation.finished)); });
       assert.equal(await page.evaluate(id => window.positionField.selected.has(id), unit.id), true);
       const nextBox = await page.locator('#unit-dialog').boundingBox();
-      for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(nextBox[key] - fixedBox[key]) <= 1, `selecting slot ${unit.slot} changes inspector ${key}`);
+      for (const key of ['width', 'height']) assert.ok(Math.abs(nextBox[key] - fixedBox[key]) <= 1, `selecting slot ${unit.slot} changes inspector ${key}`);
+      assert.deepEqual(await page.locator('#battlefield').boundingBox(), fieldBox, 'selection must not resize or move the battlefield');
+      assert.ok(nextBox.x >= 0 && nextBox.y >= 0 && nextBox.x + nextBox.width <= size.width && nextBox.y + nextBox.height <= size.height, 'inspector stays inside the viewport');
+      assert.ok(nextBox.height <= size.height * .3 + 1, 'inspector obeys the 30% height limit');
+      const selectedVisible = await page.evaluate(point => document.elementFromPoint(point.x, point.y)?.id === 'battlefield', point);
+      assert.equal(selectedVisible, true, 'selected robot remains visible beside the inspector');
+      const afterPoint = await page.evaluate(id => {
+        const f = window.positionField, v = f.units.get(id), b = f.canvas.getBoundingClientRect(), h = f.unitHeight(f.definitions.get(v.unit.definitionId));
+        return { x: b.left + f.ox + v.x * f.scale, y: b.top + f.oy + (v.y - h * .47) * f.scale };
+      }, unit.id);
+      assert.deepEqual(afterPoint, point, 'selection does not move the robot');
+      await page.waitForTimeout(250);
+      assert.deepEqual(await page.locator('#unit-dialog').boundingBox(), nextBox, 'polling must not move the inspector');
+    }
+    if (size.width === 390) {
+      for (const rotated of [{ width: 844, height: 390 }, size]) {
+        await page.setViewportSize(rotated); await page.waitForTimeout(450);
+        const rotation = await page.evaluate(id => {
+          const f = window.positionField, v = f.units.get(id), b = f.canvas.getBoundingClientRect(), h = f.unitHeight(f.definitions.get(v.unit.definitionId));
+          const x = b.left + f.ox + v.x * f.scale, y = b.top + f.oy + (v.y - h * .47) * f.scale;
+          return { visible: document.elementFromPoint(x, y) === f.canvas, popup: document.querySelector('#unit-dialog').getBoundingClientRect().toJSON() };
+        }, anchor.id);
+        assert.ok(rotation.visible, 'rotation keeps the inspected robot visible');
+        assert.ok(rotation.popup.height <= rotated.height * .3 + 1 && rotation.popup.left >= 0 && rotation.popup.top >= 0 && rotation.popup.right <= rotated.width && rotation.popup.bottom <= rotated.height, 'rotated inspector fits its viewport and height budget');
+      }
     }
     for (const selector of ['#sell-unit', '#unit-manage', '[data-close="unit-dialog"]', '#tactic-overdrive', '#tactic-emp']) {
       const usable = await page.locator(selector).evaluate(element => {
@@ -81,6 +106,22 @@ try {
       assert.equal(player.battleStats.tacticsUsed.overdrive, 1);
       assert.equal(await page.locator('#unit-dialog').evaluate(dialog => dialog.open), true, 'Q support remains usable while inspecting a robot');
     }
+    if (size.width === 390) {
+      const previousEnemies = player.enemies;
+      player.enemies = Array.from({ length: game.rules.overcrowdCount }, () => ({ id: game.nextEntityId++, hp: 1000000, maxHp: 1000000, progress: 0, boss: false }));
+      core.tick(game);
+      await page.locator('#threat-label:not([hidden])').waitFor();
+      const separated = await page.evaluate(() => {
+        const a = document.querySelector('#unit-dialog').getBoundingClientRect(), b = document.querySelector('#threat-label').getBoundingClientRect();
+        return a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom;
+      });
+      assert.ok(separated, 'new overcrowding warning is not covered by the open inspector');
+      const dangerBox = await page.locator('#unit-dialog').boundingBox();
+      core.tick(game); await page.waitForTimeout(350);
+      assert.deepEqual(await page.locator('#unit-dialog').boundingBox(), dangerBox, 'countdown updates must not reposition the inspector');
+      player.enemies = previousEnemies; core.tick(game);
+      await page.waitForFunction(() => document.querySelector('#threat-label').hidden);
+    }
     const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/action');
     await page.locator('#unit-dialog [data-evolve-recipe="make_fire_2"]').tap();
     const response = await responsePromise, packet = response.request().postDataJSON(), result = await response.json();
@@ -95,8 +136,25 @@ try {
     await page.waitForTimeout(400);
     assert.equal(player.units.find(unit => unit.id === assembled.id).slot, anchorSlot);
     assert.equal(await page.evaluate(id => window.positionField.units.get(id).unit.slot, assembled.id), anchorSlot);
+    if (size.width === 390) {
+      const point = await page.evaluate(id => {
+        const f = window.positionField, v = f.units.get(id), b = f.canvas.getBoundingClientRect(), h = f.unitHeight(f.definitions.get(v.unit.definitionId));
+        return { x: b.left + f.ox + v.x * f.scale, y: b.top + f.oy + (v.y - h * .47) * f.scale };
+      }, assembled.id);
+      await page.touchscreen.tap(point.x, point.y); await page.locator('#unit-dialog[open]').waitFor();
+      game.tick = game.rules.waveTicks * game.rules.totalWaves - 1; player.enemies = []; core.tick(game);
+      await page.locator('#boss-hud:not([hidden])').waitFor();
+      const separated = await page.evaluate(() => {
+        const a = document.querySelector('#unit-dialog').getBoundingClientRect(), b = document.querySelector('#boss-hud').getBoundingClientRect();
+        return a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom;
+      });
+      assert.ok(separated, 'new boss deadline is not covered by the open inspector');
+      const bossBox = await page.locator('#unit-dialog').boundingBox();
+      core.tick(game); await page.waitForTimeout(350);
+      assert.deepEqual(await page.locator('#unit-dialog').boundingBox(), bossBox, 'boss countdown updates must not reposition the inspector');
+    }
     report.cases.push({ viewport: size, status: 'passed', anchorSlot, freedSlot: 2, path });
-    console.log('PASS fixed inspector for all four slots, anchored assembly, range, frost and rotation', size.width);
+    console.log('PASS stable-size inspector with visible selection for all four slots, anchored assembly, range, frost and rotation', size.width);
     await context.close();
   }
   assert.deepEqual(errors, []);

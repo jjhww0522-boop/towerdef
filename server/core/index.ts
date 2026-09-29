@@ -3,6 +3,7 @@ import { unitPoint, enemyPoint, distanceSquared, getBattlefieldLayout } from '..
 import { upgradeKeys, getUpgradeLevel } from '../../shared/upgrade-model';
 
 export const content = contentData;
+export type GameMode = 'solo' | 'coop';
 export type ActionType = 'summon' | 'combine' | 'upgrade' | 'dispatch' | 'salvage' | 'leave' | 'tutorial_next' | 'tactic' | 'choose_mod';
 export type Tactic = 'overdrive' | 'emp';
 export type EnemyArchetype = 'grunt' | 'runner' | 'plated' | 'swarm' | 'boss';
@@ -34,6 +35,7 @@ export interface Encounter {
 }
 export type Rules = typeof content.rules;
 export interface ExpeditionResult {
+  mode: GameMode;
   battlefieldId: number; status: 'defeated' | 'cleared' | 'left'; cleared: boolean; researchCredits: number;
   wave: number; kills: number; elapsedTicks: number; miningProgress: number;
   reason: 'overcrowded' | 'boss_timeout' | 'facility_destroyed' | null;
@@ -58,6 +60,7 @@ export interface Tutorial {
   drawCount: number; anchorUnitId: number | null; saleUnitId: number | null; skirmishAtTick: number | null; bossAtTick: number | null;
 }
 export interface GameState {
+  mode: GameMode;
   protocolVersion: string; contentVersion: string; tick: number; wave: number;
   status: 'playing' | 'finished'; practice: boolean; tutorial: Tutorial | null; players: Player[]; story: Story | null;
   rngState: number; placementRngState: number; nextEntityId: number;
@@ -71,10 +74,14 @@ const playerById = (game: GameState, id: string): Player | undefined => game.pla
 const definition = (id: string) => content.units.filter(u => u.id === id)[0];
 const safeInteger = (value: number): boolean => typeof value === 'number' && isFinite(value) && Math.floor(value) === value && value > 0 && value <= 9007199254740991;
 
-export function createGame(options: { playerIds: string[]; seed: number; practice?: boolean; tutorial?: boolean; battlefieldId?: number; unlockedRecipesByPlayer?: { [playerId: string]: string[] } }): GameState {
+export function createGame(options: { playerIds: string[]; seed: number; mode?: GameMode; practice?: boolean; tutorial?: boolean; battlefieldId?: number; unlockedRecipesByPlayer?: { [playerId: string]: string[] } }): GameState {
   if (!options.playerIds.length || options.playerIds.length > 8) throw new Error('Expected 1 to 8 players');
   if (!isFinite(options.seed)) throw new Error('Expected finite seed');
   if (options.tutorial && options.playerIds.length !== 1) throw new Error('Tutorial is solo');
+  if (options.mode !== undefined && options.mode !== 'solo' && options.mode !== 'coop') throw new Error('Unknown game mode');
+  // Omitted mode retains legacy cooperative clients. New clients choose explicitly.
+  const mode = options.tutorial ? 'solo' : options.mode || 'coop';
+  if (mode === 'solo' && options.playerIds.length !== 1) throw new Error('Solo requires one player');
   const battlefieldId = options.tutorial ? 0 : options.battlefieldId === undefined ? 1 : options.battlefieldId;
   const battlefield = content.battlefields.filter(b => b.id === (options.tutorial ? 1 : battlefieldId))[0];
   if (!battlefield) throw new Error('Unknown battlefield');
@@ -98,12 +105,12 @@ export function createGame(options: { playerIds: string[]; seed: number; practic
       battleStats: { kills: 0, damageDealt: 0, facilityDamageTaken: 0, biggestHit: 0, peakEnemies: 0, tacticsUsed: { overdrive: 0, emp: 0 } },
       lastActionKey: '', lastActionResult: { ok: false }, unlockedRecipes, kills: 0, investmentActions: 0, result: null };
   });
-  return { protocolVersion: '1', contentVersion: content.version, tick: 0, wave: 1,
+  return { protocolVersion: '1', contentVersion: content.version, mode, tick: 0, wave: 1,
     status: 'playing', practice: options.tutorial === true || options.practice !== false, players, story: null,
     tutorial: options.tutorial ? { step: 'intro', drawCount: 0, anchorUnitId: null, saleUnitId: null, skirmishAtTick: null, bossAtTick: null } : null,
     rngState: (options.seed >>> 0) || 0x6d2b79f5,
     placementRngState: ((options.seed ^ 0x9e3779b9) >>> 0) || 0x6d2b79f5, nextEntityId: 1, battlefieldId, rules,
-    objective: { ...battlefield.objective }, stories: options.tutorial ? [] : battlefield.stories.map(story => ({ ...story })) };
+    objective: { ...battlefield.objective }, stories: mode === 'solo' ? [] : battlefield.stories.map(story => ({ ...story })) };
 }
 
 export function tutorialCombatPaused(game: GameState): boolean {
@@ -209,6 +216,7 @@ function retire(game: GameState, player: Player, status: 'defeated' | 'cleared' 
   const fieldMod = fieldModView(game, player);
   if (fieldMod) fieldMod.available = false;
   player.result = {
+    mode: game.mode,
     battlefieldId: game.battlefieldId, status, cleared: status === 'cleared',
     researchCredits: eligible ? game.battlefieldId * (milestones * 5 + (status === 'cleared' ? 25 : 0)) : 0,
     wave: game.wave, kills: player.kills, elapsedTicks: game.tick, miningProgress: progress.miningProgress, reason,
@@ -332,6 +340,7 @@ function performAction(game: GameState, player: Player, action: Action): ActionR
       return { ok: true };
     }
     case 'dispatch': {
+      if (game.mode === 'solo') return fail('SOLO_NO_STORY');
       if (!game.story || game.story.status !== 'active') return fail('NO_ACTIVE_STORY');
       const units = selectedUnits(player, action.unitIds, rules);
       if (!units) return fail('INVALID_UNITS');

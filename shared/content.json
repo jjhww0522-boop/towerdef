@@ -1,5 +1,5 @@
 {
-  "version": "0.13.1-casual-pressure",
+  "version": "0.14.0-command-deck",
   "fieldMods": [
     {"id":"tracker","name":"추적 회로","description":"이미 감속 또는 기절 중인 적에게 본진 타격 피해 +15%.","condition":"controlled","bonus":0.15},
     {"id":"scatter","name":"분산 노즐","description":"폭발·연쇄의 두 번째 이후 본진 적중 피해 +20%.","condition":"secondary","bonus":0.2},

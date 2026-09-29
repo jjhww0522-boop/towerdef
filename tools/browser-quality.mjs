@@ -34,11 +34,11 @@ async function setupPage(options = {}) {
   const page = await context.newPage(); lastPage = page; page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await selectDestination(page);
+  await selectDestination(page, { mode: 'coop' });
   return page;
 }
 async function startPractice(page, speed = '1') {
-  await selectDestination(page);
+  await selectDestination(page, { mode: 'coop' });
   await selectRunSpeed(page, speed); await page.locator('#quick-start').click();
   await page.locator('#game:not([hidden])').waitFor();
   await page.waitForFunction(() => !document.querySelector('#summon-btn').disabled);
@@ -244,15 +244,15 @@ try {
   await mobile.locator('#codex-content:not([hidden])').waitFor();
   const codexSnapshot = await publicPlayer(mobile);
   const codexButtons = await mobile.locator('#codex-content [data-combine-recipe]').evaluateAll(buttons => buttons.map(button => ({ id: button.dataset.combineRecipe, enabled: !button.disabled })));
-  assert.equal(codexButtons.length, content.recipes.length, 'codex contains every configured recipe');
+  assert.equal(codexButtons.length, content.recipes.length, 'codex contains every configured path, including locked previews');
   for (const button of codexButtons) {
     const recipe = content.recipes.find(recipe => recipe.id === button.id);
     const remaining = codexSnapshot.player.units.filter(unit => !unit.dispatched).map(unit => unit.definitionId);
     const unlocked = recipe.unlockBattlefield === 0 || codexSnapshot.player.unlockedRecipes.includes(recipe.id);
-    const ready = unlocked && recipe.ingredients.every(id => { const index = remaining.indexOf(id); if (index < 0) return false; remaining.splice(index, 1); return true; });
-    assert.equal(button.enabled, ready, 'codex enforces owned materials and recipe research: ' + button.id);
+    const selectable = unlocked && recipe.ingredients.some(id => remaining.includes(id));
+    assert.equal(button.enabled, selectable, 'codex permits inspecting an owned material without spending it: ' + button.id);
   }
-  pass('expanded codex enables assembly only for researched recipes with distinct owned materials');
+  pass('expanded codex previews all paths and selects owned materials only on unlocked paths');
   await touchTarget(mobile, '#codex-content [data-pin]', 'recipe goal pin');
   const focusedPin = await mobile.locator('#codex-content [data-pin]').first().getAttribute('data-pin');
   await mobile.locator('#codex-content [data-pin]').first().focus();

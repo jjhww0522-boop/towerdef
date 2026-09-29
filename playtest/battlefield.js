@@ -4,11 +4,20 @@ import { unitPoint, enemyPoint, projectPoint, getBattlefieldLayout } from '../sh
 const elementColors = Object.fromEntries(['fire', 'water', 'wind', 'frost', 'laser', 'electric'].map(element => [element, elementPalette(element).accent]));
 const WORLD_W = 1000, WORLD_H = 440, MAX_EFFECTS = 120;
 const slot = (n, width = WORLD_W, height = WORLD_H, battlefieldId = 1) => projectPoint(unitPoint(n, battlefieldId), battlefieldRoad(width, height, battlefieldId), width === 600, battlefieldId);
-export const battlefieldRoad = (width, height, battlefieldId = 1) => battlefieldId === 2 ?
-  { left: width * .08, right: width * .92,
-    top: Math.min(height * .40, width === 600 ? Math.max(236, height * .20) : Math.max(130, height * .27)),
-    bottom: Math.max(height * .70, height - (width === 600 ? 220 : 125)) } :
-  { left: width * .12, right: width * .84, top: height * (width === 600 ? .22 : .27), bottom: height * .80 };
+// Fit a true-scale board inside the space reserved for battle controls.
+// Render units use display coordinates; ranges use this single combat-to-display scale.
+export const battlefieldRoad = (width, height, battlefieldId = 1) => {
+  const portrait = width === 600, layout = getBattlefieldLayout(battlefieldId);
+  const rotated = portrait && layout.rotateInPortrait || !portrait && layout.rotateInLandscape;
+  const mapWidth = rotated ? layout.height : layout.width, mapHeight = rotated ? layout.width : layout.height;
+  const left = width * (portrait ? .08 : .09), right = width * (portrait ? .92 : .89);
+  const top = portrait ? Math.max(164, height * .15) : battlefieldId === 5 ? 48 : Math.max(86, height * .20);
+  const bottom = height - (portrait ? Math.max(170, height * .13) : battlefieldId === 5 ? 16 : 88);
+  const scale = Math.min((right - left) / mapWidth, Math.max(100, bottom - top) / mapHeight);
+  const w = mapWidth * scale, h = mapHeight * scale;
+  return { left: (left + right - w) / 2, right: (left + right + w) / 2,
+    top: (top + bottom - h) / 2, bottom: (top + bottom + h) / 2 };
+};
 const path = (progress, width = WORLD_W, height = WORLD_H, battlefieldId = 1, routeIndex = 0) => {
   const point = enemyPoint(progress, battlefieldId, routeIndex);
   return { ...projectPoint(point, battlefieldRoad(width, height, battlefieldId), width === 600, battlefieldId), face: battlefieldId === 2 && width !== 600 ? 1 : point.face };
@@ -54,8 +63,7 @@ export class Battlefield {
 
   configureLayout() {
     const bounds = this.canvas.getBoundingClientRect();
-    const portrait = this.battlefieldId === 2 ? bounds.height > bounds.width :
-      typeof matchMedia === 'function' && matchMedia('(max-width:600px)').matches;
+    const portrait = bounds.height > bounds.width;
     const width = portrait ? 600 : WORLD_W;
     const height = Math.max(280, Math.min(1600, Math.round(width * bounds.height / Math.max(1, bounds.width))));
     const mapId = this.battlefieldId ?? 1, changedMap = this.layoutBattlefieldId !== undefined && this.layoutBattlefieldId !== mapId;
@@ -67,6 +75,8 @@ export class Battlefield {
       this.player = null; this.lastSnapshotAt = 0; this.placementPreviewUntil = 0;
     }
     this.worldWidth = width; this.worldHeight = height; this.effects.length = 0;
+    const points = getBattlefieldLayout(mapId).slots.map((_, index) => this.position(index));
+    this.slotGap = Math.min(...points.flatMap((point, index) => points.slice(index + 1).map(other => Math.hypot(point.x - other.x, point.y - other.y))));
     for (const view of this.units.values()) {
       const target = view.unit.dispatched ? this.portalSlot(view.unit.id) : this.position(view.unit.slot);
       view.x = target.x; view.y = target.y;
@@ -74,10 +84,21 @@ export class Battlefield {
   }
   position(index) { return slot(index, this.worldWidth, this.worldHeight, this.battlefieldId); }
   path(progress, routeIndex = 0) { return path(progress, this.worldWidth, this.worldHeight, this.battlefieldId, routeIndex); }
+  enemySize(enemy) {
+    const base = enemy.boss ? 106 : enemy.archetype === 'plated' ? 66 : enemy.archetype === 'swarm' ? 43 : 54;
+    return base * Math.min(1, (this.slotGap || 90) / 80);
+  }
   enemyPosition(enemy, progress = enemy.progress) {
-    const position = this.path(progress, enemy.routeIndex);
-    if (this.battlefieldId === 2 && this.worldWidth === 600) position.x += (enemy.id % 3 - 1) * 18;
-    else if (this.battlefieldId !== 2 && enemy.attackingFacility) { position.x += (enemy.id % 3 - 1) * 8; position.y += Math.floor(enemy.id % 9 / 3) * 5; }
+    const position = this.path(progress, enemy.routeIndex), size = this.enemySize({});
+    const ahead = this.path(Math.min(.999, progress) + .001, enemy.routeIndex);
+    const behind = this.path(Math.max(0, Math.min(.999, progress) - .001), enemy.routeIndex);
+    const length = Math.hypot(ahead.x - behind.x, ahead.y - behind.y) || 1;
+    const dx = (ahead.x - behind.x) / length, dy = (ahead.y - behind.y) / length;
+    // A small formation offset is visual only. Range/damage still use the route center.
+    const lane = (enemy.id % 3 - 1) * size * .42;
+    const route = getBattlefieldLayout(this.battlefieldId).routes[enemy.routeIndex || 0];
+    const queue = !route.closed && progress >= 1 ? Math.floor(enemy.id % 9 / 3) * size * .30 : 0;
+    position.x += -dy * lane - dx * queue; position.y += dx * lane - dy * queue;
     return position;
   }
   previewPlacement() { this.placementPreviewUntil = performance.now() + 1100; }
@@ -329,11 +350,7 @@ export class Battlefield {
 
   unitHeight(definition) {
     const height = definition.rarity === 'legend' ? 94 : definition.rarity === 'hero' ? 86 : definition.rarity === 'elite' ? 78 : 70;
-    if (this.battlefieldId === 2) return this.worldWidth === 600 ? height * 1.14 : Math.max(height, 42 / this.scale);
-    if (this.worldWidth === 600 || getBattlefieldLayout(this.battlefieldId).rotateInPortrait) return height;
-    const road = battlefieldRoad(this.worldWidth, this.worldHeight, this.battlefieldId);
-    // Open maps have more rows: keep landscape robots and their hit ellipses apart.
-    return height * Math.min(1, (road.bottom - road.top) / 460);
+    return Math.min(height, (this.slotGap || 100) * .86);
   }
 
   weaponOrigin(definition, x, y, facing) {
@@ -363,7 +380,7 @@ export class Battlefield {
 
   ground(now) {
     const density = Math.max(1, Math.min(2, this.scale * (devicePixelRatio || 1)));
-    const key = [this.worldWidth, this.worldHeight, this.battlefieldId, density].join(':');
+    const key = [this.worldWidth, this.worldHeight, this.battlefieldId, this.mode, density].join(':');
     if (this.groundCache?.key !== key) {
       const surface = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(Math.ceil(this.worldWidth * density), Math.ceil(this.worldHeight * density)) :
         typeof document !== 'undefined' ? document.createElement('canvas') : null;
@@ -539,6 +556,8 @@ export class Battlefield {
     }
     for (let index = 0; index < layout.slots.length; index++) {
       const { x, y } = this.position(index);
+      const padScale = Math.min(1, (this.slotGap || 80) / 80);
+      context.save(); context.translate(x, y); context.scale(padScale, padScale); context.translate(-x, -y);
       this.rect(x - 27, y - 12, 54, 30, this.battlefieldId === 2 ? '#617f78' : '#101f28', 8);
       this.rect(x - 23, y - 9, 46, 22, this.battlefieldId === 2 ? '#d7e9d6' : '#365058', 6);
       context.strokeStyle = '#a3c3ba'; context.lineWidth = 1.8;
@@ -547,14 +566,14 @@ export class Battlefield {
         context.lineTo(x + side * 25, y - 5); context.moveTo(x + side * 15, y + 16);
         context.lineTo(x + side * 25, y + 16); context.lineTo(x + side * 25, y + 8); context.stroke();
       }
-      this.rect(x - 7, y + 6, 14, 2, '#c8dbbd', 1);
+      this.rect(x - 7, y + 6, 14, 2, '#c8dbbd', 1); context.restore();
     }
     const headingY = road.top - (this.worldWidth === 600 ? 55 : 45);
     this.rect(road.left + 23, headingY - 19, 152, 28, '#1c303c', 3);
     this.rect(road.left + 23, headingY - 19, 3, 28, '#f0b767');
     this.text(this.battlefieldId === 0 ? 'TRAINING' : 'SECTOR / 0' + this.battlefieldId, road.left + 100, headingY, 13, '#c2d2d4');
     // The story dispatch pad replaces the old banner without moving its slots.
-    if (this.battlefieldId !== 0 && this.battlefieldId !== 2) {
+    if (this.mode !== 'solo' && this.battlefieldId !== 0 && this.battlefieldId !== 2) {
     const campX = this.worldWidth * .934, campY = this.worldHeight * .50;
     this.rect(campX - 33, campY - 64, 66, 100, '#08131d', 9);
     this.rect(campX - 29, campY - 68, 58, 99, '#344f59', 7);
@@ -689,6 +708,11 @@ export class Battlefield {
         this.rect(flareX - 1, y - height * .6, 2, height * .22, '#ffd78c', 1);
       }
     }
+    if (!unit.dispatched && this.readyUnitIds?.has(unit.id) && !this.selected.has(unit.id)) {
+      context.strokeStyle = '#b6edac'; context.lineWidth = 2;
+      context.beginPath(); context.ellipse(x, y + 2, 23 * trim, 8 * trim, 0, 0, Math.PI * 2); context.stroke();
+      this.text('↑', x, y - height - 6, 18, '#c5f9ba');
+    }
     if (this.selected.has(unit.id)) {
       context.strokeStyle = '#071820'; context.lineWidth = 7;
       context.beginPath(); context.ellipse(x, y + 2, 25 * trim, 9 * trim, 0, 0, Math.PI * 2); context.stroke();
@@ -720,7 +744,7 @@ export class Battlefield {
       context.stroke(); context.restore();
     }
     // Labels are optional detail; the accessible DOM roster carries the full name.
-    if ((getBattlefieldLayout(this.battlefieldId).rotateInPortrait && this.worldWidth !== 600 && this.scale > .55 && this.units.size <= 10) || this.selected.has(unit.id)) this.text(unit.dispatched ? '파견 중' : definition.name, x, y + 18, this.worldWidth === 600 ? 18 : 10, unit.dispatched ? '#ffedb9' : '#f5f7df');
+    if (this.selected.has(unit.id)) this.text(unit.dispatched ? '파견 중' : definition.name, x, y + 18, this.worldWidth === 600 ? 18 : 10, unit.dispatched ? '#ffedb9' : '#f5f7df');
     if (hero || definition.rarity === 'elite') {
       // Tier marks are fixed geometry; dozens of robots need no per-frame font rasterization.
       context.save(); context.translate(x + (hero ? 21 : 19) * trim, y - height + (hero ? 7 : 5) * trim); context.scale(trim, trim);
@@ -758,7 +782,7 @@ export class Battlefield {
   }
   enemy(view, now) {
     const enemy = view.enemy, position = this.enemyPosition(enemy, this.progress(view, now)), context = this.ctx;
-    const size = (enemy.boss ? 106 : enemy.archetype === 'plated' ? 66 : enemy.archetype === 'swarm' ? 43 : 54) * (this.battlefieldId === 2 && this.worldWidth !== 600 ? .85 : 1);
+    const size = this.enemySize(enemy);
     const hit = this.hitPresentation(view, now);
     const walking = !this.reduced && !this.combatPaused && this.player.status === 'active' && !enemy.attackingFacility && !enemy.stunned;
     const bounce = walking ? Math.abs(Math.sin(hit.poseTime * .009 * Math.min(this.speed, 3) + enemy.id)) * 2 : 0;
@@ -795,6 +819,21 @@ export class Battlefield {
     this.rect(position.x - barWidth / 2, barY, barWidth, enemy.boss ? 5 : 3, '#233d38', 2);
     this.rect(position.x - barWidth / 2, barY, barWidth * clamp(enemy.hp / enemy.maxHp), enemy.boss ? 5 : 3, enemy.boss ? '#efbc79' : '#e1a28b', 2);
     if (enemy.boss) this.text('거대 회수기', position.x, barY - 6, 11, '#ffe7ac');
+  }
+
+  drawCrowdCounts() {
+    if (!this.player) return;
+    const layout = getBattlefieldLayout(this.battlefieldId);
+    for (let routeIndex = 0; routeIndex < layout.routes.length; routeIndex++) {
+      const count = this.player.enemies.filter(enemy => (enemy.routeIndex || 0) === routeIndex && enemy.attackingFacility).length;
+      if (count < 3) continue;
+      const point = this.path(1, routeIndex), previous = this.path(.98, routeIndex);
+      const length = Math.hypot(point.x - previous.x, point.y - previous.y) || 1;
+      const x = point.x - (point.x - previous.x) / length * 48;
+      const y = point.y - (point.y - previous.y) / length * 48 - this.enemySize({}) - 24;
+      this.rect(x - 34, y - 16, 68, 27, '#382024', 6);
+      this.text('공격 ' + count, x, y + 3, 17, '#ffc5a6');
+    }
   }
 
   drawGroundEffects(now) {
@@ -993,6 +1032,7 @@ export class Battlefield {
         for (const entry of this.drawOrder) {
           if (entry.enemy) this.enemy(entry.enemy, now); else this.soldier(entry.unit, now, delta);
         }
+        this.drawCrowdCounts();
         this.drawEffects(now);
       }
     }

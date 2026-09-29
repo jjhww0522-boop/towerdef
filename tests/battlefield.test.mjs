@@ -196,7 +196,7 @@ test('all weapon effects use actual hit positions and damage even when targets d
     r.update(snapshot);
     assert.equal(JSON.stringify(snapshot), original);
     assert.equal(r.view.effects.filter(effect => effect.type === pattern).length, 1);
-    const position = r.view.path(.23), weapon = r.view.effects.find(effect => effect.type === pattern);
+    const position = r.view.enemyPosition({ id: 8, progress: .23 }), weapon = r.view.effects.find(effect => effect.type === pattern);
     if (pattern === 'arc') {
       assert.equal(weapon.points.length, 4);
       assert.equal(weapon.points[1].x, position.x);
@@ -451,7 +451,7 @@ test('hit telemetry keeps impact and death effects on the target route after the
   const snapshot = lane(2, { alive: false });
   snapshot.units[0].lastAttackHits = [{ targetId: 50, damage: 20, progress: .62, routeIndex: 3, boss: false }];
   r.update(snapshot, { at: 1600 });
-  const target = r.view.path(.62, 3), wrongRoute = r.view.path(.62, 0);
+  const target = r.view.enemyPosition({ id: 50, progress: .62, routeIndex: 3 }), wrongRoute = r.view.enemyPosition({ id: 50, progress: .62, routeIndex: 0 });
   const impact = r.view.effects.find(effect => effect.type === 'impact');
   const death = r.view.effects.find(effect => effect.type === 'death');
   assert.equal(impact.x, target.x); assert.equal(impact.y, target.y - 18);
@@ -516,7 +516,7 @@ test('mining landscape uses six separated columns and portrait hit effects track
   portrait.update(attack);
   const displayed = portrait.view.enemyPosition({ id: 8, progress: .4, routeIndex: 0 });
   const center = portrait.view.path(.4), effect = portrait.view.effects.find(effect => effect.type === 'impact');
-  assert.equal(displayed.x - center.x, 18);
+  assert.ok(Math.abs(displayed.x - center.x) > 0, 'formation separates coincident enemies');
   assert.equal(displayed.y, center.y, 'stagger never advances progress');
   assert.equal(effect.x, displayed.x); assert.equal(effect.y, displayed.y - 18);
   assert.equal(portrait.view.enemyPosition({ id: 8, progress: .4 }).x, displayed.x, 'same enemy remains stable across snapshots');
@@ -596,4 +596,48 @@ test('a removed specialized enemy retains its silhouette until the confirmed pro
   assert.ok(r.draws.includes(effect.sprite), 'pre-impact hold must not turn a siege ram into a generic drone');
   r.draws.length = 0; r.view.drawEffects(effect.born + 40);
   assert.ok(r.draws.includes(effect.sprite), 'death keeps the same chassis');
+});
+
+test('phone boards keep circular ranges, separated slots and bounded bodies in either orientation', () => {
+  for (const bounds of [{ width: 360, height: 588 }, { width: 390, height: 792 }, { width: 667, height: 331 }, { width: 844, height: 346 }]) {
+    for (const id of [0, 1, 2, 3, 4, 5]) {
+      const r = renderer(bounds.height > bounds.width); r.bounds(bounds); r.view.battlefieldId = id;
+      r.definitions.get('archer').attackRange = 160;
+      r.update(lane(null)); r.view.draw(1400);
+      const layout = getBattlefieldLayout(id), points = layout.slots.map((_, slot) => r.view.position(slot));
+      const gap = Math.min(...points.flatMap((point, i) => points.slice(i + 1).map(other => Math.hypot(point.x - other.x, point.y - other.y)))) * r.view.scale;
+      assert.ok(gap >= 44, `${bounds.width} stage ${id}: ${gap}px cannot separate touch centers`);
+      for (const rarity of ['basic', 'legend']) {
+        const height = r.view.unitHeight({ rarity }) * r.view.scale;
+        assert.ok(height <= gap * .86 + 1e-8, 'even upper-tier bodies stay within adjacent pads');
+      }
+      const circles = [];
+      r.view.ctx.ellipse = (x, y, rx, ry) => circles.push({ rx, ry });
+      r.view.selected = new Set([1]); r.view.drawRange();
+      assert.equal(circles.length, 1);
+      assert.ok(Math.abs(circles[0].rx - circles[0].ry) < 1e-8, 'one combat radius must display as one circle');
+    }
+  }
+});
+
+test('coincident enemies separate along the path without rewriting authoritative positions', () => {
+  for (const id of [1, 2, 3, 4, 5]) {
+    const r = renderer(true); r.view.battlefieldId = id; r.update(lane(null));
+    for (let routeIndex = 0; routeIndex < getBattlefieldLayout(id).routes.length; routeIndex++) {
+      const first = { id: 8, progress: .3, routeIndex, archetype: 'swarm' }, second = { ...first, id: 9 };
+      const before = JSON.stringify([first, second]);
+      const a = r.view.enemyPosition(first), b = r.view.enemyPosition(second);
+      assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 0);
+      assert.deepEqual(r.view.enemyPosition({ id: first.id, progress: first.progress, routeIndex }), a, 'hit telemetry needs no unknown dead-enemy type to aim correctly');
+      assert.equal(JSON.stringify([first, second]), before);
+    }
+  }
+});
+
+test('a cached solo deck is rebuilt when entering a cooperative room', () => {
+  const r = renderer(false, 'bolt', true); r.update(lane(null));
+  const modes = []; r.view.drawDeck = () => modes.push(r.view.mode);
+  r.view.mode = 'solo'; r.view.ground(1400); r.view.ground(1450);
+  r.view.mode = 'coop'; r.view.ground(1500);
+  assert.deepEqual(modes, ['solo', 'coop'], 'story portal visibility must not leak between rooms');
 });

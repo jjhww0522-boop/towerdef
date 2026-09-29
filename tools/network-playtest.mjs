@@ -114,7 +114,7 @@ try {
   content = await api('/content');
   report.contentVersion = content.version;
   await Promise.all(clients.map(async client => {
-    const joined = await api('/session', client, { roomId: 'network-playtest', playerId: client.id, speed: 6, contentVersion: content.version, protocolVersion: '1' });
+    const joined = await api('/session', client, { roomId: 'network-playtest', playerId: client.id, mode: 'coop', speed: 6, contentVersion: content.version, protocolVersion: '1' });
     client.token = joined.token;
   }));
   const snapshots = await Promise.all(clients.map(client => api('/state', client)));
@@ -186,7 +186,7 @@ try {
             actualTickDelta: pauseAfter.tick - pauseBefore.tick, simulatedGraceElapsed, terminalBeforeResume });
         check('no actions or replacements were made for silent player', pauseAfter.player.lastSeq === pauseBefore.player.lastSeq &&
           JSON.stringify(pauseAfter.player.unitIds) === JSON.stringify(pauseBefore.player.unitIds));
-        const resumed = await api('/session', clients[3], { roomId: 'network-playtest', playerId: clients[3].id, speed: 6 });
+        const resumed = await api('/session', clients[3], { roomId: 'network-playtest', playerId: clients[3].id, mode: 'coop', speed: 6 });
         const restored = describe(resumed.state, clients[3]);
         check('reconnect returns same token roster units and sequence', resumed.token === clients[3].token &&
           JSON.stringify(restored.roster.slice().sort()) === JSON.stringify(roster) &&

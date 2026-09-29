@@ -1,6 +1,11 @@
 // Exercise the same home → destination flow as a player.
-export async function selectDestination(page) {
-  if (await page.locator('#home-screen').isVisible()) await page.locator('#home-play:enabled').click();
+export async function selectDestination(page, { mode = 'solo' } = {}) {
+  if (!['solo', 'coop'].includes(mode)) throw new Error('Expected solo or coop destination');
+  if (await page.locator('#stage-screen').isVisible()) {
+    const currentMode = await page.locator('#stage-join').isVisible() ? 'coop' : 'solo';
+    if (currentMode !== mode) await page.locator('#stage-back').click();
+  }
+  if (await page.locator('#home-screen').isVisible()) await page.locator(mode === 'coop' ? '#home-coop:enabled' : '#home-play:enabled').click();
   await page.locator('#stage-screen:not([hidden])').waitFor();
   await page.locator('#quick-start').waitFor();
   await page.locator('#stage-screen').evaluate(async element => {
@@ -8,8 +13,9 @@ export async function selectDestination(page) {
   });
 }
 
-export async function selectBattlefield(page, battlefieldId) {
-  await selectDestination(page);
+export async function selectBattlefield(page, battlefieldId, options) {
+  const mode = options?.mode ?? (await page.locator('#stage-screen').isVisible() && await page.locator('#stage-join').isVisible() ? 'coop' : 'solo');
+  await selectDestination(page, { mode });
   await page.locator('#planet-picker').click();
   await page.locator('#planet-dialog[open]').waitFor();
   await page.locator(`#planet-dialog [data-battlefield="${battlefieldId}"]`).click();

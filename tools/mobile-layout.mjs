@@ -179,7 +179,7 @@ async function checkViewport(size, { bottomInset = 0, compactOnly = false } = {}
   page.on('pageerror', error => test.errors.push(error.message));
   try {
     await page.goto(base);
-    await selectDestination(page);
+    await selectDestination(page, { mode: 'coop' });
     // Observe the real renderer; interaction below still uses physical canvas taps.
     await page.evaluate(async () => {
       const { Battlefield } = await import('/battlefield.js'), update = Battlefield.prototype.update;

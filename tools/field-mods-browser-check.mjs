@@ -33,7 +33,7 @@ try {
     page.on('pageerror', error => report.errors.push(error.message));
     page.on('response', response => { if (response.status() >= 500) report.errors.push('HTTP ' + response.status()); });
     try {
-      await page.goto(base); await selectDestination(page);
+      await page.goto(base); await selectDestination(page, { mode: 'coop' });
       await page.evaluate(async () => {
         const { Battlefield } = await import('/battlefield.js'), update = Battlefield.prototype.update;
         Battlefield.prototype.update = function(...args) { update.apply(this, args); window.modField = this; };
@@ -84,11 +84,12 @@ try {
       assert.equal(await page.locator('[data-choose-mod="opener"]').innerText(), '유지');
       await page.locator('[data-choose-mod="scatter"]').scrollIntoViewIfNeeded();
       // Drop an actual successful action response. Retry must reuse exactly the same packet.
-      let firstPacket, drop = true;
-      await page.route('**/state', route => route.abort());
+      let firstPacket, drop = true, blockState = false;
+      // Keep polling healthy until the intended choice request begins.
+      await page.route('**/state', route => blockState ? route.abort() : route.continue());
       await page.route('**/action', async route => {
         if (drop && route.request().postDataJSON().type === 'choose_mod') {
-          drop = false; firstPacket = route.request().postDataJSON();
+          drop = false; blockState = true; firstPacket = route.request().postDataJSON();
           await route.fetch(); await route.abort();
         } else await route.continue();
       });

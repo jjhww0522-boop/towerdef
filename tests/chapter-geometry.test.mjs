@@ -44,7 +44,7 @@ test('chapter one has distinct loop, vertical, horizontal, opposing and cross ro
   assert.ok(areas.every((area, index) => !index || area > areas[index - 1]));
   assert.ok(lengths.every((length, index) => !index || length > lengths[index - 1]));
   for (const [index, layout] of layouts.entries()) {
-    assert.equal(layout.rotateInPortrait, index === 0);
+    assert.equal(layout.rotateInPortrait, [0, 2, 3].includes(index));
     for (const [routeIndex, route] of layout.routes.entries()) {
       assert.equal(route.closed, index === 0);
       let walked = 0;
@@ -76,15 +76,20 @@ test('chapter one has distinct loop, vertical, horizontal, opposing and cross ro
   assert.deepEqual(layouts[4].routes.map(route => route.points[0]), [{ x: 0, y: 720 }, { x: 1440, y: 720 }, { x: 720, y: 0 }, { x: 720, y: 1440 }]);
 });
 
-test('mining rotates only its display into landscape while other open routes retain their direction', () => {
+test('long boards rotate for the device while combat paths and the cross keep their geometry', () => {
   const road = { left: 10, right: 210, top: 30, bottom: 430 };
-  for (const id of [3, 4, 5]) for (const point of getBattlefieldLayout(id).routes.flatMap(route => route.points)) {
+  for (const id of [5]) for (const point of getBattlefieldLayout(id).routes.flatMap(route => route.points)) {
     assert.deepEqual(projectPoint(point, road, true, id), projectPoint(point, road, false, id));
   }
   assert.deepEqual(projectPoint({ x: 0, y: 0 }, road, true), { x: 210, y: 30 });
   assert.deepEqual(projectPoint({ x: 0, y: 0 }, road, false), { x: 10, y: 30 });
   assert.deepEqual(projectPoint({ x: 300, y: 0 }, road, true, 2), { x: 110, y: 30 });
   assert.deepEqual(projectPoint({ x: 300, y: 0 }, road, false, 2), { x: 10, y: 230 });
+  for (const id of [3, 4]) {
+    const layout = getBattlefieldLayout(id), start = layout.routes[0].points[0];
+    assert.deepEqual(projectPoint(start, road, true, id), { x: 110, y: 30 });
+    assert.deepEqual(projectPoint(start, road, false, id), { x: 10, y: 230 });
+  }
   assert.equal(getBattlefieldLayout(2).routes[0].length, 1360, 'display rotation preserves combat distance');
   assert.ok(projectPoint({ x: 300, y: 1420 }, road, false, 2).x > 200, 'facility stays at the right exit');
 });

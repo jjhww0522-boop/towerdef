@@ -137,11 +137,14 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
         if (body.speed !== undefined && ![1, 3, 6].includes(body.speed)) return send(response, 400, { error: 'invalid_speed' });
         if (body.tutorial !== undefined && typeof body.tutorial !== 'boolean') return send(response, 400, { error: 'invalid_tutorial' });
         if (body.practice !== undefined && typeof body.practice !== 'boolean') return send(response, 400, { error: 'invalid_practice' });
+        if (body.mode !== undefined && !['solo', 'coop'].includes(body.mode)) return send(response, 400, { error: 'invalid_mode' });
         if (!validId(roomId) || !validId(playerId)) return send(response, 400, { error: 'invalid_room_or_player_id' });
         if ((body.protocolVersion && body.protocolVersion !== '1') ||
             (body.contentVersion && body.contentVersion !== content.version)) return send(response, 409, { error: 'version_mismatch' });
         let room = rooms.get(roomId);
         const tutorial = room ? !!room.game.tutorial : body.tutorial === true;
+        const mode = room ? room.game.mode : tutorial ? 'solo' : body.mode || 'coop';
+        if (room && body.mode !== undefined && body.mode !== mode) return send(response, 409, { error: 'mode_mismatch' });
         let profileToken = body.profileToken;
         let profile = profileToken === undefined ? progressionStore.authenticate(token) : progressionStore.authenticate(profileToken);
         if (profileToken === undefined && profile) profileToken = token;
@@ -166,6 +169,7 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
           }
         }
         if (room && tutorial && !existing) return send(response, 409, { error: 'tutorial_solo' });
+        if (room && mode === 'solo' && !existing) return send(response, 409, { error: 'solo_only' });
         if (room && !existing && (room.game.status !== 'playing' || room.game.players.length >= 4 || room.game.tick >= (room.game.rules || content.rules).waveTicks * (room.game.rules || content.rules).totalWaves)) return send(response, 409, { error: 'room_full_or_finished' });
         if (!room && rooms.size >= 32) return send(response, 409, { error: 'local_room_limit_restart_server' });
         // An invitation chooses the room's battlefield, never the joiner's stale selection.
@@ -180,7 +184,7 @@ export function createDevServer({ automaticTicks = true, progressionStore = crea
         if (!existing) {
           const speed = tutorial ? 1 : room?.speed || body.speed || 1;
           const practice = tutorial || (room ? room.game.practice : speed !== 1 || body.practice === true);
-          const initial = createGame({ playerIds: [playerId], seed: randomInt(1, 2147483647), practice, tutorial,
+          const initial = createGame({ playerIds: [playerId], seed: randomInt(1, 2147483647), mode, practice, tutorial,
             battlefieldId, unlockedRecipesByPlayer: { [playerId]: profile.unlockedRecipes } });
           const expeditionId = room?.expeditionId || randomUUID();
           if (!tutorial) progressionStore.consumeEngine(profile.id, expeditionId);

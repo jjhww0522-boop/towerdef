@@ -53,7 +53,7 @@ const handler: nkruntime.MatchHandler<RoomState> = {
       if (state.game) setConnection(state.game, presence.userId, true);
     });
     if (!state.game && Object.keys(state.presences).length === 4) {
-      state.game = createGame({ playerIds: Object.keys(state.presences).sort(), seed: state.seed, practice: true });
+      state.game = createGame({ playerIds: Object.keys(state.presences).sort(), seed: state.seed, mode: 'coop', practice: true });
     }
     broadcast(state, dispatcher);
     return { state: state };

@@ -50,7 +50,8 @@ try {
       await page.locator('[data-close="settings-dialog"]').tap();
       checks.push('first-load mute can be enabled and creates real audio sources');
       await selectDestination(page);
-      assert.ok((await page.locator('#mission-title').innerText()).length > 0);
+      assert.equal(await page.locator('#mission-title').isVisible(), false, 'solo stage selection omits cooperative story briefing');
+      assert.ok((await page.locator('#mission-lesson').innerText()).length > 0);
       await usable(page, '#quick-start'); await capture('briefing');
       await page.locator('#quick-start').tap(); await page.locator('#summon-btn:enabled').waitFor();
       assert.equal(await page.locator('#tactic-overdrive').isDisabled(), true);

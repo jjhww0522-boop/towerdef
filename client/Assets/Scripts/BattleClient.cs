@@ -15,12 +15,14 @@ namespace TowerDef
         RectTransform safe, page, inspector, modal, modPanel;
         NativeBattlefield field;
         Text status, hud, threat, tutorialText, unitTitle, recipeText;
-        Button summon, tutorialNext, overdrive, emp, combine, sell, modEntry;
+        Button summon, assembly, tutorialNext, overdrive, emp, combine, sell, modEntry;
         Text modSchedule, modSummary;
         string modSignature;
         readonly Dictionary<string, Button> modButtons = new Dictionary<string, Button>();
         readonly Dictionary<string, Text> modContexts = new Dictionary<string, Text>();
         string screen = "home", watchedId, modalKind, inspectorSignature;
+        string selectedMode = "solo";
+        bool IsCoop => MobileModel.IsCoop(session.State);
         int? focusedId;
         int recipeIndex;
         int followSlot = -1;
@@ -137,7 +139,8 @@ namespace TowerDef
             if (session.HasSavedSession)
                 MobileUI.Button(content, "기존 원정 이어하기 · 추가 입장 비용 없음", session.Resume, 58, MobileUI.Gold);
             MobileUI.Button(content, profile.tutorialCompleted ? "기동 훈련 다시 하기 · 무료" : "기동 훈련 · 무료", () => session.StartExpedition(1, true)).interactable = !session.HasSavedSession;
-            MobileUI.Button(content, "스테이지 선택", Stages, 58, MobileUI.Gold);
+            MobileUI.Button(content, "혼자 원정", () => { selectedMode = "solo"; Stages(); }, 58, MobileUI.Gold);
+            MobileUI.Button(content, "협동 작전", () => { selectedMode = "coop"; Stages(); }, 54);
             MobileUI.Button(content, "설계도 연구", Research);
             MobileUI.Button(content, "소리·움직임 설정", Settings);
         }
@@ -147,7 +150,7 @@ namespace TowerDef
             NewPage("stages");
             var content = MobileUI.Scroll(page);
             MobileUI.Button(content, "‹ 홈", Home);
-            MobileUI.Label(content, "챕터 1 · 고물 행성", 26);
+            MobileUI.Label(content, selectedMode == "coop" ? "협동 작전 · 최대 4명" : "혼자 원정 · 챕터 1", 26);
             foreach (var stage in session.Content.battlefields)
             {
                 var item = stage;
@@ -155,15 +158,16 @@ namespace TowerDef
                 int seconds = item.resolvedRules == null ? 0 : MobileModel.DurationSeconds(item.resolvedRules, item.objective);
                 MobileUI.Label(content, $"1-{item.id} {item.name}" + (item.difficulty.HasValue ? $" · 난이도 {item.difficulty}/10" : ""), 21, 48);
                 MobileUI.Label(content, item.description + (seconds > 0 ? $"\n최대 {seconds / 60}:{seconds % 60:00}" : ""), 16, 72);
-                MobileUI.Button(content, unlocked ? "출발 · 엔진 1" : "이전 구역 클리어 후 입장", () => session.StartExpedition(item.id, false), 50, MobileUI.Gold).interactable = unlocked && !session.HasSavedSession && session.Profile.engines.count > 0;
+                MobileUI.Button(content, unlocked ? (selectedMode == "coop" ? "방 만들기 · 엔진 1" : "출발 · 엔진 1") : "이전 구역 클리어 후 입장", () => session.StartExpedition(item.id, false, mode: selectedMode), 50, MobileUI.Gold).interactable = unlocked && !session.HasSavedSession && session.Profile.engines.count > 0;
             }
 
-            MobileUI.Label(content, "함께하기 · 최대 4명", 22);
+            if (selectedMode != "coop") return;
+            MobileUI.Label(content, "방 코드로 참가", 22);
             var room = MobileUI.Input(content, "", "동료와 같은 방 코드");
             MobileUI.Button(content, "1구역 협동 참가 · 엔진 1", () =>
             {
                 if (!string.IsNullOrWhiteSpace(room.text))
-                    session.StartExpedition(1, false, room.text.Trim());
+                    session.StartExpedition(1, false, room.text.Trim(), "coop");
             }).interactable = !session.HasSavedSession && session.Profile.engines.count > 0;
         }
 
@@ -200,7 +204,7 @@ namespace TowerDef
             hud = MobileUI.Label(header, "", 20, 35);
             threat = MobileUI.Label(header, "", 16, 40);
             var row = MobileUI.Row(header, 44);
-            MobileUI.Button(row, "원정대", Team, 44);
+            if (IsCoop) MobileUI.Button(row, "원정대", Team, 44);
             modEntry = MobileUI.Button(row, "현장개조", OpenFieldMods, 44);
             modEntry.GetComponentInChildren<Text>().fontSize = 15;
             MobileUI.Button(row, "설정", Settings, 44);
@@ -221,7 +225,7 @@ namespace TowerDef
             emp = MobileUI.Button(supports, "EMP", () => session.Send("tactic", tactic: "emp"), 46);
             var actions = MobileUI.Row(controls, 50);
             summon = MobileUI.Button(actions, "로봇 뽑기", () => session.Send("summon"), 50, MobileUI.Gold);
-            MobileUI.Button(actions, "보유", Roster, 50);
+            assembly = MobileUI.Button(actions, "조립 계획", AssemblyPlans, 50);
             MobileUI.Button(actions, "강화", Upgrades, 50);
             status = MobileUI.Label(controls, "", 14, 42);
             var guide = MobileUI.Box(page, "Tutorial", MobileUI.Panel);
@@ -318,6 +322,8 @@ namespace TowerDef
                 "replacement"
             }.Contains(t.step));
             MobileUI.SetText(summon, me.units.Length >= r.maxUnits ? "자리 가득 참" : $"로봇 뽑기\n{r.summonCost} 고철");
+            int assemblyCount = session.Content.recipes.Count(recipe => (t == null || recipe.id == "make_laser_2") && MobileModel.Unlocked(recipe, me) && me.units.Any(unit => !unit.dispatched && MobileModel.Materials(recipe, me, unit.id) != null));
+            MobileUI.SetText(assembly, $"조립 가능 {assemblyCount}");
             bool ready = CanAct && t == null && (me.tactical?.cooldownRemainingTicks ?? 1) == 0;
             overdrive.interactable = ready && me.units.Any(u => !u.dispatched);
             emp.interactable = ready && me.enemies.Length > 0;
@@ -363,7 +369,6 @@ namespace TowerDef
             if (field == null)
                 return;
             field.Consumed = Array.Empty<int>();
-            field.Result = null;
             if (modPanel != null)
             {
                 if (inspector)
@@ -387,7 +392,6 @@ namespace TowerDef
             var recipe = CurrentRecipe();
             var material = recipe == null ? null : MobileModel.Materials(recipe, session.Me(), unit.id);
             field.Consumed = material ?? Array.Empty<int>();
-            field.Result = recipe == null ? null : Definition(recipe.result);
             field.Focus = focusedId;
             string signature = unit.id + ":" + (recipe?.id ?? "") + ":" + string.Join(",", material ?? Array.Empty<int>());
             if (inspector && signature == inspectorSignature)
@@ -427,7 +431,7 @@ namespace TowerDef
             }, 46).interactable = Choices().Length > 1;
             var management = MobileUI.Row(inspector, 44);
             sell = MobileUI.Button(management, "판매", () => Confirm(Definition(unit.definitionId).name + $"은 사라집니다.\n+{unit.salvageGold} 고철", () => session.Send("salvage", unitIds: new[] { unit.id })), 44);
-            MobileUI.Button(management, "상세·파견", () => Inspection(unit.id), 44);
+            MobileUI.Button(management, IsCoop ? "상세·파견" : "상세", () => Inspection(unit.id), 44);
             RefreshControls();
         }
 
@@ -607,6 +611,25 @@ namespace TowerDef
             EventSystem.current.SetSelectedGameObject(cancel.gameObject);
         }
 
+        void AssemblyPlans()
+        {
+            var body = OpenModal("assembly", "조립 계획 · 같은 로봇 3기");
+            MobileUI.Button(body, "보유 로봇 보기", Roster);
+            var player = session.Me();
+            foreach (var recipe in session.Content.recipes.Where(recipe => MobileModel.Unlocked(recipe, player) && (session.State.tutorial == null || recipe.id == "make_laser_2")))
+            {
+                var entry = recipe;
+                var ingredient = entry.ingredients[0];
+                var anchor = player.units.FirstOrDefault(unit => !unit.dispatched && unit.definitionId == ingredient);
+                int have = player.units.Count(unit => !unit.dispatched && unit.definitionId == ingredient);
+                MobileUI.Button(body, $"{Definition(entry.result).name} · {Math.Min(have, entry.ingredients.Length)}/{entry.ingredients.Length}\n{(have >= entry.ingredients.Length ? "조립할 자리 선택" : "재료 로봇 보기")}", () =>
+                {
+                    watchedId = session.PlayerId;
+                    Select(anchor.id);
+                }, 64).interactable = anchor != null;
+            }
+        }
+
         void Roster()
         {
             var body = OpenModal("roster", "보유 로봇 · 전투는 계속됩니다");
@@ -634,6 +657,7 @@ namespace TowerDef
                 MobileUI.Label(body, MobileModel.UpgradeDescription(result), 16, 60);
             }
 
+            if (!IsCoop) return;
             MobileUI.Label(body, "파견하면 본진 방어에서 빠집니다.\n스토리 종료 시 원래 자리로 복귀합니다.", 17, 70);
             MobileUI.Button(body, dispatch.Contains(id) ? "파견 대기 해제" : "파견 대기", () =>
             {
@@ -669,6 +693,7 @@ namespace TowerDef
 
         void Team()
         {
+            if (!IsCoop) return;
             var body = OpenModal("team", "원정대 · 방 " + session.RoomId);
             foreach (var player in session.State.players)
             {
@@ -684,6 +709,8 @@ namespace TowerDef
 
             var story = session.State.story;
             MobileUI.Label(body, story == null ? "스토리 시작을 기다리고 있어요." : $"공동 스토리 {story.status}\n체력 {story.hp:0}/{story.maxHp:0} · {story.remainingTicks / session.State.rules.ticksPerSecond}초", 18, 85);
+            var mission = Array.Find(session.State.stories ?? Array.Empty<StoryDefinition>(), item => item.wave == story?.wave);
+            MobileUI.Label(body, $"내 지원 {session.Me().units.Count(unit => unit.dispatched)}기 · 전체 {session.State.players.Sum(player => player.units.Count(unit => unit.dispatched))}기" + (mission == null ? "" : $" · 공동 보상 {mission.rewardGold} 고철"), 16, 55);
             MobileUI.Label(body, "파견 대기 " + dispatch.Count + "기 · 종료 시 복귀", 17, 50);
             MobileUI.Button(body, "선택한 로봇 파견", () =>
             {
@@ -827,7 +854,7 @@ namespace TowerDef
                 AddFieldModRecap(body, result?.fieldMod);
             MobileUI.Button(body, "귀환 · 다음 구역 준비", () => session.ReturnHome(), 54, MobileUI.Gold);
             MobileUI.Button(body, session.State.tutorial != null ? "훈련 다시 하기 · 무료" : "다시 도전 · 엔진 1", () => StartCoroutine(Retry()));
-            if (session.State.players.Any(p => p.status == "active"))
+            if (IsCoop && session.State.players.Any(p => p.status == "active"))
                 MobileUI.Button(body, "동료 관전", () =>
                 {
                     watchedId = session.State.players.First(p => p.status == "active").id;
@@ -840,11 +867,12 @@ namespace TowerDef
         {
             int stage = session.State.battlefieldId;
             bool training = session.State.tutorial != null;
+            string mode = IsCoop ? "coop" : "solo";
             session.ReturnHome();
             while (session.Busy)
                 yield return null;
             if (session.State == null)
-                session.StartExpedition(stage, training);
+                session.StartExpedition(stage, training, mode: mode);
         }
 
         void PlaySound(string kind)

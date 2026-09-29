@@ -85,3 +85,13 @@
  .canvas-wrap:has(#boss-hud:not([hidden])) .field-mod-toggle{left:162px}
  .canvas-wrap>.field-mod-dialog{inset:auto auto calc(78px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));width:min(480px,calc(100% - 168px));height:min(140px,36dvh);max-height:36dvh;padding:6px 10px}
 }
+/* Solo uses the space otherwise occupied by shared-story status. */
+#game[data-mode=solo] .operation-strip{left:12px;right:auto;width:min(220px,calc(100% - 166px));transform:none}
+#game[data-mode=solo] .field-mod-toggle{top:39px;left:auto;right:12px;width:130px}
+@media(max-height:500px){#game[data-mode=solo] .operation-strip{top:30px;width:220px}#game[data-mode=solo] .field-mod-toggle{top:30px;right:auto;left:240px;width:130px}}
+#game[data-mode=solo] .canvas-wrap:has(#boss-hud:not([hidden])) .field-mod-toggle{left:12px;right:auto}
+@media(max-width:600px) and (min-height:501px){
+ #game:is([data-battlefield="3"],[data-battlefield="4"]) .radio-message{top:46%;bottom:auto;left:8px;max-width:104px;min-height:0;padding:6px;font-size:11px}
+ #game:is([data-battlefield="3"],[data-battlefield="4"]) .radio-message small,
+ #game:is([data-battlefield="3"],[data-battlefield="4"]) .radio-light{display:none}
+}

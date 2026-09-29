@@ -13,7 +13,7 @@ import core from '../dist/server/core/index.js';
 // public cheat routes. These checks are not evidence of human fun or balance.
 const { content, createGame, applyAction, tick } = core;
 const report = { source: 'automated_expedition_browser_test', actualParticipants: 0,
-  fixtures: ['Manual server clock', 'Weak enemies and final-boss setup resolved by real core attacks', 'Second core-generated first-stage clear funds research', 'Core-generated stage-two result for stage-three access', 'Owned recipe materials inserted in the isolated server room', 'Temporarily empty inventory for the complete recursive blueprint preview'],
+  fixtures: ['Manual server clock', 'Weak enemies and final-boss setup resolved by real core attacks', 'Strong fixture robot and weak enemies create terminal results through real core attacks', 'Core-generated stage-two clear unlocks the next recipes and stage-three access', 'Owned recipe materials inserted in the isolated server room', 'Temporarily empty inventory for the complete recursive blueprint preview'],
   checks: [], artifacts: [], errors: [], layoutFailures: [] };
 const contexts = [], rooms = [];
 const temporary = await mkdtemp(join(tmpdir(), 'towerdef-expedition-browser-'));
@@ -35,13 +35,13 @@ async function shutdown() {
   server.closeAllConnections();
   await closed;
 }
-async function newPage(viewport = { width: 390, height: 844 }) {
+async function newPage(viewport = { width: 390, height: 844 }, mode = 'solo') {
   const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
   contexts.push(context);
   const page = await context.newPage(); lastPage = page; page.setDefaultTimeout(12000);
   page.on('pageerror', error => report.errors.push(error.message));
   await page.goto(base);
-  await selectDestination(page);
+  await selectDestination(page, { mode });
   return page;
 }
 const identity = page => page.evaluate(() => ({
@@ -63,8 +63,8 @@ async function snapshot(page) {
   assert.ok(player);
   return { state, player };
 }
-async function start(page, speed = '1') {
-  await selectDestination(page);
+async function start(page, speed = '1', mode = 'solo') {
+  await selectDestination(page, { mode });
   await selectRunSpeed(page, speed);
   await page.locator('#quick-start').tap();
   await page.locator('#game:not([hidden])').waitFor();
@@ -147,9 +147,14 @@ function give(game, player, definitionIds) {
 function finishPlayer(game, playerId) {
   const player = game.players.find(candidate => candidate.id === playerId);
   assert.equal(player.status, 'active');
+  game.rules.spawnIntervalTicks = game.rules.minSpawnIntervalTicks = 99999;
+  game.rules.overcrowdCount = 1000;
+  player.gold = Math.max(player.gold, game.rules.summonCost * Math.max(0, 3 - player.investmentActions));
   while (player.investmentActions < 3) {
+    while (game.tick < player.nextSummonTick) tick(game);
     assert.equal(applyAction(game, player.id, { seq: player.lastSeq + 1, type: 'summon' }).ok, true);
   }
+  give(game, player, ['guardian_s', 'guardian_s']);
   player.enemies = Array.from({ length: Math.max(0, 60 - player.kills) }, () => ({
     id: game.nextEntityId++, hp: 1, maxHp: 1, progress: 0, boss: false,
   }));
@@ -190,7 +195,7 @@ function recipeNames(recipe) {
 try {
   await boot();
   browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH });
-  const host = await newPage();
+  const host = await newPage(undefined, 'coop');
   const initialProfile = await profile(host);
   assert.equal(initialProfile.researchCredits, 0);
   assert.deepEqual(initialProfile.unlockedRecipes, []);
@@ -199,16 +204,16 @@ try {
   assert.equal(await host.locator('#quick-start').isDisabled(), true, 'locked planet can be previewed but cannot be started');
   assert.ok((await host.locator('#destination-lock').innerText()).trim(), 'locked planet explains the missing unlock');
   await selectBattlefield(host, 1);
-  assert.match(await host.locator('#expedition-duration').textContent(), /8:12/);
+  assert.match(await host.locator('#expedition-duration').textContent(), /3:00/);
   await screenshot(host, 'planet-selection', true);
   pass('fresh profile displays the short first expedition and locks later destinations');
-  await start(host);
+  await start(host, '1', 'coop');
   await compact(host, 'mobile combat begins with a thin collapsed dock');
   let before = await snapshot(host);
-  assert.equal(before.state.battlefieldId, 1);
+  assert.equal(before.state.battlefieldId, 1); assert.equal(before.state.mode, 'coop');
   assert.equal(before.state.practice, false);
   const shortSeconds = (before.state.rules.waveTicks * before.state.rules.totalWaves + before.state.rules.bossTicks) / before.state.rules.ticksPerSecond;
-  assert.equal(shortSeconds, 492);
+  assert.equal(shortSeconds, 180);
   await action(host, '#summon-btn');
   let after = await snapshot(host);
   assert.equal(after.player.units.length, before.player.units.length + 1);
@@ -239,7 +244,8 @@ try {
   await closeDialog(host, 'command-dialog');
   pass('upgrade inspection is free and only the explicit purchase spends the displayed cost');
 
-  const researchRecipe = content.recipes.find(recipe => recipe.unlockBattlefield === 1);
+  const unlockRecipe = content.recipes.find(recipe => recipe.unlockType === 'clear' && recipe.unlockBattlefield === 2);
+  const previewRecipe = content.recipes.find(recipe => recipe.unlockBattlefield === 0);
   // Owned intermediate robots intentionally stop a blueprint branch. An empty
   // fixture makes the complete-tree assertion independent of the random draw.
   const blueprintPlayerId = (await identity(host)).playerId;
@@ -248,22 +254,21 @@ try {
   blueprintOwner.units = [];
   await host.waitForFunction(() => /^0\s/.test(document.querySelector('#unit-value').textContent));
   await host.locator('#recipes-tab').tap();
-  await host.locator(`#recipe-list [data-plan-recipe="${researchRecipe.id}"]`).tap();
+  await host.locator(`#recipe-list [data-plan-recipe="${previewRecipe.id}"]`).tap();
   await host.locator('#blueprint-dialog[open]').waitFor();
   const blueprint = await host.locator('#blueprint-dialog').textContent();
   try {
-    for (const name of recipeNames(researchRecipe)) assert.ok(blueprint.includes(name), 'preview includes recursive material: ' + name);
+    for (const name of recipeNames(previewRecipe)) assert.ok(blueprint.includes(name), 'preview includes recursive material: ' + name);
   } finally { blueprintOwner.units = savedBlueprintUnits; }
   await screenshot(host, 'blueprint');
   await closeDialog(host, 'blueprint-dialog'); await closeDialog(host, 'command-dialog');
-  pass('locked endgame recipe remains previewable down to its basic materials');
+  pass('available assembly path previews its exact basic materials');
 
   const { session: hostSession, playerId: hostId } = await identity(host);
   const peers = [];
   for (let index = 0; index < 3; index++) {
-    const peer = await newPage(); peers.push(peer);
-    await peer.locator('#planet-picker').tap();
-    await peer.locator('#join-open').tap();
+    const peer = await newPage(undefined, 'coop'); peers.push(peer);
+    await peer.locator('#stage-join').tap();
     await peer.fill('#room-input', hostSession.roomId);
     await peer.locator('#join-form button[type="submit"]').tap();
     await peer.locator('#game:not([hidden])').waitFor();
@@ -303,36 +308,21 @@ try {
   for (const peer of peers) await peer.context().close();
   pass('core-generated final-boss result reaches the UI and pays research credits exactly once', { credits: result.researchCredits, terminalFixture: true });
 
-  // The first recipe costs more than a single first-stage clear. Earn its
-  // remainder through a second core-generated clear, never a client balance edit.
-  await start(host);
-  const secondResult = finishPlayer(roomFor(hostId).game, hostId);
-  await host.locator('#result-dialog[open]').waitFor();
-  const researchFunds = await profile(host);
-  assert.equal(researchFunds.researchCredits, paidProfile.researchCredits + secondResult.researchCredits);
-  await host.locator('#result-lobby').tap();
-  await host.locator('#lobby:not([hidden])').waitFor();
-  await closeDialog(host, 'research-dialog');
-  assert.ok(researchFunds.researchCredits >= researchRecipe.researchCost, 'two real result settlements fund the first blueprint');
-  await host.locator('#research-btn').tap();
-  const purchaseResponse = host.waitForResponse(response => new URL(response.url()).pathname === '/research' && response.request().method() === 'POST');
-  await host.locator(`[data-research-recipe="${researchRecipe.id}"]`).tap();
-  const purchase = await purchaseResponse, researched = await purchase.json();
-  assert.equal(purchase.status(), 200); assert.equal(researched.ok, true);
-  assert.ok(researched.profile.unlockedRecipes.includes(researchRecipe.id));
-  assert.equal(researched.profile.researchCredits, researchFunds.researchCredits - researchRecipe.researchCost);
-  await closeDialog(host, 'research-dialog');
-  await host.reload(); await host.locator('#home-play:enabled').waitFor();
-  assert.equal((await profile(host)).id, initialProfile.id);
-  assert.equal((await profile(host)).researchCredits, researched.profile.researchCredits);
-  assert.ok((await profile(host)).unlockedRecipes.includes(researchRecipe.id));
-  pass('research UI spends persistent credits and keeps the unlocked recipe after reload');
-
-  // Generate a legitimate core result in a separate fixture game to prepare the
-  // late-planet menu; this intentionally does not claim a full 28-minute run.
-  const stageTwo = createGame({ playerIds: ['fixture'], seed: 7, battlefieldId: 2, practice: false });
+  // Current six-element recipes unlock on stage clears; credits are retained.
+  // The fixture skips the long run, but victory and contribution come from core attacks.
+  const stageTwo = createGame({ playerIds: ['fixture'], seed: 7, battlefieldId: 2, mode: 'solo', practice: false });
   const stageTwoResult = finishPlayer(stageTwo, 'fixture');
   store.recordResult(initialProfile.id, 'qa-stage-two-fixture', stageTwoResult);
+  await host.reload(); await host.locator('#home-play:enabled').waitFor();
+  const unlocked = await profile(host);
+  assert.ok(unlocked.unlockedRecipes.includes(unlockRecipe.id));
+  assert.equal(unlocked.researchCredits, paidProfile.researchCredits + stageTwoResult.researchCredits);
+  await host.locator('#research-btn').tap();
+  assert.equal(await host.locator('[data-research-recipe]:enabled').count(), 0, 'chapter-one recipes are not sold for credits');
+  assert.match(await host.locator('#research-list').innerText(), /해금 완료/);
+  await closeDialog(host, 'research-dialog');
+  pass('stage-two clear unlocks its recipe automatically without spending accumulated credits');
+
   const persisted = store.getProfile(initialProfile.id), port = server.address().port;
   console.log('CHECK restarting the isolated server with live browser clients');
   await shutdown(); rooms.length = 0;
@@ -346,13 +336,13 @@ try {
   assert.deepEqual(restored.clearedBattlefields, persisted.clearedBattlefields);
   await selectBattlefield(host, 3);
   assert.equal(await host.locator('#quick-start').isEnabled(), true, 'cleared prerequisites permit starting planet three');
-  assert.match(await host.locator('#expedition-duration').textContent(), /30:06/);
+  assert.match(await host.locator('#expedition-duration').textContent(), /8:30/);
   await start(host);
   const long = await snapshot(host);
-  assert.equal(long.state.battlefieldId, 3);
-  assert.equal((long.state.rules.waveTicks * long.state.rules.totalWaves + long.state.rules.bossTicks) / long.state.rules.ticksPerSecond, 1806);
-  assert.ok(long.player.unlockedRecipes.includes(researchRecipe.id));
-  await compact(host, 'thirty-minute planet also starts with collapsed mobile controls');
+  assert.equal(long.state.battlefieldId, 3); assert.equal(long.state.mode, 'solo');
+  assert.equal((long.state.rules.waveTicks * long.state.rules.totalWaves + long.state.rules.bossTicks) / long.state.rules.ticksPerSecond, 510);
+  assert.ok(long.player.unlockedRecipes.includes(unlockRecipe.id));
+  await compact(host, 'later solo stage starts with collapsed mobile controls');
   await screenshot(host, 'long-planet-mobile');
   for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 375 }]) {
     await host.setViewportSize(viewport);
@@ -360,19 +350,19 @@ try {
     await screenshot(host, `long-planet-${viewport.width}x${viewport.height}`);
   }
   await host.setViewportSize({ width: 390, height: 844 });
-  pass('profile survives a real server/store restart and selects the thirty-minute planet', { configuredSeconds: 1806, stageTwoFixture: true });
+  pass('profile survives a real server/store restart and selects the later solo stage', { configuredSeconds: 510, stageTwoFixture: true });
 
   const evolvedRoom = roomFor(hostId), owner = evolvedRoom.game.players.find(player => player.id === hostId);
-  give(evolvedRoom.game, owner, researchRecipe.ingredients);
+  give(evolvedRoom.game, owner, unlockRecipe.ingredients);
   const materialIds = owner.units.map(unit => unit.id);
   await host.locator('#army-tab').tap();
   await host.locator(`[data-unit-id="${materialIds[0]}"]`).waitFor();
   await host.locator(`[data-unit-id="${materialIds[0]}"]`).tap();
   await host.locator('#unit-dialog[open]').waitFor();
-  await host.locator(`[data-evolve-recipe="${researchRecipe.id}"]:enabled`).waitFor();
+  await host.locator(`[data-evolve-recipe="${unlockRecipe.id}"]:enabled`).waitFor();
   for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 667, height: 375 }]) {
     await host.setViewportSize(viewport);
-    await usableDialog(host, 'unit-dialog', [`[data-evolve-recipe="${researchRecipe.id}"]`, '#unit-manage', '[data-close="unit-dialog"]'],
+    await usableDialog(host, 'unit-dialog', [`[data-evolve-recipe="${unlockRecipe.id}"]`, '#unit-manage', '[data-close="unit-dialog"]'],
       `researched-evolution-${viewport.width}x${viewport.height}`);
   }
   await host.setViewportSize({ width: 390, height: 844 });
@@ -382,13 +372,13 @@ try {
   assert.equal((await snapshot(host)).player.lastSeq, beforeInspection.player.lastSeq, 'opening robot management spends no resources');
   await closeUnitInspection(host);
   assert.equal(await host.locator('#unit-dialog').isVisible(), true);
-  const combined = await action(host, `[data-evolve-recipe="${researchRecipe.id}"]`);
+  const combined = await action(host, `[data-evolve-recipe="${unlockRecipe.id}"]`);
   const combinedPlayer = combined.result.state.players.find(player => player.id === hostId);
   assert.deepEqual([...combined.packet.unitIds].sort((a, b) => a - b), [...materialIds].sort((a, b) => a - b));
   assert.equal(combinedPlayer.units.length, 1);
-  assert.equal(combinedPlayer.units[0].definitionId, researchRecipe.result);
+  assert.equal(combinedPlayer.units[0].definitionId, unlockRecipe.result);
   assert.ok(!materialIds.includes(combinedPlayer.units[0].id));
-  pass('researched recipe evolves through the UI using exactly the authoritative owned materials', { recipeId: researchRecipe.id, materialFixture: true });
+  pass('clear-unlocked recipe evolves through the UI using exactly the authoritative owned materials', { recipeId: unlockRecipe.id, materialFixture: true });
 
   const practice = await newPage(); await start(practice, '6');
   const practiceId = (await identity(practice)).playerId, practiceRoom = roomFor(practiceId);

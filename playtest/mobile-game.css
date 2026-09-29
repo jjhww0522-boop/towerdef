@@ -1,4 +1,4 @@
-﻿/* Three game screens, with controls floating inside the battlefield. */
+/* Three game screens, with controls floating inside the battlefield. */
 @font-face{font-family:Pretendard;src:url('/assets/fonts/PretendardVariable.woff2') format('woff2');font-weight:45 920;font-style:normal;font-display:swap}
 @font-face{font-family:'Do Hyeon';src:url('/assets/fonts/DoHyeon-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
 :root{font-family:Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;--muted:#b1c1c4;--ink:#eef1e6}
@@ -220,18 +220,51 @@ body.reduce-motion .crew-robot .pose-idle{opacity:1}body.reduce-motion .crew-rob
 #game[data-tutorial=true] .combat-alert{display:none}
 body:has(#game[data-tutorial=true]:not([hidden])) #unit-inspection-dialog .unit-management{margin-bottom:12px}
 body:has(#game[data-tutorial=true]:not([hidden])) #sell-unit,body:has(#game[data-tutorial=true]:not([hidden])) #confirm-sale{outline:2px solid #f5ce85;outline-offset:2px}
-@media(max-height:500px){.tutorial-guide{top:8px;right:auto;width:43%;padding:8px;grid-template-columns:1fr;gap:4px}#tutorial-mascot,.tutorial-copy small{display:none}.tutorial-copy strong{font-size:22px}.tutorial-copy p{margin-top:4px}#tutorial-next{font-size:16px;grid-column:1}#game[data-tutorial=true] .boss-hud{top:30px;left:auto;right:12px;width:215px}#game[data-tutorial=true] .unit-dialog{left:auto;right:12px;width:49%;max-height:55dvh}#game[data-tutorial=true] .unit-dialog[open]{display:block}#game[data-tutorial=true] .unit-dialog .dialog-heading{display:flex}#game[data-tutorial=true] .unit-dialog #evolution-panel{height:auto}}
+@media(max-height:500px){.tutorial-guide{top:8px;right:auto;width:43%;padding:8px;grid-template-columns:1fr;gap:4px}#tutorial-mascot,.tutorial-copy small{display:none}.tutorial-copy strong{font-size:22px}.tutorial-copy p{margin-top:4px}#tutorial-next{font-size:16px;grid-column:1}#game[data-tutorial=true] .boss-hud{top:30px;left:auto;right:12px;width:215px}#game[data-tutorial=true] .unit-dialog{left:auto;right:12px;--inspector-width:49%;width:var(--inspector-width);max-height:30dvh}#game[data-tutorial=true] .unit-dialog[open]{display:block}#game[data-tutorial=true] .unit-dialog .dialog-heading{display:flex}#game[data-tutorial=true] .unit-dialog #evolution-panel{height:auto}}
 @media(prefers-reduced-motion:reduce){.field-summon::after{transition:none}}body.reduce-motion .field-summon::after{transition:none}
 #tutorial-rule{grid-column:1/-1;font-size:14px;color:#b6cdc5;text-align:center}
 #game[data-tutorial=true] .arena-panel>.panel-heading{display:none}
-@media(max-height:500px){#tutorial-rule{font-size:13px}#game[data-tutorial=false] .unit-dialog[open]{grid-template-columns:150px minmax(0,1fr)}}
+@media(max-height:500px){#tutorial-rule{font-size:13px}#game[data-tutorial=false] .unit-dialog[open]{grid-template-columns:180px minmax(0,1fr)}}
 
 /* Selling is a direct robot action; only the confirmation can spend the robot. */
 .canvas-wrap>.unit-dialog #sell-unit{min-width:44px;min-height:44px;padding:4px 8px;flex:none;font-size:16px;color:#ffd8bf;border-color:#9e765e;background:#443632}
 @media(max-height:500px){.canvas-wrap>.unit-dialog .dialog-heading #sell-unit{grid-column:1;grid-row:2;justify-self:start}.canvas-wrap>.unit-dialog .dialog-heading #unit-manage{grid-column:2;grid-row:2;justify-self:end}}
 
-/* A stable inspector dock: selecting another robot changes content, never position. */
+/* Fixed-size inspector; selection changes may place it clear of the robot. */
 .toast{pointer-events:none}
-.canvas-wrap>.unit-dialog{inset:auto max(12px,env(safe-area-inset-right)) calc(196px + env(safe-area-inset-bottom)) auto;width:min(400px,calc(100% - 24px));height:min(230px,30dvh);max-height:30dvh}
+.canvas-wrap>.unit-dialog{inset:auto max(12px,env(safe-area-inset-right)) calc(196px + env(safe-area-inset-bottom)) auto;--inspector-width:min(400px,calc(100% - 24px));--inspector-height:min(230px,30dvh);width:var(--inspector-width);height:var(--inspector-height);max-height:30dvh}
 #game[data-tutorial=true] .unit-dialog{bottom:calc(94px + env(safe-area-inset-bottom))}
-@media(max-height:500px){.canvas-wrap>.unit-dialog{inset:auto auto calc(78px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));width:min(480px,calc(100% - 168px));height:min(140px,36dvh);max-height:36dvh}#game[data-tutorial=true] .unit-dialog{bottom:calc(78px + env(safe-area-inset-bottom))}}
+@media(max-height:500px){.canvas-wrap>.unit-dialog{inset:auto auto calc(78px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));--inspector-width:min(480px,calc(100% - 168px));--inspector-height:min(140px,30dvh);width:var(--inspector-width);height:var(--inspector-height);max-height:30dvh}#game[data-tutorial=true] .unit-dialog{bottom:calc(78px + env(safe-area-inset-bottom))}}
+
+/* Explicit expedition modes and an inventory-backed assembly entry. */
+#home-coop{min-height:52px;font-size:20px;border-color:#87b7c4;background:#284b5a;color:#e9f5ed}
+#stage-mode-description{display:block;font-size:13px;color:#c0d3d7;margin-top:4px}
+#stage-join{min-height:44px;font-size:16px}
+#recipes-tab{min-width:100px;max-width:124px;gap:0;padding:5px 6px}
+#recipes-tab .control-icon{display:none}
+#recipes-tab .assembly-entry-label{font-size:16px;white-space:nowrap}
+#recipes-tab #ready-count{position:static;display:inline;padding:0;background:none;color:inherit;font-size:17px}
+#assembly-progress{display:block;max-width:100%;font-size:12px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#b7d8cd}
+#game[data-mode=solo] .side-column{display:none}
+@media(max-height:500px){#home-coop{min-height:44px}#recipes-tab{min-width:98px}#recipes-tab .assembly-entry-label{font-size:13px}}
+.stage-heading>div{min-width:0}
+#stage-mode-description{white-space:normal;line-height:1.3}
+@media(min-height:501px){.stage-screen{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:380px){.command-toolbar .tabs #army-tab,.command-toolbar .tabs #upgrades-tab{min-width:44px;width:44px}#recipes-tab{min-width:96px;width:96px}}
+@media(max-height:500px){.home-brand .home-tagline{display:none}.home-brand h1{font-size:32px;line-height:1.1;margin:4px 0}.home-brand h1 br{display:none}.home-brand h1 span{margin-right:6px}.home-brand{padding-top:0}}/* Reading overlays keep their footprint; long details scroll inside them. */
+@media(max-height:500px){
+ .canvas-wrap>.unit-dialog{max-height:30dvh}
+ .canvas-wrap>.unit-dialog .dialog-heading{min-height:0}
+ .canvas-wrap>.unit-dialog #evolution-panel{min-height:0;max-height:100%;overflow:auto}
+ #game[data-tutorial=true] .unit-dialog[open]{display:flex;flex-direction:column}
+ #game[data-tutorial=true] .unit-dialog .dialog-heading{flex:none}
+ #game[data-tutorial=true] .unit-dialog #evolution-panel{flex:1 1 auto;min-height:0;height:auto}
+}/* Direct robot-selection steps leave the board clear below the guide. */
+@media(max-width:600px) and (min-height:501px){
+ .tutorial-guide:is([data-step="inspect"],[data-step="sell"],[data-step="combine"]){grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px}
+ .tutorial-guide:is([data-step="inspect"],[data-step="sell"],[data-step="combine"]) #tutorial-mascot,
+ .tutorial-guide:is([data-step="inspect"],[data-step="sell"],[data-step="combine"]) .tutorial-copy small{display:none}
+ .tutorial-guide:is([data-step="inspect"],[data-step="sell"],[data-step="combine"]) .tutorial-copy strong{font-size:20px}
+ .tutorial-guide:is([data-step="inspect"],[data-step="sell"],[data-step="combine"]) .tutorial-copy p{font-size:14px;line-height:1.3;margin-top:4px}
+ .tutorial-guide:is([data-step="inspect"],[data-step="sell"],[data-step="combine"]) #tutorial-next{grid-column:2;grid-row:1;max-width:128px;padding:6px 10px;font-size:14px}
+}

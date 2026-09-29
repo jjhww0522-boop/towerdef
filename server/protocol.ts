@@ -21,6 +21,7 @@ export function publicState(game: GameState): object {
   return {
     protocolVersion: game.protocolVersion,
     contentVersion: game.contentVersion,
+    mode: game.mode,
     tick: game.tick,
     wave: game.wave,
     status: game.status,

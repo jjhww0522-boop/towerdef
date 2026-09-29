@@ -127,6 +127,7 @@ namespace TowerDef
     public sealed class GameState
     {
         public string protocolVersion, contentVersion, status, expeditionId;
+        public string mode = "coop";
         public int tick, wave, battlefieldId;
         public int? bossRemainingTicks;
         public bool practice, combatPaused;
@@ -344,6 +345,7 @@ namespace TowerDef
     public sealed class SessionRequest
     {
         public string roomId, playerId, profileToken, protocolVersion = "1", contentVersion, expectedServerInstanceId;
+        public string mode = "coop";
         public int battlefieldId = 1, speed = 1;
         public bool practice, tutorial;
     }

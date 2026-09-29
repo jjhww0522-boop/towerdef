@@ -26,7 +26,10 @@
     "simulate:field-mods": "npm run build && node tools/field-mods-audit.mjs",
     "test:mobile-contract": "npm run build && node tools/check-mobile-contract.mjs",
     "mobile:preflight": "node tools/mobile-preflight.mjs",
-    "assets:mobile": "node tools/export-mobile-art.mjs"
+    "assets:mobile": "node tools/export-mobile-art.mjs",
+    "test:ord-mode": "npm run build && node tools/ord-mode-browser-check.mjs",
+    "test:ord-field": "node tools/ord-field-browser-check.mjs",
+    "simulate:ord": "npm run build && node tools/ord-adaptation-audit.mjs"
   },
   "devDependencies": {
     "agent-browser": "0.38.1",

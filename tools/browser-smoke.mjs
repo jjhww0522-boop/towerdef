@@ -38,7 +38,7 @@ try {
   await page.screenshot({ path: 'artifacts/start-screen.png', fullPage: true });
   check('start screen renders');
   await selectDestination(page);
-  await selectRunSpeed(page, '6');
+  await selectRunSpeed(page, '1');
   await page.click('#quick-start');
   await page.locator('#summon-btn').waitFor({ state: 'visible' });
   await page.locator('#summon-btn').click();
@@ -80,6 +80,12 @@ try {
   check('390px layout has no horizontal overflow');
   await page.setViewportSize({ width: 1440, height: 1000 });
 
+  await page.locator('#battle-settings-btn').click();
+  await page.locator('#settings-feedback').click();
+  await page.locator('#feedback-form').waitFor({ state: 'visible' });
+  check('feedback form is available without external transmission');
+  await page.locator('[data-close="feedback-dialog"]').click();
+
   // Real HTTP sessions in separate browser contexts; these are automated clients, not people.
   const roomId = 'qa-' + Date.now().toString(36);
   const peers = [];
@@ -88,9 +94,8 @@ try {
     const peer = await peerContext.newPage();
     peer.on('pageerror', error => errors.push(error.message));
     await peer.goto(base);
-    await selectDestination(peer);
-    await peer.locator('#planet-picker').click();
-    await peer.locator('#join-open').click();
+    await selectDestination(peer, { mode: 'coop' });
+    await peer.locator('#stage-join').click();
     await peer.fill('#room-input', roomId);
     await peer.locator('#join-form button[type="submit"]').click();
     await peer.locator('#summon-btn').waitFor({ state: 'visible' });
@@ -105,10 +110,6 @@ try {
   assert.ok(peerStates.every(({ state }) => state.players.length === 4));
   check('four independent browser contexts join one room and summon');
 
-  await page.locator('#battle-settings-btn').click();
-  await page.locator('#settings-feedback').click();
-  await page.locator('#feedback-form').waitFor({ state: 'visible' });
-  check('feedback form is available without external transmission');
   assert.deepEqual(errors, []);
   check('no uncaught browser exceptions');
 } finally {

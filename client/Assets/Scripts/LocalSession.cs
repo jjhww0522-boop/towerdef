@@ -158,14 +158,14 @@ namespace TowerDef
             yield return Request<ProfileResponse>("/profile", null, saved.profileToken, r => Profile = r.profile);
         }
 
-        public void StartExpedition(int battlefieldId, bool tutorial, string room = null)
+        public void StartExpedition(int battlefieldId, bool tutorial, string room = null, string mode = "solo")
         {
             if (Busy || !Ready || HasSavedSession || ledger.Pending != null)
                 return;
-            StartCoroutine(Join(battlefieldId, tutorial, room ?? ("mobile-" + Guid.NewGuid().ToString("N").Substring(0, 12))));
+            StartCoroutine(Join(battlefieldId, tutorial, room ?? ("mobile-" + Guid.NewGuid().ToString("N").Substring(0, 12)), tutorial ? "solo" : mode));
         }
 
-        IEnumerator Join(int battlefieldId, bool tutorial, string room)
+        IEnumerator Join(int battlefieldId, bool tutorial, string room, string mode)
         {
             Busy = true;
             Notice = "원정 참가를 확인합니다…";
@@ -180,8 +180,10 @@ namespace TowerDef
                 contentVersion = Content.version,
                 expectedServerInstanceId = Content.serverInstanceId,
                 battlefieldId = battlefieldId,
+                mode = tutorial ? "solo" : mode,
                 tutorial = tutorial
             };
+            if (request.tutorial) request.mode = "solo";
             saved.entry = request;
             if (!Persist())
             {
@@ -233,7 +235,7 @@ namespace TowerDef
                 return;
             if (saved.entry != null)
             {
-                StartCoroutine(Join(saved.entry.battlefieldId, saved.entry.tutorial, saved.entry.roomId));
+                StartCoroutine(Join(saved.entry.battlefieldId, saved.entry.tutorial, saved.entry.roomId, saved.entry.mode));
                 return;
             }
 
